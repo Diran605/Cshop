@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\SalesReceiptPrintController;
 use App\Livewire\ProductsIndex;
 use App\Livewire\ReportsIndex;
 use App\Livewire\SalesIndex;
@@ -35,6 +36,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/stock-in', StockInIndex::class)->name('stock_in.index');
 
     Route::get('/sales', SalesIndex::class)->name('sales.index');
+    Route::get('/sales/{sale}/print', SalesReceiptPrintController::class)->name('sales.print');
     Route::get('/reports', ReportsIndex::class)->name('reports.index');
 });
 

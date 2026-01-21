@@ -9,6 +9,7 @@ use App\Models\SalesItem;
 use App\Models\SalesReceipt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Livewire\Component;
 
 class SalesIndex extends Component
@@ -49,6 +50,8 @@ class SalesIndex extends Component
 
     public function addProduct(): void
     {
+        $this->resetErrorBag('cart');
+
         if ($this->branch_id <= 0 || $this->product_id <= 0) {
             return;
         }
@@ -73,6 +76,8 @@ class SalesIndex extends Component
 
     public function incrementItem(int $productId): void
     {
+        $this->resetErrorBag('cart');
+
         if (! isset($this->cart[$productId])) {
             return;
         }
@@ -82,6 +87,8 @@ class SalesIndex extends Component
 
     public function decrementItem(int $productId): void
     {
+        $this->resetErrorBag('cart');
+
         if (! isset($this->cart[$productId])) {
             return;
         }
@@ -100,15 +107,35 @@ class SalesIndex extends Component
         unset($this->cart[$productId]);
     }
 
+    public function setQuantity(int $productId, mixed $quantity): void
+    {
+        $this->resetErrorBag('cart');
+
+        if (! isset($this->cart[$productId])) {
+            return;
+        }
+
+        $qty = (int) $quantity;
+        if ($qty <= 0) {
+            unset($this->cart[$productId]);
+            return;
+        }
+
+        $this->cart[$productId]['quantity'] = $qty;
+    }
+
     public function clearCart(): void
     {
         $this->cart = [];
         $this->amount_paid = null;
         $this->notes = null;
+        $this->resetErrorBag('cart');
     }
 
     public function finalizeSale(): void
     {
+        $this->resetErrorBag('cart');
+
         $data = $this->validate();
 
         if ($this->branch_id <= 0 || count($this->cart) === 0) {
@@ -131,65 +158,72 @@ class SalesIndex extends Component
             return;
         }
 
-        $saleId = DB::transaction(function () use ($cartItems, $data, $subTotal, $grandTotal, $amountPaid, $changeDue) {
-            foreach ($cartItems as $item) {
-                $stock = ProductStock::query()
-                    ->where('branch_id', (int) $data['branch_id'])
-                    ->where('product_id', (int) $item['product_id'])
-                    ->lockForUpdate()
-                    ->first();
+        try {
+            $saleId = DB::transaction(function () use ($cartItems, $data, $subTotal, $grandTotal, $amountPaid, $changeDue) {
+                foreach ($cartItems as $item) {
+                    $stock = ProductStock::query()
+                        ->where('branch_id', (int) $data['branch_id'])
+                        ->where('product_id', (int) $item['product_id'])
+                        ->lockForUpdate()
+                        ->first();
 
-                $available = (int) ($stock?->current_stock ?? 0);
-                if ($available < (int) $item['quantity']) {
-                    throw new \RuntimeException('Insufficient stock for ' . $item['name'] . '. Available: ' . $available);
+                    $available = (int) ($stock?->current_stock ?? 0);
+                    if ($available < (int) $item['quantity']) {
+                        throw ValidationException::withMessages([
+                            'cart' => 'Insufficient stock for ' . $item['name'] . '. Available: ' . $available . ', Requested: ' . (int) $item['quantity'] . '.',
+                        ]);
+                    }
                 }
-            }
 
-            $receipt = SalesReceipt::query()->create([
-                'receipt_no' => 'SL-' . strtoupper(Str::random(10)),
-                'branch_id' => (int) $data['branch_id'],
-                'user_id' => auth()->id(),
-                'sold_at' => now(),
-                'payment_method' => $data['payment_method'],
-                'sub_total' => (string) $subTotal,
-                'discount_total' => '0.00',
-                'grand_total' => (string) $grandTotal,
-                'amount_paid' => (string) $amountPaid,
-                'change_due' => (string) $changeDue,
-                'notes' => $data['notes'] ?? null,
-            ]);
+                $receipt = SalesReceipt::query()->create([
+                    'receipt_no' => 'SL-' . strtoupper(Str::random(10)),
+                    'branch_id' => (int) $data['branch_id'],
+                    'user_id' => auth()->id(),
+                    'sold_at' => now(),
+                    'payment_method' => $data['payment_method'],
+                    'sub_total' => (string) $subTotal,
+                    'discount_total' => '0.00',
+                    'grand_total' => (string) $grandTotal,
+                    'amount_paid' => (string) $amountPaid,
+                    'change_due' => (string) $changeDue,
+                    'notes' => $data['notes'] ?? null,
+                ]);
 
-            foreach ($cartItems as $item) {
-                $stock = ProductStock::query()
-                    ->where('branch_id', (int) $data['branch_id'])
-                    ->where('product_id', (int) $item['product_id'])
-                    ->lockForUpdate()
-                    ->first();
+                foreach ($cartItems as $item) {
+                    $stock = ProductStock::query()
+                        ->where('branch_id', (int) $data['branch_id'])
+                        ->where('product_id', (int) $item['product_id'])
+                        ->lockForUpdate()
+                        ->first();
 
-                if (! $stock) {
-                    $stock = ProductStock::query()->create([
-                        'branch_id' => (int) $data['branch_id'],
+                    if (! $stock) {
+                        $stock = ProductStock::query()->create([
+                            'branch_id' => (int) $data['branch_id'],
+                            'product_id' => (int) $item['product_id'],
+                            'current_stock' => 0,
+                            'minimum_stock' => 0,
+                            'cost_price' => null,
+                        ]);
+                    }
+
+                    $stock->current_stock = (int) $stock->current_stock - (int) $item['quantity'];
+                    $stock->save();
+
+                    SalesItem::query()->create([
+                        'sales_receipt_id' => $receipt->id,
                         'product_id' => (int) $item['product_id'],
-                        'current_stock' => 0,
-                        'minimum_stock' => 0,
-                        'cost_price' => null,
+                        'quantity' => (int) $item['quantity'],
+                        'unit_price' => (string) $item['unit_price'],
+                        'line_total' => (string) ((float) $item['unit_price'] * (int) $item['quantity']),
                     ]);
                 }
 
-                $stock->current_stock = (int) $stock->current_stock - (int) $item['quantity'];
-                $stock->save();
-
-                SalesItem::query()->create([
-                    'sales_receipt_id' => $receipt->id,
-                    'product_id' => (int) $item['product_id'],
-                    'quantity' => (int) $item['quantity'],
-                    'unit_price' => (string) $item['unit_price'],
-                    'line_total' => (string) ((float) $item['unit_price'] * (int) $item['quantity']),
-                ]);
-            }
-
-            return (int) $receipt->id;
-        });
+                return (int) $receipt->id;
+            });
+        } catch (ValidationException $e) {
+            $this->setErrorBag($e->validator->getMessageBag());
+            return;
+        }
 
         $this->clearCart();
         $this->selected_sale_id = (int) $saleId;
@@ -204,6 +238,7 @@ class SalesIndex extends Component
     public function render()
     {
         $branches = Branch::query()->where('is_active', true)->orderBy('name')->get();
+
         $products = Product::query()->where('status', 'active')->orderBy('name')->get();
 
         $stockMap = ProductStock::query()

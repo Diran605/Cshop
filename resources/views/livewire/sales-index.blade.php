@@ -93,6 +93,10 @@
                                     {{ __('Finalize Sale') }}
                                 </button>
                             </div>
+
+                            @error('cart')
+                                <div class="rounded-md bg-red-50 p-4 text-sm text-red-800">{{ $message }}</div>
+                            @enderror
                         </div>
                     </div>
                 </div>
@@ -134,7 +138,7 @@
                                             <td class="px-4 py-3 text-sm text-gray-700">
                                                 <div class="inline-flex items-center gap-2">
                                                     <button type="button" wire:click="decrementItem({{ $item['product_id'] }})" class="px-2 py-1 border border-gray-300 rounded">-</button>
-                                                    <div class="w-10 text-center">{{ $item['quantity'] }}</div>
+                                                    <input type="number" min="1" class="w-20 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" value="{{ $item['quantity'] }}" wire:change="setQuantity({{ $item['product_id'] }}, $event.target.value)" />
                                                     <button type="button" wire:click="incrementItem({{ $item['product_id'] }})" class="px-2 py-1 border border-gray-300 rounded">+</button>
                                                 </div>
                                             </td>
@@ -226,6 +230,12 @@
                                             <div class="mt-2 text-sm text-gray-700">
                                                 {{ __('Payment:') }}
                                                 <span class="font-medium">{{ strtoupper($selectedSale->payment_method) }}</span>
+                                            </div>
+
+                                            <div class="mt-3">
+                                                <a href="{{ route('sales.print', $selectedSale->id) }}" target="_blank" class="text-sm text-indigo-600 hover:text-indigo-900 underline">
+                                                    {{ __('Print Receipt') }}
+                                                </a>
                                             </div>
                                             @if ($selectedSale->notes)
                                                 <div class="mt-2 text-sm text-gray-700">{{ $selectedSale->notes }}</div>
