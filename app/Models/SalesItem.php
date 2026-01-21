@@ -13,9 +13,16 @@ class SalesItem extends Model
     protected $fillable = [
         'sales_receipt_id',
         'product_id',
+        'entry_mode',
+        'bulk_quantity',
+        'units_per_bulk',
+        'bulk_type_id',
         'quantity',
         'unit_price',
+        'unit_cost',
         'line_total',
+        'line_cost',
+        'line_profit',
     ];
 
     public function receipt(): BelongsTo

@@ -3,6 +3,8 @@
 namespace App\Livewire;
 
 use App\Models\Branch;
+use App\Models\Category;
+use App\Models\Product;
 use App\Models\ProductStock;
 use App\Models\SalesItem;
 use App\Models\SalesReceipt;
@@ -19,39 +21,95 @@ class ReportsIndex extends Component
     public string $date_to;
     public bool $low_stock_only = false;
 
+    public int $category_id = 0;
+    public int $product_filter_id = 0;
+    public string $sale_mode = 'all';
+
+    public bool $isSuperAdmin = false;
+
     public function mount(): void
     {
-        $this->branch_id = (int) (Branch::query()->where('is_active', true)->orderBy('name')->value('id') ?? 0);
+        $user = auth()->user();
+        $this->isSuperAdmin = (bool) ($user?->role === 'super_admin');
+
+        if (! $this->isSuperAdmin) {
+            $this->branch_id = (int) ($user?->branch_id ?? 0);
+        } else {
+            $this->branch_id = (int) (Branch::query()->where('is_active', true)->orderBy('name')->value('id') ?? 0);
+        }
 
         $today = Carbon::today();
         $this->date_from = $today->copy()->startOfMonth()->toDateString();
         $this->date_to = $today->toDateString();
         $this->low_stock_only = false;
+
+        $this->category_id = 0;
+        $this->product_filter_id = 0;
+        $this->sale_mode = 'all';
     }
 
     public function render()
     {
-        $branches = Branch::query()->where('is_active', true)->orderBy('name')->get();
+        if (! $this->isSuperAdmin) {
+            $this->branch_id = (int) (auth()->user()?->branch_id ?? 0);
+            $branches = Branch::query()
+                ->whereKey($this->branch_id)
+                ->where('is_active', true)
+                ->get();
+        } else {
+            $branches = Branch::query()->where('is_active', true)->orderBy('name')->get();
+        }
 
         $from = Carbon::parse($this->date_from)->startOfDay();
         $to = Carbon::parse($this->date_to)->endOfDay();
 
-        $salesQuery = SalesReceipt::query()
-            ->when($this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
-            ->whereBetween('sold_at', [$from, $to]);
+        $categories = Category::query()->orderBy('name')->get();
+        $productsForFilter = Product::query()->orderBy('name')->get();
 
-        $salesCount = (int) $salesQuery->count();
-        $salesTotal = (float) $salesQuery->sum('grand_total');
+        $salesItemsBase = SalesItem::query()
+            ->join('sales_receipts', 'sales_receipts.id', '=', 'sales_items.sales_receipt_id')
+            ->join('products', 'products.id', '=', 'sales_items.product_id')
+            ->when($this->branch_id > 0, fn ($q) => $q->where('sales_receipts.branch_id', $this->branch_id))
+            ->whereBetween('sales_receipts.sold_at', [$from, $to]);
 
-        $salesByDay = SalesReceipt::query()
-            ->when($this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
-            ->whereBetween('sold_at', [$from, $to])
-            ->groupBy(DB::raw('DATE(sold_at)'))
-            ->orderBy(DB::raw('DATE(sold_at)'))
+        if ($this->category_id > 0) {
+            $salesItemsBase->where('products.category_id', $this->category_id);
+        }
+        if ($this->product_filter_id > 0) {
+            $salesItemsBase->where('sales_items.product_id', $this->product_filter_id);
+        }
+        if ($this->sale_mode === 'unit') {
+            $salesItemsBase->where('sales_items.entry_mode', 'unit');
+        } elseif ($this->sale_mode === 'bulk') {
+            $salesItemsBase->where('sales_items.entry_mode', 'bulk');
+        }
+
+        $summaryRow = (clone $salesItemsBase)
+            ->select([
+                DB::raw('COUNT(DISTINCT sales_items.sales_receipt_id) as sales_count'),
+                DB::raw('SUM(sales_items.line_total) as sales_total'),
+                DB::raw('SUM(sales_items.line_cost) as cogs_total'),
+                DB::raw('SUM(sales_items.line_profit) as profit_total'),
+                DB::raw('SUM(sales_items.quantity) as items_sold'),
+            ])
+            ->first();
+
+        $salesCount = (int) ($summaryRow?->sales_count ?? 0);
+        $salesTotal = (float) ($summaryRow?->sales_total ?? 0);
+        $cogsTotal = (float) ($summaryRow?->cogs_total ?? 0);
+        $profitTotal = (float) ($summaryRow?->profit_total ?? 0);
+        $itemsSold = (int) ($summaryRow?->items_sold ?? 0);
+        $avgTransaction = $salesCount > 0 ? ($salesTotal / $salesCount) : 0.0;
+
+        $salesByDay = (clone $salesItemsBase)
+            ->groupBy(DB::raw('DATE(sales_receipts.sold_at)'))
+            ->orderBy(DB::raw('DATE(sales_receipts.sold_at)'))
             ->get([
-                DB::raw('DATE(sold_at) as day'),
-                DB::raw('COUNT(*) as sales_count'),
-                DB::raw('SUM(grand_total) as sales_total'),
+                DB::raw('DATE(sales_receipts.sold_at) as day'),
+                DB::raw('COUNT(DISTINCT sales_items.sales_receipt_id) as sales_count'),
+                DB::raw('SUM(sales_items.line_total) as sales_total'),
+                DB::raw('SUM(sales_items.line_cost) as cogs_total'),
+                DB::raw('SUM(sales_items.line_profit) as profit_total'),
             ]);
 
         $stockInByDay = StockInReceipt::query()
@@ -65,10 +123,7 @@ class ReportsIndex extends Component
                 DB::raw('SUM(total_cost) as stock_in_cost'),
             ]);
 
-        $salesQtyByDay = SalesItem::query()
-            ->join('sales_receipts', 'sales_receipts.id', '=', 'sales_items.sales_receipt_id')
-            ->when($this->branch_id > 0, fn ($q) => $q->where('sales_receipts.branch_id', $this->branch_id))
-            ->whereBetween('sales_receipts.sold_at', [$from, $to])
+        $salesQtyByDay = (clone $salesItemsBase)
             ->groupBy(DB::raw('DATE(sales_receipts.sold_at)'))
             ->orderBy(DB::raw('DATE(sales_receipts.sold_at)'))
             ->get([
@@ -99,11 +154,7 @@ class ReportsIndex extends Component
         ksort($movementByDay);
         $movementByDay = array_values($movementByDay);
 
-        $topProducts = SalesItem::query()
-            ->join('sales_receipts', 'sales_receipts.id', '=', 'sales_items.sales_receipt_id')
-            ->join('products', 'products.id', '=', 'sales_items.product_id')
-            ->when($this->branch_id > 0, fn ($q) => $q->where('sales_receipts.branch_id', $this->branch_id))
-            ->whereBetween('sales_receipts.sold_at', [$from, $to])
+        $topProducts = (clone $salesItemsBase)
             ->groupBy('sales_items.product_id', 'products.name')
             ->orderByDesc('qty_sold')
             ->limit(10)
@@ -111,6 +162,7 @@ class ReportsIndex extends Component
                 'products.name as product_name',
                 DB::raw('SUM(sales_items.quantity) as qty_sold'),
                 DB::raw('SUM(sales_items.line_total) as amount_sold'),
+                DB::raw('SUM(sales_items.line_profit) as profit_total'),
             ]);
 
         $inventoryQuery = ProductStock::query()
@@ -140,11 +192,7 @@ class ReportsIndex extends Component
             ->get()
             ->keyBy('product_id');
 
-        $soldByProduct = SalesItem::query()
-            ->join('sales_receipts', 'sales_receipts.id', '=', 'sales_items.sales_receipt_id')
-            ->join('products', 'products.id', '=', 'sales_items.product_id')
-            ->when($this->branch_id > 0, fn ($q) => $q->where('sales_receipts.branch_id', $this->branch_id))
-            ->whereBetween('sales_receipts.sold_at', [$from, $to])
+        $soldByProduct = (clone $salesItemsBase)
             ->groupBy('sales_items.product_id', 'products.name')
             ->select([
                 'sales_items.product_id',
@@ -171,13 +219,20 @@ class ReportsIndex extends Component
 
         return view('livewire.reports-index', [
             'branches' => $branches,
+            'categories' => $categories,
+            'productsForFilter' => $productsForFilter,
             'salesCount' => $salesCount,
             'salesTotal' => $salesTotal,
+            'cogsTotal' => $cogsTotal,
+            'profitTotal' => $profitTotal,
+            'itemsSold' => $itemsSold,
+            'avgTransaction' => $avgTransaction,
             'salesByDay' => $salesByDay,
             'movementByDay' => $movementByDay,
             'topProducts' => $topProducts,
             'inventory' => $inventory,
             'movementRows' => $movementRows,
+            'isSuperAdmin' => $this->isSuperAdmin,
         ]);
     }
 }

@@ -1,0 +1,142 @@
+<?php
+
+namespace App\Livewire;
+
+use App\Models\Branch;
+use App\Models\User;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules;
+use Livewire\Component;
+
+class UsersIndex extends Component
+{
+    public int $editingId = 0;
+
+    public string $name = '';
+    public string $email = '';
+    public int $branch_id = 0;
+
+    public ?string $password = null;
+    public ?string $password_confirmation = null;
+
+    public string $search = '';
+
+    protected function rules(): array
+    {
+        $emailRule = Rule::unique('users', 'email');
+        if ($this->editingId > 0) {
+            $emailRule = $emailRule->ignore($this->editingId);
+        }
+
+        return [
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'string', 'lowercase', 'email', 'max:255', $emailRule],
+            'branch_id' => ['required', 'integer', 'exists:branches,id'],
+            'password' => [$this->editingId > 0 ? 'nullable' : 'required', 'confirmed', Rules\Password::defaults()],
+        ];
+    }
+
+    public function resetForm(): void
+    {
+        $this->editingId = 0;
+        $this->name = '';
+        $this->email = '';
+        $this->branch_id = (int) (Branch::query()->where('is_active', true)->orderBy('name')->value('id') ?? 0);
+        $this->password = null;
+        $this->password_confirmation = null;
+        $this->resetErrorBag();
+    }
+
+    public function mount(): void
+    {
+        $this->resetForm();
+    }
+
+    public function edit(int $id): void
+    {
+        $user = User::query()->where('role', 'branch_admin')->findOrFail($id);
+
+        $this->editingId = (int) $user->id;
+        $this->name = (string) $user->name;
+        $this->email = (string) $user->email;
+        $this->branch_id = (int) ($user->branch_id ?? 0);
+        $this->password = null;
+        $this->password_confirmation = null;
+        $this->resetErrorBag();
+    }
+
+    public function save(): void
+    {
+        $data = $this->validate();
+
+        if ($this->editingId > 0) {
+            $payload = [
+                'name' => $data['name'],
+                'email' => $data['email'],
+                'branch_id' => (int) $data['branch_id'],
+                'role' => 'branch_admin',
+            ];
+
+            if ($data['password'] !== null && $data['password'] !== '') {
+                $payload['password'] = Hash::make((string) $data['password']);
+            }
+
+            User::query()->whereKey($this->editingId)->update($payload);
+            session()->flash('status', 'User updated successfully.');
+            $this->resetForm();
+            return;
+        }
+
+        User::query()->create([
+            'name' => $data['name'],
+            'email' => $data['email'],
+            'branch_id' => (int) $data['branch_id'],
+            'role' => 'branch_admin',
+            'password' => Hash::make((string) $data['password']),
+        ]);
+
+        session()->flash('status', 'User created successfully.');
+        $this->resetForm();
+    }
+
+    public function delete(int $id): void
+    {
+        if ((int) auth()->id() === (int) $id) {
+            session()->flash('status', 'You cannot delete your own account.');
+            return;
+        }
+
+        $user = User::query()->where('role', 'branch_admin')->findOrFail($id);
+        $user->delete();
+
+        if ($this->editingId === (int) $id) {
+            $this->resetForm();
+        }
+
+        session()->flash('status', 'User deleted successfully.');
+    }
+
+    public function render()
+    {
+        $branches = Branch::query()->where('is_active', true)->orderBy('name')->get();
+
+        $users = User::query()
+            ->with(['branch'])
+            ->where('role', 'branch_admin')
+            ->when($this->search !== '', function ($q) {
+                $term = '%' . $this->search . '%';
+                $q->where(function ($qq) use ($term) {
+                    $qq->where('name', 'like', $term)
+                        ->orWhere('email', 'like', $term);
+                });
+            })
+            ->orderBy('name')
+            ->get();
+
+        return view('livewire.users-index', [
+            'branches' => $branches,
+            'users' => $users,
+        ]);
+    }
+}

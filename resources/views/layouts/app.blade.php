@@ -34,6 +34,18 @@
                     <div class="pt-2">
                         <div class="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">{{ __('Setup') }}</div>
                         <div class="mt-2 space-y-1">
+                            @if (auth()->user() && auth()->user()->role === 'super_admin')
+                                <a href="{{ route('setup.branches') }}"
+                                    class="block px-3 py-2 rounded-md text-sm font-medium {{ request()->routeIs('setup.branches') ? 'bg-indigo-50 text-indigo-700' : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900' }}">
+                                    {{ __('Branches') }}
+                                </a>
+
+                                <a href="{{ route('users.index') }}"
+                                    class="block px-3 py-2 rounded-md text-sm font-medium {{ request()->routeIs('users.*') ? 'bg-indigo-50 text-indigo-700' : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900' }}">
+                                    {{ __('Users') }}
+                                </a>
+                            @endif
+
                             <a href="{{ route('products.index') }}"
                                 class="block px-3 py-2 rounded-md text-sm font-medium {{ request()->routeIs('products.index') ? 'bg-indigo-50 text-indigo-700' : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900' }}">
                                 {{ __('Products') }}

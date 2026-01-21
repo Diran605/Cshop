@@ -8,15 +8,21 @@
 
         <div class="bg-white shadow-sm sm:rounded-lg">
             <div class="p-6">
-                <div class="grid grid-cols-1 lg:grid-cols-4 gap-4">
+                <div class="grid grid-cols-1 lg:grid-cols-7 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-700">{{ __('Branch') }}</label>
-                        <select wire:model="branch_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                            <option value="0">{{ __('Select...') }}</option>
-                            @foreach ($branches as $branch)
-                                <option value="{{ $branch->id }}">{{ $branch->name }}</option>
-                            @endforeach
-                        </select>
+                        @if ($isSuperAdmin)
+                            <select wire:model="branch_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                <option value="0">{{ __('Select...') }}</option>
+                                @foreach ($branches as $branch)
+                                    <option value="{{ $branch->id }}">{{ $branch->name }}</option>
+                                @endforeach
+                            </select>
+                        @else
+                            <div class="mt-1 rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-700">
+                                {{ $branches->first()?->name ?? '-' }}
+                            </div>
+                        @endif
                     </div>
 
                     <div>
@@ -29,6 +35,35 @@
                         <input type="date" wire:model="date_to" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
                     </div>
 
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">{{ __('Category') }}</label>
+                        <select wire:model="category_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <option value="0">{{ __('All') }}</option>
+                            @foreach ($categories as $cat)
+                                <option value="{{ $cat->id }}">{{ $cat->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">{{ __('Product') }}</label>
+                        <select wire:model="product_filter_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <option value="0">{{ __('All') }}</option>
+                            @foreach ($productsForFilter as $p)
+                                <option value="{{ $p->id }}">{{ $p->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">{{ __('Sale Mode') }}</label>
+                        <select wire:model="sale_mode" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <option value="all">{{ __('All') }}</option>
+                            <option value="unit">{{ __('Units') }}</option>
+                            <option value="bulk">{{ __('Bulk') }}</option>
+                        </select>
+                    </div>
+
                     <div class="flex items-end">
                         <label class="inline-flex items-center">
                             <input type="checkbox" wire:model="low_stock_only" class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" />
@@ -39,7 +74,7 @@
             </div>
         </div>
 
-        <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-6">
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6">
                     <div class="text-sm text-gray-500">{{ __('Sales Count') }}</div>
@@ -53,6 +88,241 @@
                     <div class="text-sm text-gray-500">{{ __('Sales Total') }}</div>
                     <div class="mt-1 text-2xl font-semibold text-gray-900">{{ number_format((float) $salesTotal, 2) }}</div>
                     <div class="mt-2 text-sm text-gray-600">{{ __('Gross revenue (grand total)') }}</div>
+                </div>
+            </div>
+
+            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                <div class="p-6">
+                    <div class="text-sm text-gray-500">{{ __('Items Sold') }}</div>
+                    <div class="mt-1 text-2xl font-semibold text-gray-900">{{ number_format((int) $itemsSold) }}</div>
+                    <div class="mt-2 text-sm text-gray-600">{{ __('Total quantity sold') }}</div>
+                </div>
+            </div>
+
+            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                <div class="p-6">
+                    <div class="text-sm text-gray-500">{{ __('Avg Transaction') }}</div>
+                    <div class="mt-1 text-2xl font-semibold text-gray-900">{{ number_format((float) $avgTransaction, 2) }}</div>
+                    <div class="mt-2 text-sm text-gray-600">{{ __('Sales total / sales count') }}</div>
+                </div>
+            </div>
+
+            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                <div class="p-6">
+                    <div class="text-sm text-gray-500">{{ __('COGS') }}</div>
+                    <div class="mt-1 text-2xl font-semibold text-gray-900">{{ number_format((float) $cogsTotal, 2) }}</div>
+                    <div class="mt-2 text-sm text-gray-600">{{ __('Cost of goods sold') }}</div>
+                </div>
+            </div>
+
+            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                <div class="p-6">
+                    <div class="text-sm text-gray-500">{{ __('Profit') }}</div>
+                    <div class="mt-1 text-2xl font-semibold text-gray-900">{{ number_format((float) $profitTotal, 2) }}</div>
+                    <div class="mt-2 text-sm text-gray-600">{{ __('Gross profit') }}</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-6 bg-white shadow-sm sm:rounded-lg">
+            <div class="p-6">
+                <h3 class="text-lg font-semibold text-gray-900">{{ __('Trends') }}</h3>
+                <div class="mt-1 text-sm text-gray-600">{{ __('Revenue vs COGS vs Profit (by day)') }}</div>
+
+                <div class="mt-4">
+                    <canvas id="salesTrendChart" height="100"></canvas>
+                </div>
+            </div>
+        </div>
+
+        @php
+            $trendLabels = [];
+            $trendRevenue = [];
+            $trendCogs = [];
+            $trendProfit = [];
+            $trendSoldQty = [];
+
+            foreach ($salesByDay as $row) {
+                $trendLabels[] = (string) $row->day;
+                $trendRevenue[] = (float) ($row->sales_total ?? 0);
+                $trendCogs[] = (float) ($row->cogs_total ?? 0);
+                $trendProfit[] = (float) ($row->profit_total ?? 0);
+                $trendSoldQty[] = (int) ($row->sold_qty ?? 0);
+            }
+        @endphp
+
+        @once
+            <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+        @endonce
+
+        <script>
+            (function () {
+                const el = document.getElementById('salesTrendChart');
+                if (!el || !window.Chart) return;
+
+                const labels = @json($trendLabels);
+                const revenue = @json($trendRevenue);
+                const cogs = @json($trendCogs);
+                const profit = @json($trendProfit);
+                const soldQty = @json($trendSoldQty);
+
+                if (el._chart) {
+                    el._chart.destroy();
+                }
+
+                el._chart = new Chart(el, {
+                    type: 'line',
+                    data: {
+                        labels,
+                        datasets: [
+                            {
+                                label: 'Revenue',
+                                data: revenue,
+                                borderColor: '#4F46E5',
+                                backgroundColor: 'rgba(79, 70, 229, 0.12)',
+                                tension: 0.3,
+                                fill: true,
+                            },
+                            {
+                                label: 'COGS',
+                                data: cogs,
+                                borderColor: '#DC2626',
+                                backgroundColor: 'rgba(220, 38, 38, 0.10)',
+                                tension: 0.3,
+                                fill: true,
+                            },
+                            {
+                                label: 'Profit',
+                                data: profit,
+                                borderColor: '#16A34A',
+                                backgroundColor: 'rgba(22, 163, 74, 0.10)',
+                                tension: 0.3,
+                                fill: true,
+                            },
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: { mode: 'index', intersect: false },
+                        plugins: {
+                            legend: { position: 'bottom' },
+                            tooltip: {
+                                callbacks: {
+                                    label: function (ctx) {
+                                        const v = (ctx.parsed.y ?? 0);
+                                        return ctx.dataset.label + ': ' + v.toFixed(2);
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                ticks: {
+                                    callback: function (v) { return Number(v).toFixed(2); }
+                                }
+                            }
+                        }
+                    }
+                });
+
+                const barEl = document.getElementById('salesTrendBarChart');
+                if (barEl) {
+                    if (barEl._chart) {
+                        barEl._chart.destroy();
+                    }
+
+                    barEl._chart = new Chart(barEl, {
+                        type: 'bar',
+                        data: {
+                            labels,
+                            datasets: [
+                                {
+                                    label: 'Revenue',
+                                    data: revenue,
+                                    backgroundColor: 'rgba(79, 70, 229, 0.65)',
+                                },
+                                {
+                                    label: 'COGS',
+                                    data: cogs,
+                                    backgroundColor: 'rgba(220, 38, 38, 0.55)',
+                                },
+                                {
+                                    label: 'Profit',
+                                    data: profit,
+                                    backgroundColor: 'rgba(22, 163, 74, 0.55)',
+                                },
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            interaction: { mode: 'index', intersect: false },
+                            plugins: { legend: { position: 'bottom' } },
+                            scales: {
+                                x: { stacked: false },
+                                y: {
+                                    beginAtZero: true,
+                                    ticks: { callback: function (v) { return Number(v).toFixed(2); } }
+                                }
+                            }
+                        }
+                    });
+                }
+
+                const qtyEl = document.getElementById('salesQtyBarChart');
+                if (qtyEl) {
+                    if (qtyEl._chart) {
+                        qtyEl._chart.destroy();
+                    }
+
+                    qtyEl._chart = new Chart(qtyEl, {
+                        type: 'bar',
+                        data: {
+                            labels,
+                            datasets: [
+                                {
+                                    label: 'Items Sold (Units)',
+                                    data: soldQty,
+                                    backgroundColor: 'rgba(99, 102, 241, 0.35)',
+                                    borderColor: '#4F46E5',
+                                    borderWidth: 1,
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: { legend: { position: 'bottom' } },
+                            scales: {
+                                y: { beginAtZero: true }
+                            }
+                        }
+                    });
+                }
+            })();
+        </script>
+
+        <div class="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="bg-white shadow-sm sm:rounded-lg">
+                <div class="p-6">
+                    <h3 class="text-lg font-semibold text-gray-900">{{ __('Daily Bars') }}</h3>
+                    <div class="mt-1 text-sm text-gray-600">{{ __('Revenue / COGS / Profit (by day)') }}</div>
+
+                    <div class="mt-4" style="height: 320px;">
+                        <canvas id="salesTrendBarChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white shadow-sm sm:rounded-lg">
+                <div class="p-6">
+                    <h3 class="text-lg font-semibold text-gray-900">{{ __('Quantity Bars') }}</h3>
+                    <div class="mt-1 text-sm text-gray-600">{{ __('Items sold per day') }}</div>
+
+                    <div class="mt-4" style="height: 320px;">
+                        <canvas id="salesQtyBarChart"></canvas>
+                    </div>
                 </div>
             </div>
         </div>

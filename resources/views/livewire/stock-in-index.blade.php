@@ -20,13 +20,19 @@
                     <div class="mt-4 space-y-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700">{{ __('Branch') }}</label>
-                            <select wire:model="branch_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                <option value="0">{{ __('Select...') }}</option>
-                                @foreach ($branches as $branch)
-                                    <option value="{{ $branch->id }}">{{ $branch->name }}</option>
-                                @endforeach
-                            </select>
-                            @error('branch_id') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                            @if ($isSuperAdmin)
+                                <select wire:model="branch_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    <option value="0">{{ __('Select...') }}</option>
+                                    @foreach ($branches as $branch)
+                                        <option value="{{ $branch->id }}">{{ $branch->name }}</option>
+                                    @endforeach
+                                </select>
+                                @error('branch_id') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                            @else
+                                <div class="mt-1 rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-700">
+                                    {{ $branches->first()?->name ?? '-' }}
+                                </div>
+                            @endif
                         </div>
 
                         <div>
@@ -40,10 +46,36 @@
                             @error('product_id') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
                         </div>
 
+                        @if ($selectedProduct && (bool) $selectedProduct->bulk_enabled)
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">{{ __('Entry Type') }}</label>
+                                <select wire:model="entry_mode" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    <option value="unit">{{ __('Units') }}</option>
+                                    <option value="bulk">{{ __('Bulk') }}</option>
+                                </select>
+                                @error('entry_mode') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                            </div>
+                        @endif
+
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">{{ __('Quantity') }}</label>
-                            <input type="number" min="1" wire:model.defer="quantity" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
-                            @error('quantity') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                            @if (($selectedProduct && (bool) $selectedProduct->bulk_enabled) && $entry_mode === 'bulk')
+                                <label class="block text-sm font-medium text-gray-700">{{ __('Bulk Quantity') }}</label>
+                                <input type="number" min="1" wire:model.defer="bulk_quantity" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                                <div class="mt-1 text-xs text-gray-500">
+                                    {{ __('Units per bulk:') }}
+                                    <span class="font-medium">
+                                        {{ (int) ($selectedProduct?->bulkType?->units_per_bulk ?? 0) }}
+                                        {{ $selectedProduct?->bulkType?->bulkUnit?->name ? '(' . $selectedProduct->bulkType->bulkUnit->name . ')' : '' }}
+                                    </span>
+                                    {{ __('• Total units:') }}
+                                    <span class="font-medium">{{ (int) $bulk_quantity * (int) ($selectedProduct?->bulkType?->units_per_bulk ?? 0) }}</span>
+                                </div>
+                                @error('bulk_quantity') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                            @else
+                                <label class="block text-sm font-medium text-gray-700">{{ __('Quantity (Units)') }}</label>
+                                <input type="number" min="1" wire:model.defer="quantity" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                                @error('quantity') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                            @endif
                         </div>
 
                         <div>
@@ -203,7 +235,14 @@
                                                         @foreach ($selectedReceipt->items as $item)
                                                             <tr wire:key="receipt-item-{{ $item->id }}">
                                                                 <td class="px-4 py-3 text-sm text-gray-900">{{ $item->product?->name ?? '-' }}</td>
-                                                                <td class="px-4 py-3 text-sm text-gray-700">{{ $item->quantity }}</td>
+                                                                <td class="px-4 py-3 text-sm text-gray-700">
+                                                                    @if ((string) $item->entry_mode === 'bulk')
+                                                                        {{ (int) ($item->bulk_quantity ?? 0) }} {{ __('bulk') }}
+                                                                        <span class="text-xs text-gray-500">({{ (int) $item->quantity }} {{ __('units') }})</span>
+                                                                    @else
+                                                                        {{ (int) $item->quantity }}
+                                                                    @endif
+                                                                </td>
                                                                 <td class="px-4 py-3 text-sm text-gray-700">{{ $item->cost_price !== null ? number_format((float) $item->cost_price, 2) : '-' }}</td>
                                                                 <td class="px-4 py-3 text-sm text-gray-700">{{ $item->line_total !== null ? number_format((float) $item->line_total, 2) : '-' }}</td>
                                                             </tr>

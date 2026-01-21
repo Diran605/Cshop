@@ -20,13 +20,19 @@
                     <div class="mt-4 space-y-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700">{{ __('Branch') }}</label>
-                            <select wire:model="branch_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                <option value="0">{{ __('Select...') }}</option>
-                                @foreach ($branches as $branch)
-                                    <option value="{{ $branch->id }}">{{ $branch->name }}</option>
-                                @endforeach
-                            </select>
-                            @error('branch_id') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                            @if ($isSuperAdmin)
+                                <select wire:model="branch_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    <option value="0">{{ __('Select...') }}</option>
+                                    @foreach ($branches as $branch)
+                                        <option value="{{ $branch->id }}">{{ $branch->name }}</option>
+                                    @endforeach
+                                </select>
+                                @error('branch_id') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                            @else
+                                <div class="mt-1 rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-700">
+                                    {{ $branches->first()?->name ?? '-' }}
+                                </div>
+                            @endif
                         </div>
 
                         <div>
@@ -38,10 +44,44 @@
                                         <option value="{{ $product->id }}">{{ $product->name }}</option>
                                     @endforeach
                                 </select>
-                                <button type="button" wire:click="addProduct" class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md text-sm text-white hover:bg-indigo-700">
-                                    {{ __('Add') }}
-                                </button>
                             </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">{{ __('Entry Type') }}</label>
+                                <select wire:model="entry_mode" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" @if (!($selectedProduct && (bool) $selectedProduct->bulk_enabled)) disabled @endif>
+                                    <option value="unit">{{ __('Units') }}</option>
+                                    @if ($selectedProduct && (bool) $selectedProduct->bulk_enabled)
+                                        <option value="bulk">{{ __('Bulk') }}</option>
+                                    @endif
+                                </select>
+                            </div>
+
+                            <div class="sm:col-span-2">
+                                @if (($selectedProduct && (bool) $selectedProduct->bulk_enabled) && $entry_mode === 'bulk')
+                                    <label class="block text-sm font-medium text-gray-700">{{ __('Bulk Quantity') }}</label>
+                                    <input type="number" min="1" wire:model.defer="bulk_quantity" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                                    <div class="mt-1 text-xs text-gray-500">
+                                        {{ __('Units per bulk:') }}
+                                        <span class="font-medium">
+                                            {{ (int) ($selectedProduct?->bulkType?->units_per_bulk ?? 0) }}
+                                            {{ $selectedProduct?->bulkType?->bulkUnit?->name ? '(' . $selectedProduct->bulkType->bulkUnit->name . ')' : '' }}
+                                        </span>
+                                        {{ __('• Total units:') }}
+                                        <span class="font-medium">{{ (int) $bulk_quantity * (int) ($selectedProduct?->bulkType?->units_per_bulk ?? 0) }}</span>
+                                    </div>
+                                @else
+                                    <label class="block text-sm font-medium text-gray-700">{{ __('Quantity (Units)') }}</label>
+                                    <input type="number" min="1" wire:model.defer="entry_quantity" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                                @endif
+                            </div>
+                        </div>
+
+                        <div class="flex items-center justify-end">
+                            <button type="button" wire:click="addProduct" class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md text-sm text-white hover:bg-indigo-700">
+                                {{ __('Add') }}
+                            </button>
                         </div>
 
                         <div>
@@ -138,9 +178,12 @@
                                             <td class="px-4 py-3 text-sm text-gray-700">
                                                 <div class="inline-flex items-center gap-2">
                                                     <button type="button" wire:click="decrementItem({{ $item['product_id'] }})" class="px-2 py-1 border border-gray-300 rounded">-</button>
-                                                    <input type="number" min="1" class="w-20 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" value="{{ $item['quantity'] }}" wire:change="setQuantity({{ $item['product_id'] }}, $event.target.value)" />
+                                                    <input type="number" min="1" class="w-20 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" value="{{ (string) ($item['entry_mode'] ?? 'unit') === 'bulk' ? (int) ($item['bulk_quantity'] ?? 0) : (int) $item['quantity'] }}" wire:change="setQuantity({{ $item['product_id'] }}, $event.target.value)" />
                                                     <button type="button" wire:click="incrementItem({{ $item['product_id'] }})" class="px-2 py-1 border border-gray-300 rounded">+</button>
                                                 </div>
+                                                @if ((string) ($item['entry_mode'] ?? 'unit') === 'bulk')
+                                                    <div class="mt-1 text-xs text-gray-500">{{ __('Units:') }} {{ (int) $item['quantity'] }}</div>
+                                                @endif
                                             </td>
                                             <td class="px-4 py-3 text-sm text-gray-700">
                                                 {{ number_format((float) $item['unit_price'], 2) }}
@@ -261,7 +304,14 @@
                                                         @foreach ($selectedSale->items as $item)
                                                             <tr wire:key="sale-item-{{ $item->id }}">
                                                                 <td class="px-4 py-3 text-sm text-gray-900">{{ $item->product?->name ?? '-' }}</td>
-                                                                <td class="px-4 py-3 text-sm text-gray-700">{{ $item->quantity }}</td>
+                                                                <td class="px-4 py-3 text-sm text-gray-700">
+                                                                    @if ((string) $item->entry_mode === 'bulk')
+                                                                        {{ (int) ($item->bulk_quantity ?? 0) }} {{ __('bulk') }}
+                                                                        <span class="text-xs text-gray-500">({{ (int) $item->quantity }} {{ __('units') }})</span>
+                                                                    @else
+                                                                        {{ (int) $item->quantity }}
+                                                                    @endif
+                                                                </td>
                                                                 <td class="px-4 py-3 text-sm text-gray-700">{{ number_format((float) $item->unit_price, 2) }}</td>
                                                                 <td class="px-4 py-3 text-sm text-gray-700">{{ number_format((float) $item->line_total, 2) }}</td>
                                                             </tr>
@@ -280,6 +330,14 @@
                                                 <div class="flex items-center justify-between">
                                                     <div>{{ __('Grand Total') }}</div>
                                                     <div class="font-semibold text-gray-900">{{ number_format((float) $selectedSale->grand_total, 2) }}</div>
+                                                </div>
+                                                <div class="flex items-center justify-between">
+                                                    <div>{{ __('COGS') }}</div>
+                                                    <div class="font-medium">{{ number_format((float) $selectedSale->cogs_total, 2) }}</div>
+                                                </div>
+                                                <div class="flex items-center justify-between">
+                                                    <div>{{ __('Profit') }}</div>
+                                                    <div class="font-medium">{{ number_format((float) $selectedSale->profit_total, 2) }}</div>
                                                 </div>
                                                 <div class="flex items-center justify-between">
                                                     <div>{{ __('Paid') }}</div>

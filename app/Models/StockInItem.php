@@ -13,6 +13,10 @@ class StockInItem extends Model
     protected $fillable = [
         'stock_in_receipt_id',
         'product_id',
+        'entry_mode',
+        'bulk_quantity',
+        'units_per_bulk',
+        'bulk_type_id',
         'quantity',
         'cost_price',
         'line_total',

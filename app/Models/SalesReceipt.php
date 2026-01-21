@@ -20,6 +20,8 @@ class SalesReceipt extends Model
         'sub_total',
         'discount_total',
         'grand_total',
+        'cogs_total',
+        'profit_total',
         'amount_paid',
         'change_due',
         'notes',

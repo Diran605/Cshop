@@ -1,9 +1,19 @@
 <x-app-layout>
      <x-slot name="header">
-         <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-             {{ __('Retail Dashboard') }}
-         </h2>
-     </x-slot>
+        <div>
+            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+                {{ __('Retail Dashboard') }}
+            </h2>
+            <div class="mt-1 text-sm text-gray-600">
+                @if (auth()->user() && auth()->user()->role === 'branch_admin')
+                    {{ __('Branch:') }}
+                    <span class="font-medium">{{ auth()->user()->branch?->name ?? '-' }}</span>
+                @elseif (auth()->user() && auth()->user()->role === 'super_admin')
+                    <span class="font-medium">{{ __('Super Admin') }}</span>
+                @endif
+            </div>
+        </div>
+    </x-slot>
 
      <div class="py-12">
          <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">

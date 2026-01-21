@@ -20,6 +20,13 @@ class RegisteredUserController extends Controller
      */
     public function create(): View
     {
+        $user = auth()->user();
+        if ($user && (string) $user->role === 'super_admin') {
+            return view('users.create', [
+                'branches' => Branch::query()->where('is_active', true)->orderBy('name')->get(),
+            ]);
+        }
+
         return view('auth.register');
     }
 
@@ -30,27 +37,46 @@ class RegisteredUserController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
+        $currentUser = $request->user();
+        if ($currentUser && (string) $currentUser->role === 'super_admin') {
+            $request->validate([
+                'name' => ['required', 'string', 'max:255'],
+                'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
+                'branch_id' => ['required', 'integer', 'exists:branches,id'],
+                'password' => ['required', 'confirmed', Rules\Password::defaults()],
+            ]);
+
+            $user = User::create([
+                'name' => $request->name,
+                'email' => $request->email,
+                'password' => Hash::make($request->password),
+                'role' => 'branch_admin',
+                'branch_id' => (int) $request->branch_id,
+            ]);
+
+            event(new Registered($user));
+
+            return redirect()->route('users.index')->with('status', 'User created successfully.');
+        }
+
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
 
-        $isFirstUser = User::query()->count() === 0;
+        Branch::query()->firstOrCreate(
+            ['name' => 'Main Branch'],
+            ['code' => 'MAIN', 'is_active' => true]
+        );
 
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
-            'role' => $isFirstUser ? 'superadmin' : 'staff',
+            'role' => 'super_admin',
+            'branch_id' => null,
         ]);
-
-        $defaultBranch = Branch::query()->firstOrCreate(
-            ['name' => 'Main Branch'],
-            ['code' => 'MAIN', 'is_active' => true]
-        );
-
-        $user->branches()->syncWithoutDetaching([$defaultBranch->id]);
 
         event(new Registered($user));
 

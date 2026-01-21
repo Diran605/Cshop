@@ -61,7 +61,14 @@
                         @foreach ($sale->items as $item)
                             <tr>
                                 <td class="px-4 py-3 text-sm text-gray-900">{{ $item->product?->name ?? '-' }}</td>
-                                <td class="px-4 py-3 text-sm text-gray-700">{{ $item->quantity }}</td>
+                                <td class="px-4 py-3 text-sm text-gray-700">
+                                    @if ((string) $item->entry_mode === 'bulk')
+                                        {{ (int) ($item->bulk_quantity ?? 0) }} {{ __('bulk') }}
+                                        <span class="text-xs text-gray-500">({{ (int) $item->quantity }} {{ __('units') }})</span>
+                                    @else
+                                        {{ (int) $item->quantity }}
+                                    @endif
+                                </td>
                                 <td class="px-4 py-3 text-sm text-gray-700">{{ number_format((float) $item->unit_price, 2) }}</td>
                                 <td class="px-4 py-3 text-sm text-gray-700">{{ number_format((float) $item->line_total, 2) }}</td>
                             </tr>
@@ -74,6 +81,14 @@
                 <div class="flex items-center justify-between">
                     <div class="text-gray-600">{{ __('Grand Total') }}</div>
                     <div class="font-semibold text-gray-900">{{ number_format((float) $sale->grand_total, 2) }}</div>
+                </div>
+                <div class="mt-1 flex items-center justify-between">
+                    <div class="text-gray-600">{{ __('COGS') }}</div>
+                    <div class="font-medium text-gray-900">{{ number_format((float) $sale->cogs_total, 2) }}</div>
+                </div>
+                <div class="mt-1 flex items-center justify-between">
+                    <div class="text-gray-600">{{ __('Profit') }}</div>
+                    <div class="font-medium text-gray-900">{{ number_format((float) $sale->profit_total, 2) }}</div>
                 </div>
                 <div class="mt-1 flex items-center justify-between">
                     <div class="text-gray-600">{{ __('Amount Paid') }}</div>
