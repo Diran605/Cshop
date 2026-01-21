@@ -12,7 +12,7 @@
             </div>
         @endif
 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="space-y-6">
             <div class="bg-white shadow-sm sm:rounded-lg">
                 <div class="p-6">
                     <h3 class="text-lg font-semibold text-gray-900">{{ __('Receive Stock') }}</h3>
@@ -99,7 +99,7 @@
                 </div>
             </div>
 
-            <div class="lg:col-span-2 space-y-6">
+            <div class="space-y-6">
                 <div class="bg-white shadow-sm sm:rounded-lg">
                     <div class="p-6">
                         <div class="flex items-center justify-between">

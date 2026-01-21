@@ -27,10 +27,13 @@ class ReportsIndex extends Component
 
     public bool $isSuperAdmin = false;
 
+    public int $auth_user_id = 0;
+
     public function mount(): void
     {
         $user = auth()->user();
         $this->isSuperAdmin = (bool) ($user?->role === 'super_admin');
+        $this->auth_user_id = (int) ($user?->id ?? 0);
 
         if (! $this->isSuperAdmin) {
             $this->branch_id = (int) ($user?->branch_id ?? 0);
@@ -48,8 +51,30 @@ class ReportsIndex extends Component
         $this->sale_mode = 'all';
     }
 
+    protected function syncAuthContext(): void
+    {
+        $user = auth()->user();
+        $currentUserId = (int) ($user?->id ?? 0);
+
+        if ($currentUserId !== $this->auth_user_id) {
+            $this->auth_user_id = $currentUserId;
+
+            $today = Carbon::today();
+            $this->date_from = $today->copy()->startOfMonth()->toDateString();
+            $this->date_to = $today->toDateString();
+            $this->low_stock_only = false;
+            $this->category_id = 0;
+            $this->product_filter_id = 0;
+            $this->sale_mode = 'all';
+        }
+
+        $this->isSuperAdmin = (bool) ($user?->role === 'super_admin');
+    }
+
     public function render()
     {
+        $this->syncAuthContext();
+
         if (! $this->isSuperAdmin) {
             $this->branch_id = (int) (auth()->user()?->branch_id ?? 0);
             $branches = Branch::query()

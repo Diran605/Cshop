@@ -24,6 +24,8 @@ class SalesIndex extends Component
 
     public bool $isSuperAdmin = false;
 
+    public int $auth_user_id = 0;
+
     /**
      * @var array<int, array{product_id:int,name:string,unit_price:string,quantity:int,entry_mode:string,bulk_quantity:?int,units_per_bulk:?int,bulk_type_id:?int}>
      */
@@ -49,6 +51,7 @@ class SalesIndex extends Component
     {
         $user = auth()->user();
         $this->isSuperAdmin = (bool) ($user?->role === 'super_admin');
+        $this->auth_user_id = (int) ($user?->id ?? 0);
 
         if (! $this->isSuperAdmin) {
             $this->branch_id = (int) ($user?->branch_id ?? 0);
@@ -64,6 +67,25 @@ class SalesIndex extends Component
         $this->amount_paid = null;
         $this->notes = null;
         $this->selected_sale_id = 0;
+    }
+
+    protected function syncAuthContext(): void
+    {
+        $user = auth()->user();
+        $currentUserId = (int) ($user?->id ?? 0);
+
+        if ($currentUserId !== $this->auth_user_id) {
+            $this->auth_user_id = $currentUserId;
+            $this->cart = [];
+            $this->selected_sale_id = 0;
+            $this->amount_paid = null;
+            $this->notes = null;
+            $this->entry_mode = 'unit';
+            $this->entry_quantity = 1;
+            $this->bulk_quantity = 1;
+        }
+
+        $this->isSuperAdmin = (bool) ($user?->role === 'super_admin');
     }
 
     public function updatedProductId(): void
@@ -386,6 +408,8 @@ class SalesIndex extends Component
 
     public function render()
     {
+        $this->syncAuthContext();
+
         if (! $this->isSuperAdmin) {
             $this->branch_id = (int) (auth()->user()?->branch_id ?? 0);
             $branches = Branch::query()

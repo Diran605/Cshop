@@ -69,6 +69,13 @@ class ProductsIndex extends Component
         $this->resetForm();
     }
 
+    public function updatedBulkEnabled(bool $value): void
+    {
+        if (! $value) {
+            $this->bulk_type_id = null;
+        }
+    }
+
     public function delete(int $id): void
     {
         ProductStock::query()->where('product_id', $id)->delete();
@@ -90,6 +97,8 @@ class ProductsIndex extends Component
         ]);
 
         $this->selling_price = '0.00';
+        $this->bulk_enabled = false;
+        $this->bulk_type_id = null;
         $this->status = 'active';
     }
 
