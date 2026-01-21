@@ -5,6 +5,9 @@ namespace App\Livewire;
 use App\Models\Branch;
 use App\Models\Product;
 use App\Models\ProductStock;
+use App\Models\StockInItem;
+use App\Models\StockInReceipt;
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 
@@ -15,6 +18,9 @@ class StockInIndex extends Component
     public int $quantity = 1;
     public ?string $cost_price = null;
 
+    public ?string $notes = null;
+    public int $selected_receipt_id = 0;
+
     protected function rules(): array
     {
         return [
@@ -22,6 +28,7 @@ class StockInIndex extends Component
             'product_id' => ['required', 'integer', 'min:1'],
             'quantity' => ['required', 'integer', 'min:1'],
             'cost_price' => ['nullable', 'numeric', 'min:0'],
+            'notes' => ['nullable', 'string', 'max:1000'],
         ];
     }
 
@@ -31,13 +38,15 @@ class StockInIndex extends Component
         $this->product_id = (int) (Product::query()->orderBy('name')->value('id') ?? 0);
         $this->quantity = 1;
         $this->cost_price = null;
+        $this->notes = null;
+        $this->selected_receipt_id = 0;
     }
 
     public function save(): void
     {
         $data = $this->validate();
 
-        DB::transaction(function () use ($data) {
+        $receiptId = DB::transaction(function () use ($data) {
             $stock = ProductStock::query()->firstOrCreate(
                 ['branch_id' => (int) $data['branch_id'], 'product_id' => (int) $data['product_id']],
                 ['current_stock' => 0, 'minimum_stock' => 0, 'cost_price' => null]
@@ -50,12 +59,44 @@ class StockInIndex extends Component
             }
 
             $stock->save();
+
+            $receipt = StockInReceipt::query()->create([
+                'receipt_no' => 'SI-' . strtoupper(Str::random(10)),
+                'branch_id' => (int) $data['branch_id'],
+                'user_id' => auth()->id(),
+                'received_at' => now(),
+                'notes' => $data['notes'] ?? null,
+                'total_quantity' => (int) $data['quantity'],
+                'total_cost' => ($data['cost_price'] !== null && $data['cost_price'] !== '')
+                    ? (string) ((float) $data['cost_price'] * (int) $data['quantity'])
+                    : null,
+            ]);
+
+            StockInItem::query()->create([
+                'stock_in_receipt_id' => $receipt->id,
+                'product_id' => (int) $data['product_id'],
+                'quantity' => (int) $data['quantity'],
+                'cost_price' => ($data['cost_price'] !== null && $data['cost_price'] !== '') ? $data['cost_price'] : null,
+                'line_total' => ($data['cost_price'] !== null && $data['cost_price'] !== '')
+                    ? (string) ((float) $data['cost_price'] * (int) $data['quantity'])
+                    : null,
+            ]);
+
+            return (int) $receipt->id;
         });
 
-        $this->reset(['quantity', 'cost_price']);
+        $this->reset(['quantity', 'cost_price', 'notes']);
         $this->quantity = 1;
         $this->cost_price = null;
+        $this->notes = null;
+        $this->selected_receipt_id = (int) $receiptId;
+
         session()->flash('status', 'Stock updated successfully.');
+    }
+
+    public function selectReceipt(int $id): void
+    {
+        $this->selected_receipt_id = $id;
     }
 
     public function render()
@@ -71,10 +112,25 @@ class StockInIndex extends Component
             ->select('product_stocks.*')
             ->get();
 
+        $receipts = StockInReceipt::query()
+            ->with(['branch', 'user'])
+            ->orderByDesc('received_at')
+            ->limit(15)
+            ->get();
+
+        $selectedReceipt = null;
+        if ($this->selected_receipt_id > 0) {
+            $selectedReceipt = StockInReceipt::query()
+                ->with(['branch', 'user', 'items.product'])
+                ->find($this->selected_receipt_id);
+        }
+
         return view('livewire.stock-in-index', [
             'branches' => $branches,
             'products' => $products,
             'stocks' => $stocks,
+            'receipts' => $receipts,
+            'selectedReceipt' => $selectedReceipt,
         ]);
     }
 }

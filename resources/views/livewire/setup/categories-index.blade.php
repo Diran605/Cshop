@@ -15,33 +15,33 @@
                         </h3>
                     </div>
 
-                        <div class="mt-4 space-y-4">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700">{{ __('Name') }}</label>
-                                <input type="text" wire:model.defer="name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
-                                @error('name') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
-                            </div>
+                    <div class="mt-4 space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">{{ __('Name') }}</label>
+                            <input type="text" wire:model.defer="name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                            @error('name') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                        </div>
 
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700">{{ __('Description') }}</label>
-                                <textarea wire:model.defer="description" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"></textarea>
-                                @error('description') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
-                            </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">{{ __('Description') }}</label>
+                            <textarea wire:model.defer="description" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"></textarea>
+                            @error('description') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                        </div>
 
-                            <div class="flex items-center justify-end gap-3">
-                                @if ($editingId)
-                                    <button type="button" wire:click="cancelEdit" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md text-sm text-gray-700 bg-white hover:bg-gray-50">
-                                        {{ __('Cancel') }}
-                                    </button>
-                                @endif
-
-                                <button type="button" wire:click="save" class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md text-sm text-white hover:bg-indigo-700">
-                                    {{ $editingId ? __('Save') : __('Create') }}
+                        <div class="flex items-center justify-end gap-3">
+                            @if ($editingId)
+                                <button type="button" wire:click="cancelEdit" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md text-sm text-gray-700 bg-white hover:bg-gray-50">
+                                    {{ __('Cancel') }}
                                 </button>
-                            </div>
+                            @endif
+
+                            <button type="button" wire:click="save" class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md text-sm text-white hover:bg-indigo-700">
+                                {{ $editingId ? __('Save') : __('Create') }}
+                            </button>
                         </div>
                     </div>
                 </div>
+            </div>
 
             <div class="lg:col-span-2 bg-white shadow-sm sm:rounded-lg">
                 <div class="p-6">

@@ -63,6 +63,21 @@
                                 class="block px-3 py-2 rounded-md text-sm font-medium {{ request()->routeIs('stock_in.index') ? 'bg-indigo-50 text-indigo-700' : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900' }}">
                                 {{ __('Stock In') }}
                             </a>
+
+                            <a href="{{ route('sales.index') }}"
+                                class="block px-3 py-2 rounded-md text-sm font-medium {{ request()->routeIs('sales.index') ? 'bg-indigo-50 text-indigo-700' : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900' }}">
+                                {{ __('Sales') }}
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="pt-4">
+                        <div class="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">{{ __('Analytics') }}</div>
+                        <div class="mt-2 space-y-1">
+                            <a href="{{ route('reports.index') }}"
+                                class="block px-3 py-2 rounded-md text-sm font-medium {{ request()->routeIs('reports.index') ? 'bg-indigo-50 text-indigo-700' : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900' }}">
+                                {{ __('Reports') }}
+                            </a>
                         </div>
                     </div>
                 </nav>

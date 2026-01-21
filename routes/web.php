@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\ProfileController;
 use App\Livewire\ProductsIndex;
+use App\Livewire\ReportsIndex;
+use App\Livewire\SalesIndex;
 use App\Livewire\StockInIndex;
 use App\Livewire\Setup\BulkTypesIndex;
 use App\Livewire\Setup\BulkUnitsIndex;
@@ -31,6 +33,9 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/products', ProductsIndex::class)->name('products.index');
     Route::get('/stock-in', StockInIndex::class)->name('stock_in.index');
+
+    Route::get('/sales', SalesIndex::class)->name('sales.index');
+    Route::get('/reports', ReportsIndex::class)->name('reports.index');
 });
 
 require __DIR__.'/auth.php';

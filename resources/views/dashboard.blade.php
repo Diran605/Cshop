@@ -44,19 +44,19 @@
                  </div>
  
                  <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                     <div class="p-6">
+                     <a href="{{ route('sales.index') }}" class="block p-6 hover:bg-gray-50">
                          <div class="text-sm text-gray-500">Operations</div>
                          <div class="mt-1 text-lg font-semibold text-gray-900">Sales</div>
                          <div class="mt-2 text-sm text-gray-600">Process transactions with stock validation.</div>
-                     </div>
+                     </a>
                  </div>
  
                  <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                     <div class="p-6">
+                     <a href="{{ route('reports.index') }}" class="block p-6 hover:bg-gray-50">
                          <div class="text-sm text-gray-500">Analytics</div>
                          <div class="mt-1 text-lg font-semibold text-gray-900">Reports</div>
                          <div class="mt-2 text-sm text-gray-600">View sales, inventory, and movement reports.</div>
-                     </div>
+                     </a>
                  </div>
              </div>
          </div>
