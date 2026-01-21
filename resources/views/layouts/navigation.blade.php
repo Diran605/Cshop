@@ -6,7 +6,9 @@
                 <!-- Logo -->
                 <div class="shrink-0 flex items-center">
                     <a href="{{ route('dashboard') }}">
-                        <x-application-logo class="block h-9 w-auto fill-current text-gray-800" />
+                        <div class="text-lg font-semibold text-gray-900">
+                            {{ config('app.name') }}
+                        </div>
                     </a>
                 </div>
 
@@ -14,6 +16,18 @@
                 <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
                     <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
                         {{ __('Dashboard') }}
+                    </x-nav-link>
+
+                    <x-nav-link :href="route('setup.categories')" :active="request()->routeIs('setup.categories')">
+                        {{ __('Categories') }}
+                    </x-nav-link>
+
+                    <x-nav-link :href="route('setup.bulk_units')" :active="request()->routeIs('setup.bulk_units')">
+                        {{ __('Bulk Units') }}
+                    </x-nav-link>
+
+                    <x-nav-link :href="route('setup.bulk_types')" :active="request()->routeIs('setup.bulk_types')">
+                        {{ __('Bulk Types') }}
                     </x-nav-link>
                 </div>
             </div>
@@ -69,6 +83,18 @@
         <div class="pt-2 pb-3 space-y-1">
             <x-responsive-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
                 {{ __('Dashboard') }}
+            </x-responsive-nav-link>
+
+            <x-responsive-nav-link :href="route('setup.categories')" :active="request()->routeIs('setup.categories')">
+                {{ __('Categories') }}
+            </x-responsive-nav-link>
+
+            <x-responsive-nav-link :href="route('setup.bulk_units')" :active="request()->routeIs('setup.bulk_units')">
+                {{ __('Bulk Units') }}
+            </x-responsive-nav-link>
+
+            <x-responsive-nav-link :href="route('setup.bulk_types')" :active="request()->routeIs('setup.bulk_types')">
+                {{ __('Bulk Types') }}
             </x-responsive-nav-link>
         </div>
 
