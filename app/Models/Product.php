@@ -13,6 +13,7 @@ class Product extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
+        'branch_id',
         'name',
         'description',
         'category_id',
@@ -21,6 +22,11 @@ class Product extends Model
         'bulk_type_id',
         'status',
     ];
+
+    public function branch(): BelongsTo
+    {
+        return $this->belongsTo(Branch::class);
+    }
 
     public function category(): BelongsTo
     {

@@ -13,15 +13,15 @@
         @endif
 
         <div class="space-y-6">
-            <div class="bg-white shadow-sm sm:rounded-lg">
-                <div class="p-6">
-                    <h3 class="text-lg font-semibold text-gray-900">{{ __('Point of Sale') }}</h3>
+            <div class="ui-card">
+                <div class="ui-card-body">
+                    <h3 class="ui-card-title">{{ __('Point of Sale') }}</h3>
 
                     <div class="mt-4 space-y-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700">{{ __('Branch') }}</label>
                             @if ($isSuperAdmin)
-                                <select wire:model="branch_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                <select wire:model.live="branch_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                                     <option value="0">{{ __('Select...') }}</option>
                                     @foreach ($branches as $branch)
                                         <option value="{{ $branch->id }}">{{ $branch->name }}</option>
@@ -37,7 +37,8 @@
 
                         <div>
                             <label class="block text-sm font-medium text-gray-700">{{ __('Product') }}</label>
-                            <div class="mt-1 flex gap-2">
+                            <div class="mt-1 space-y-2">
+                                <input type="text" wire:model.live.debounce.300ms="product_search" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" placeholder="Search product..." />
                                 <select wire:model="product_id" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                                     <option value="0">{{ __('Select...') }}</option>
                                     @foreach ($products as $product)
@@ -79,7 +80,7 @@
                         </div>
 
                         <div class="flex items-center justify-end">
-                            <button type="button" wire:click="addProduct" class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md text-sm text-white hover:bg-indigo-700">
+                            <button type="button" wire:click="addProduct" class="ui-btn-primary">
                                 {{ __('Add') }}
                             </button>
                         </div>
@@ -126,10 +127,10 @@
                             </div>
 
                             <div class="mt-4 flex items-center justify-end gap-3">
-                                <button type="button" wire:click="clearCart" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md text-sm text-gray-700 bg-white hover:bg-gray-50">
+                                <button type="button" wire:click="clearCart" class="ui-btn-secondary">
                                     {{ __('Clear') }}
                                 </button>
-                                <button type="button" wire:click="finalizeSale" class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md text-sm text-white hover:bg-indigo-700">
+                                <button type="button" wire:click="finalizeSale" class="ui-btn-primary">
                                     {{ __('Finalize Sale') }}
                                 </button>
                             </div>
@@ -143,10 +144,10 @@
             </div>
 
             <div class="space-y-6">
-                <div class="bg-white shadow-sm sm:rounded-lg">
-                    <div class="p-6">
+                <div class="ui-card">
+                    <div class="ui-card-body">
                         <div class="flex items-center justify-between">
-                            <h3 class="text-lg font-semibold text-gray-900">{{ __('Cart') }}</h3>
+                            <h3 class="ui-card-title">{{ __('Cart') }}</h3>
                             <div class="text-sm text-gray-500">
                                 {{ __('Branch:') }}
                                 <span class="font-medium">{{ $branches->firstWhere('id', $branch_id)?->name ?? '-' }}</span>
@@ -154,8 +155,8 @@
                         </div>
 
                         <div class="mt-4 overflow-x-auto">
-                            <table class="min-w-full divide-y divide-gray-200">
-                                <thead class="bg-gray-50">
+                            <table class="ui-table">
+                                <thead>
                                     <tr>
                                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Product') }}</th>
                                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Available') }}</th>
@@ -208,10 +209,13 @@
                     </div>
                 </div>
 
-                <div class="bg-white shadow-sm sm:rounded-lg">
-                    <div class="p-6">
+                <div class="ui-card">
+                    <div class="ui-card-body">
                         <div class="flex items-center justify-between">
-                            <h3 class="text-lg font-semibold text-gray-900">{{ __('Recent Sales') }}</h3>
+                            <h3 class="ui-card-title">{{ __('Recent Sales') }}</h3>
+                            <div class="w-72">
+                                <input type="text" wire:model.live.debounce.300ms="sales_search" placeholder="{{ __('Search sales...') }}" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                            </div>
                             @if ($selectedSale)
                                 <div class="text-sm text-gray-500">
                                     <span class="font-medium">{{ $selectedSale->receipt_no }}</span>
@@ -221,8 +225,8 @@
 
                         <div class="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-6">
                             <div class="overflow-x-auto">
-                                <table class="min-w-full divide-y divide-gray-200">
-                                    <thead class="bg-gray-50">
+                                <table class="ui-table">
+                                    <thead>
                                         <tr>
                                             <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Receipt') }}</th>
                                             <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Branch') }}</th>
@@ -244,7 +248,7 @@
                                                     {{ number_format((float) $sale->grand_total, 2) }}
                                                 </td>
                                                 <td class="px-4 py-3 text-sm text-right">
-                                                    <button type="button" wire:click="selectSale({{ $sale->id }})" class="text-indigo-600 hover:text-indigo-900">{{ __('View') }}</button>
+                                                    <button type="button" wire:click="openSaleModal({{ $sale->id }})" class="text-indigo-600 hover:text-indigo-900">{{ __('View') }}</button>
                                                 </td>
                                             </tr>
                                         @endforeach
@@ -258,104 +262,109 @@
                                 </table>
                             </div>
 
-                            <div>
-                                <div class="rounded-md border border-gray-200">
-                                    <div class="p-4 border-b border-gray-200">
-                                        <div class="text-sm text-gray-500">{{ __('Sale Details') }}</div>
-                                        @if ($selectedSale)
-                                            <div class="mt-1 font-semibold text-gray-900">{{ $selectedSale->receipt_no }}</div>
-                                            <div class="mt-1 text-sm text-gray-600">
-                                                {{ $selectedSale->branch?->name ?? '-' }}
-                                                @if ($selectedSale->user)
-                                                    {{ '• ' . $selectedSale->user->name }}
-                                                @endif
-                                            </div>
-                                            <div class="mt-2 text-sm text-gray-700">
-                                                {{ __('Payment:') }}
-                                                <span class="font-medium">{{ strtoupper($selectedSale->payment_method) }}</span>
-                                            </div>
-
-                                            <div class="mt-3">
-                                                <a href="{{ route('sales.print', $selectedSale->id) }}" target="_blank" class="text-sm text-indigo-600 hover:text-indigo-900 underline">
-                                                    {{ __('Print Receipt') }}
-                                                </a>
-                                            </div>
-                                            @if ($selectedSale->notes)
-                                                <div class="mt-2 text-sm text-gray-700">{{ $selectedSale->notes }}</div>
-                                            @endif
-                                        @else
-                                            <div class="mt-1 text-sm text-gray-600">{{ __('Select a sale to view details.') }}</div>
-                                        @endif
-                                    </div>
-
-                                    <div class="p-4">
-                                        @if ($selectedSale)
-                                            <div class="overflow-x-auto">
-                                                <table class="min-w-full divide-y divide-gray-200">
-                                                    <thead class="bg-gray-50">
-                                                        <tr>
-                                                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Product') }}</th>
-                                                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Qty') }}</th>
-                                                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Price') }}</th>
-                                                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Total') }}</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody class="bg-white divide-y divide-gray-200">
-                                                        @foreach ($selectedSale->items as $item)
-                                                            <tr wire:key="sale-item-{{ $item->id }}">
-                                                                <td class="px-4 py-3 text-sm text-gray-900">{{ $item->product?->name ?? '-' }}</td>
-                                                                <td class="px-4 py-3 text-sm text-gray-700">
-                                                                    @if ((string) $item->entry_mode === 'bulk')
-                                                                        {{ (int) ($item->bulk_quantity ?? 0) }} {{ __('bulk') }}
-                                                                        <span class="text-xs text-gray-500">({{ (int) $item->quantity }} {{ __('units') }})</span>
-                                                                    @else
-                                                                        {{ (int) $item->quantity }}
-                                                                    @endif
-                                                                </td>
-                                                                <td class="px-4 py-3 text-sm text-gray-700">{{ number_format((float) $item->unit_price, 2) }}</td>
-                                                                <td class="px-4 py-3 text-sm text-gray-700">{{ number_format((float) $item->line_total, 2) }}</td>
-                                                            </tr>
-                                                        @endforeach
-
-                                                        @if ($selectedSale->items->isEmpty())
-                                                            <tr>
-                                                                <td colspan="4" class="px-4 py-8 text-center text-sm text-gray-500">{{ __('No items found.') }}</td>
-                                                            </tr>
-                                                        @endif
-                                                    </tbody>
-                                                </table>
-                                            </div>
-
-                                            <div class="mt-4 rounded-md bg-gray-50 p-4 text-sm text-gray-700 space-y-1">
-                                                <div class="flex items-center justify-between">
-                                                    <div>{{ __('Grand Total') }}</div>
-                                                    <div class="font-semibold text-gray-900">{{ number_format((float) $selectedSale->grand_total, 2) }}</div>
-                                                </div>
-                                                <div class="flex items-center justify-between">
-                                                    <div>{{ __('COGS') }}</div>
-                                                    <div class="font-medium">{{ number_format((float) $selectedSale->cogs_total, 2) }}</div>
-                                                </div>
-                                                <div class="flex items-center justify-between">
-                                                    <div>{{ __('Profit') }}</div>
-                                                    <div class="font-medium">{{ number_format((float) $selectedSale->profit_total, 2) }}</div>
-                                                </div>
-                                                <div class="flex items-center justify-between">
-                                                    <div>{{ __('Paid') }}</div>
-                                                    <div class="font-medium">{{ number_format((float) $selectedSale->amount_paid, 2) }}</div>
-                                                </div>
-                                                <div class="flex items-center justify-between">
-                                                    <div>{{ __('Change') }}</div>
-                                                    <div class="font-medium">{{ number_format((float) $selectedSale->change_due, 2) }}</div>
-                                                </div>
-                                            </div>
-                                        @endif
-                                    </div>
-                                </div>
-                            </div>
+                            <div></div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
+
+        @if ($show_sale_modal && $selectedSale)
+            <div class="fixed inset-0 z-50 flex items-center justify-center" data-modal-root>
+                <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" wire:click="closeSaleModal" data-modal-overlay></div>
+                <div class="relative w-full max-w-3xl mx-4 ui-card">
+                    <div class="p-4 border-b border-gray-200 flex items-center justify-between">
+                        <div>
+                            <div class="text-sm text-gray-500">{{ __('Sale Details') }}</div>
+                            <div class="mt-1 font-semibold text-gray-900">{{ $selectedSale->receipt_no }}</div>
+                            <div class="mt-1 text-sm text-gray-600">
+                                {{ $selectedSale->branch?->name ?? '-' }}
+                                @if ($selectedSale->user)
+                                    {{ '• ' . $selectedSale->user->name }}
+                                @endif
+                                {{ '• ' . $selectedSale->sold_at?->format('Y-m-d H:i') }}
+                            </div>
+                        </div>
+
+                        <button type="button" wire:click="closeSaleModal" class="ui-btn-secondary" data-modal-close>{{ __('Close') }}</button>
+                    </div>
+
+                    <div class="p-4">
+                        <div class="flex items-center justify-between">
+                            <div class="text-sm text-gray-700">
+                                {{ __('Payment:') }}
+                                <span class="font-medium">{{ strtoupper($selectedSale->payment_method) }}</span>
+                            </div>
+                            <a href="{{ route('sales.print', $selectedSale->id) }}" target="_blank" class="ui-btn-secondary">
+                                {{ __('Print Receipt') }}
+                            </a>
+                        </div>
+
+                        @if ($selectedSale->notes)
+                            <div class="mt-2 text-sm text-gray-700">{{ $selectedSale->notes }}</div>
+                        @endif
+
+                        <div class="mt-4 overflow-x-auto">
+                            <table class="ui-table">
+                                <thead>
+                                    <tr>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Product') }}</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Qty') }}</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Price') }}</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Total') }}</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    @foreach ($selectedSale->items as $item)
+                                        <tr wire:key="sale-modal-item-{{ $item->id }}">
+                                            <td class="px-4 py-3 text-sm text-gray-900">{{ $item->product?->name ?? '-' }}</td>
+                                            <td class="px-4 py-3 text-sm text-gray-700">
+                                                @if ((string) $item->entry_mode === 'bulk')
+                                                    {{ (int) ($item->bulk_quantity ?? 0) }} {{ __('bulk') }}
+                                                    <span class="text-xs text-gray-500">({{ (int) $item->quantity }} {{ __('units') }})</span>
+                                                @else
+                                                    {{ (int) $item->quantity }}
+                                                @endif
+                                            </td>
+                                            <td class="px-4 py-3 text-sm text-gray-700">{{ number_format((float) $item->unit_price, 2) }}</td>
+                                            <td class="px-4 py-3 text-sm text-gray-700">{{ number_format((float) $item->line_total, 2) }}</td>
+                                        </tr>
+                                    @endforeach
+
+                                    @if ($selectedSale->items->isEmpty())
+                                        <tr>
+                                            <td colspan="4" class="px-4 py-8 text-center text-sm text-gray-500">{{ __('No items found.') }}</td>
+                                        </tr>
+                                    @endif
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="mt-4 rounded-md bg-gray-50 p-4 text-sm text-gray-700 space-y-1">
+                            <div class="flex items-center justify-between">
+                                <div>{{ __('Grand Total') }}</div>
+                                <div class="font-semibold text-gray-900">{{ number_format((float) $selectedSale->grand_total, 2) }}</div>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <div>{{ __('COGS') }}</div>
+                                <div class="font-medium">{{ number_format((float) $selectedSale->cogs_total, 2) }}</div>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <div>{{ __('Profit') }}</div>
+                                <div class="font-medium">{{ number_format((float) $selectedSale->profit_total, 2) }}</div>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <div>{{ __('Paid') }}</div>
+                                <div class="font-medium">{{ number_format((float) $selectedSale->amount_paid, 2) }}</div>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <div>{{ __('Change') }}</div>
+                                <div class="font-medium">{{ number_format((float) $selectedSale->change_due, 2) }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        @endif
     </div>
 </div>

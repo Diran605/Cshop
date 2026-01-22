@@ -6,8 +6,8 @@
             </h2>
         </div>
 
-        <div class="bg-white shadow-sm sm:rounded-lg">
-            <div class="p-6">
+        <div class="ui-card">
+            <div class="ui-card-body">
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-700">{{ __('From') }}</label>
@@ -57,8 +57,8 @@
                 </div>
 
                 <div class="mt-6 overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
+                    <table class="ui-table">
+                        <thead>
                             <tr>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Date') }}</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Branch') }}</th>

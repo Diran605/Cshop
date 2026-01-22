@@ -21,6 +21,8 @@ class ReportsIndex extends Component
     public string $date_to;
     public bool $low_stock_only = false;
 
+    public string $search = '';
+
     public int $category_id = 0;
     public int $product_filter_id = 0;
     public string $sale_mode = 'all';
@@ -49,6 +51,7 @@ class ReportsIndex extends Component
         $this->category_id = 0;
         $this->product_filter_id = 0;
         $this->sale_mode = 'all';
+        $this->search = '';
     }
 
     protected function syncAuthContext(): void
@@ -66,6 +69,7 @@ class ReportsIndex extends Component
             $this->category_id = 0;
             $this->product_filter_id = 0;
             $this->sale_mode = 'all';
+            $this->search = '';
         }
 
         $this->isSuperAdmin = (bool) ($user?->role === 'super_admin');
@@ -88,8 +92,15 @@ class ReportsIndex extends Component
         $from = Carbon::parse($this->date_from)->startOfDay();
         $to = Carbon::parse($this->date_to)->endOfDay();
 
-        $categories = Category::query()->orderBy('name')->get();
-        $productsForFilter = Product::query()->orderBy('name')->get();
+        $categories = Category::query()
+            ->when($this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
+            ->orderBy('name')
+            ->get();
+
+        $productsForFilter = Product::query()
+            ->when($this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
+            ->orderBy('name')
+            ->get();
 
         $salesItemsBase = SalesItem::query()
             ->join('sales_receipts', 'sales_receipts.id', '=', 'sales_items.sales_receipt_id')
@@ -190,10 +201,19 @@ class ReportsIndex extends Component
                 DB::raw('SUM(sales_items.line_profit) as profit_total'),
             ]);
 
+        if (trim($this->search) !== '') {
+            $term = strtolower(trim($this->search));
+            $topProducts = $topProducts->filter(fn ($r) => str_contains(strtolower((string) $r->product_name), $term));
+        }
+
         $inventoryQuery = ProductStock::query()
             ->with(['product'])
             ->when($this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
             ->join('products', 'products.id', '=', 'product_stocks.product_id')
+            ->when(trim($this->search) !== '', function ($q) {
+                $term = '%' . trim($this->search) . '%';
+                $q->where('products.name', 'like', $term);
+            })
             ->orderBy('products.name')
             ->select('product_stocks.*');
 
@@ -240,6 +260,11 @@ class ReportsIndex extends Component
             ];
         }
 
+        if (trim($this->search) !== '') {
+            $term = strtolower(trim($this->search));
+            $movementRows = array_values(array_filter($movementRows, fn ($r) => str_contains(strtolower((string) $r['product_name']), $term)));
+        }
+
         usort($movementRows, fn ($a, $b) => strcmp($a['product_name'], $b['product_name']));
 
         return view('livewire.reports-index', [
@@ -259,5 +284,15 @@ class ReportsIndex extends Component
             'movementRows' => $movementRows,
             'isSuperAdmin' => $this->isSuperAdmin,
         ]);
+    }
+
+    public function updatedBranchId(): void
+    {
+        if (! $this->isSuperAdmin) {
+            return;
+        }
+
+        $this->category_id = 0;
+        $this->product_filter_id = 0;
     }
 }

@@ -22,6 +22,10 @@ class UsersIndex extends Component
 
     public string $search = '';
 
+    public bool $show_delete_modal = false;
+    public int $pending_delete_id = 0;
+    public string $pending_delete_name = '';
+
     protected function rules(): array
     {
         $emailRule = Rule::unique('users', 'email');
@@ -115,6 +119,37 @@ class UsersIndex extends Component
         }
 
         session()->flash('status', 'User deleted successfully.');
+    }
+
+    public function openDeleteModal(int $id): void
+    {
+        if ((int) auth()->id() === (int) $id) {
+            session()->flash('status', 'You cannot delete your own account.');
+            return;
+        }
+
+        $user = User::query()->where('role', 'branch_admin')->findOrFail($id);
+
+        $this->pending_delete_id = (int) $user->id;
+        $this->pending_delete_name = (string) $user->name;
+        $this->show_delete_modal = true;
+    }
+
+    public function closeDeleteModal(): void
+    {
+        $this->show_delete_modal = false;
+        $this->pending_delete_id = 0;
+        $this->pending_delete_name = '';
+    }
+
+    public function confirmDelete(): void
+    {
+        $id = (int) $this->pending_delete_id;
+        $this->closeDeleteModal();
+
+        if ($id > 0) {
+            $this->delete($id);
+        }
     }
 
     public function render()

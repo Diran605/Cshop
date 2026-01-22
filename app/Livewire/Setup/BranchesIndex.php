@@ -12,6 +12,12 @@ class BranchesIndex extends Component
     public ?string $code = null;
     public bool $is_active = true;
 
+    public string $search = '';
+
+    public bool $show_delete_modal = false;
+    public int $pending_delete_id = 0;
+    public string $pending_delete_name = '';
+
     protected function rules(): array
     {
         return [
@@ -27,6 +33,7 @@ class BranchesIndex extends Component
         $this->name = '';
         $this->code = null;
         $this->is_active = true;
+        $this->search = '';
         $this->resetErrorBag();
     }
 
@@ -78,10 +85,45 @@ class BranchesIndex extends Component
         session()->flash('status', 'Branch deleted successfully.');
     }
 
+    public function openDeleteModal(int $id): void
+    {
+        $branch = Branch::query()->findOrFail($id);
+
+        $this->pending_delete_id = (int) $branch->id;
+        $this->pending_delete_name = (string) $branch->name;
+        $this->show_delete_modal = true;
+    }
+
+    public function closeDeleteModal(): void
+    {
+        $this->show_delete_modal = false;
+        $this->pending_delete_id = 0;
+        $this->pending_delete_name = '';
+    }
+
+    public function confirmDelete(): void
+    {
+        $id = (int) $this->pending_delete_id;
+        $this->closeDeleteModal();
+
+        if ($id > 0) {
+            $this->delete($id);
+        }
+    }
+
     public function render()
     {
         return view('livewire.setup.branches-index', [
-            'branches' => Branch::query()->orderBy('name')->get(),
+            'branches' => Branch::query()
+                ->when(trim($this->search) !== '', function ($q) {
+                    $term = '%' . trim($this->search) . '%';
+                    $q->where(function ($qq) use ($term) {
+                        $qq->where('name', 'like', $term)
+                            ->orWhere('code', 'like', $term);
+                    });
+                })
+                ->orderBy('name')
+                ->get(),
         ]);
     }
 }

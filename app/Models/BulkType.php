@@ -12,11 +12,17 @@ class BulkType extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
+        'branch_id',
         'name',
         'bulk_unit_id',
         'units_per_bulk',
         'description',
     ];
+
+    public function branch(): BelongsTo
+    {
+        return $this->belongsTo(Branch::class);
+    }
 
     public function bulkUnit(): BelongsTo
     {

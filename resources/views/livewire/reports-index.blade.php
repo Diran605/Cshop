@@ -6,8 +6,22 @@
             </h2>
         </div>
 
-        <div class="bg-white shadow-sm sm:rounded-lg">
-            <div class="p-6">
+        <style>
+            @media print {
+                .no-print {
+                    display: none !important;
+                }
+
+                .print-container {
+                    max-width: 100% !important;
+                    margin: 0 !important;
+                    padding: 0 !important;
+                }
+            }
+        </style>
+
+        <div class="ui-card no-print">
+            <div class="ui-card-body">
                 <div class="grid grid-cols-1 lg:grid-cols-7 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-700">{{ __('Branch') }}</label>
@@ -71,52 +85,64 @@
                         </label>
                     </div>
                 </div>
+
+                <div class="mt-4 flex items-end justify-between gap-4">
+                    <div class="w-full max-w-md">
+                        <label class="block text-sm font-medium text-gray-700">{{ __('Search (Products)') }}</label>
+                        <input type="text" wire:model.live.debounce.300ms="search" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" placeholder="Search product name..." />
+                    </div>
+                    <div class="flex items-center justify-end">
+                        <button type="button" onclick="window.print()" class="ui-btn-primary">
+                            {{ __('Print') }}
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
 
         <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-6">
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="p-6">
+            <div class="ui-card">
+                <div class="ui-card-body">
                     <div class="text-sm text-gray-500">{{ __('Sales Count') }}</div>
                     <div class="mt-1 text-2xl font-semibold text-gray-900">{{ number_format((int) $salesCount) }}</div>
                     <div class="mt-2 text-sm text-gray-600">{{ __('Within selected date range') }}</div>
                 </div>
             </div>
 
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="p-6">
+            <div class="ui-card">
+                <div class="ui-card-body">
                     <div class="text-sm text-gray-500">{{ __('Sales Total') }}</div>
                     <div class="mt-1 text-2xl font-semibold text-gray-900">{{ number_format((float) $salesTotal, 2) }}</div>
                     <div class="mt-2 text-sm text-gray-600">{{ __('Gross revenue (grand total)') }}</div>
                 </div>
             </div>
 
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="p-6">
+            <div class="ui-card">
+                <div class="ui-card-body">
                     <div class="text-sm text-gray-500">{{ __('Items Sold') }}</div>
                     <div class="mt-1 text-2xl font-semibold text-gray-900">{{ number_format((int) $itemsSold) }}</div>
                     <div class="mt-2 text-sm text-gray-600">{{ __('Total quantity sold') }}</div>
                 </div>
             </div>
 
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="p-6">
+            <div class="ui-card">
+                <div class="ui-card-body">
                     <div class="text-sm text-gray-500">{{ __('Avg Transaction') }}</div>
                     <div class="mt-1 text-2xl font-semibold text-gray-900">{{ number_format((float) $avgTransaction, 2) }}</div>
                     <div class="mt-2 text-sm text-gray-600">{{ __('Sales total / sales count') }}</div>
                 </div>
             </div>
 
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="p-6">
+            <div class="ui-card">
+                <div class="ui-card-body">
                     <div class="text-sm text-gray-500">{{ __('COGS') }}</div>
                     <div class="mt-1 text-2xl font-semibold text-gray-900">{{ number_format((float) $cogsTotal, 2) }}</div>
                     <div class="mt-2 text-sm text-gray-600">{{ __('Cost of goods sold') }}</div>
                 </div>
             </div>
 
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="p-6">
+            <div class="ui-card">
+                <div class="ui-card-body">
                     <div class="text-sm text-gray-500">{{ __('Profit') }}</div>
                     <div class="mt-1 text-2xl font-semibold text-gray-900">{{ number_format((float) $profitTotal, 2) }}</div>
                     <div class="mt-2 text-sm text-gray-600">{{ __('Gross profit') }}</div>
@@ -124,9 +150,9 @@
             </div>
         </div>
 
-        <div class="mt-6 bg-white shadow-sm sm:rounded-lg">
-            <div class="p-6">
-                <h3 class="text-lg font-semibold text-gray-900">{{ __('Trends') }}</h3>
+        <div class="mt-6 ui-card no-print">
+            <div class="ui-card-body">
+                <h3 class="ui-card-title">{{ __('Trends') }}</h3>
                 <div class="mt-1 text-sm text-gray-600">{{ __('Revenue vs COGS vs Profit (by day)') }}</div>
 
                 <div class="mt-4">
@@ -303,10 +329,10 @@
             })();
         </script>
 
-        <div class="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div class="bg-white shadow-sm sm:rounded-lg">
-                <div class="p-6">
-                    <h3 class="text-lg font-semibold text-gray-900">{{ __('Daily Bars') }}</h3>
+        <div class="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6 no-print">
+            <div class="ui-card">
+                <div class="ui-card-body">
+                    <h3 class="ui-card-title">{{ __('Daily Bars') }}</h3>
                     <div class="mt-1 text-sm text-gray-600">{{ __('Revenue / COGS / Profit (by day)') }}</div>
 
                     <div class="mt-4" style="height: 320px;">
@@ -315,9 +341,9 @@
                 </div>
             </div>
 
-            <div class="bg-white shadow-sm sm:rounded-lg">
-                <div class="p-6">
-                    <h3 class="text-lg font-semibold text-gray-900">{{ __('Quantity Bars') }}</h3>
+            <div class="ui-card">
+                <div class="ui-card-body">
+                    <h3 class="ui-card-title">{{ __('Quantity Bars') }}</h3>
                     <div class="mt-1 text-sm text-gray-600">{{ __('Items sold per day') }}</div>
 
                     <div class="mt-4" style="height: 320px;">
@@ -328,13 +354,13 @@
         </div>
 
         <div class="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div class="bg-white shadow-sm sm:rounded-lg">
-                <div class="p-6">
-                    <h3 class="text-lg font-semibold text-gray-900">{{ __('Top Products') }}</h3>
+            <div class="ui-card">
+                <div class="ui-card-body">
+                    <h3 class="ui-card-title">{{ __('Top Products') }}</h3>
 
                     <div class="mt-4 overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200">
-                            <thead class="bg-gray-50">
+                        <table class="ui-table">
+                            <thead>
                                 <tr>
                                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Product') }}</th>
                                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Qty Sold') }}</th>
@@ -361,13 +387,13 @@
                 </div>
             </div>
 
-            <div class="bg-white shadow-sm sm:rounded-lg">
-                <div class="p-6">
-                    <h3 class="text-lg font-semibold text-gray-900">{{ __('Inventory') }}</h3>
+            <div class="ui-card">
+                <div class="ui-card-body">
+                    <h3 class="ui-card-title">{{ __('Inventory') }}</h3>
 
                     <div class="mt-4 overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200">
-                            <thead class="bg-gray-50">
+                        <table class="ui-table">
+                            <thead>
                                 <tr>
                                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Product') }}</th>
                                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Current') }}</th>
@@ -396,13 +422,13 @@
         </div>
 
         <div class="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div class="bg-white shadow-sm sm:rounded-lg">
-                <div class="p-6">
-                    <h3 class="text-lg font-semibold text-gray-900">{{ __('Sales By Day') }}</h3>
+            <div class="ui-card">
+                <div class="ui-card-body">
+                    <h3 class="ui-card-title">{{ __('Sales By Day') }}</h3>
 
                     <div class="mt-4 overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200">
-                            <thead class="bg-gray-50">
+                        <table class="ui-table">
+                            <thead>
                                 <tr>
                                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Day') }}</th>
                                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Sales') }}</th>
@@ -429,13 +455,13 @@
                 </div>
             </div>
 
-            <div class="bg-white shadow-sm sm:rounded-lg">
-                <div class="p-6">
-                    <h3 class="text-lg font-semibold text-gray-900">{{ __('Stock In vs Sales (By Day)') }}</h3>
+            <div class="ui-card">
+                <div class="ui-card-body">
+                    <h3 class="ui-card-title">{{ __('Stock In vs Sales (By Day)') }}</h3>
 
                     <div class="mt-4 overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200">
-                            <thead class="bg-gray-50">
+                        <table class="ui-table">
+                            <thead>
                                 <tr>
                                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Day') }}</th>
                                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Stock In Qty') }}</th>
@@ -463,14 +489,14 @@
             </div>
         </div>
 
-        <div class="mt-6 bg-white shadow-sm sm:rounded-lg">
-            <div class="p-6">
-                <h3 class="text-lg font-semibold text-gray-900">{{ __('Per-Product Movement') }}</h3>
+        <div class="mt-6 ui-card">
+            <div class="ui-card-body">
+                <h3 class="ui-card-title">{{ __('Per-Product Movement') }}</h3>
                 <div class="mt-1 text-sm text-gray-600">{{ __('Totals for selected branch and date range.') }}</div>
 
                 <div class="mt-4 overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
+                    <table class="ui-table">
+                        <thead>
                             <tr>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Product') }}</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Stock In Qty') }}</th>

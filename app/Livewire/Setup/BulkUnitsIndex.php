@@ -2,29 +2,80 @@
 
 namespace App\Livewire\Setup;
 
+use App\Models\Branch;
 use App\Models\BulkUnit;
 use Livewire\Component;
 
 class BulkUnitsIndex extends Component
 {
+    public int $branch_id = 0;
+    public string $search = '';
     public string $name = '';
     public ?string $description = null;
     public ?int $editingId = null;
 
+    public bool $show_delete_modal = false;
+    public int $pending_delete_id = 0;
+    public string $pending_delete_name = '';
+
+    public bool $isSuperAdmin = false;
+    public int $auth_user_id = 0;
+
     protected function rules(): array
     {
         return [
+            'branch_id' => ['required', 'integer', 'min:1'],
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
         ];
     }
 
+    public function mount(): void
+    {
+        $user = auth()->user();
+        $this->isSuperAdmin = (bool) ($user?->role === 'super_admin');
+        $this->auth_user_id = (int) ($user?->id ?? 0);
+
+        if (! $this->isSuperAdmin) {
+            $this->branch_id = (int) ($user?->branch_id ?? 0);
+        } else {
+            $this->branch_id = (int) (Branch::query()->where('is_active', true)->orderBy('name')->value('id') ?? 0);
+        }
+    }
+
+    protected function syncAuthContext(): void
+    {
+        $user = auth()->user();
+        $currentUserId = (int) ($user?->id ?? 0);
+
+        if ($currentUserId !== $this->auth_user_id) {
+            $this->auth_user_id = $currentUserId;
+            $this->resetForm();
+        }
+
+        $this->isSuperAdmin = (bool) ($user?->role === 'super_admin');
+        if (! $this->isSuperAdmin) {
+            $this->branch_id = (int) ($user?->branch_id ?? 0);
+        }
+    }
+
     public function save(): void
     {
+        $this->syncAuthContext();
+
+        if (! $this->isSuperAdmin) {
+            $this->branch_id = (int) (auth()->user()?->branch_id ?? 0);
+        }
+
         $data = $this->validate();
 
+        $data['branch_id'] = (int) $this->branch_id;
+
         if ($this->editingId) {
-            BulkUnit::query()->whereKey($this->editingId)->update($data);
+            BulkUnit::query()
+                ->when(! $this->isSuperAdmin, fn ($q) => $q->where('branch_id', (int) (auth()->user()?->branch_id ?? 0)))
+                ->whereKey($this->editingId)
+                ->update($data);
         } else {
             BulkUnit::query()->create($data);
         }
@@ -34,7 +85,15 @@ class BulkUnitsIndex extends Component
 
     public function edit(int $id): void
     {
-        $unit = BulkUnit::query()->findOrFail($id);
+        $this->syncAuthContext();
+
+        $unit = BulkUnit::query()
+            ->when(! $this->isSuperAdmin, fn ($q) => $q->where('branch_id', (int) (auth()->user()?->branch_id ?? 0)))
+            ->findOrFail($id);
+
+        if ($this->isSuperAdmin) {
+            $this->branch_id = (int) ($unit->branch_id ?? $this->branch_id);
+        }
         $this->editingId = $unit->id;
         $this->name = $unit->name;
         $this->description = $unit->description;
@@ -47,23 +106,85 @@ class BulkUnitsIndex extends Component
 
     public function delete(int $id): void
     {
-        BulkUnit::query()->findOrFail($id)->forceDelete();
+        $this->syncAuthContext();
+
+        $unit = BulkUnit::query()
+            ->when(! $this->isSuperAdmin, fn ($q) => $q->where('branch_id', (int) (auth()->user()?->branch_id ?? 0)))
+            ->findOrFail($id);
+        $unit->forceDelete();
         $this->resetForm();
+    }
+
+    public function openDeleteModal(int $id): void
+    {
+        $this->syncAuthContext();
+
+        $unit = BulkUnit::query()
+            ->when(! $this->isSuperAdmin, fn ($q) => $q->where('branch_id', (int) (auth()->user()?->branch_id ?? 0)))
+            ->findOrFail($id);
+
+        $this->pending_delete_id = (int) $unit->id;
+        $this->pending_delete_name = (string) $unit->name;
+        $this->show_delete_modal = true;
+    }
+
+    public function closeDeleteModal(): void
+    {
+        $this->show_delete_modal = false;
+        $this->pending_delete_id = 0;
+        $this->pending_delete_name = '';
+    }
+
+    public function confirmDelete(): void
+    {
+        $id = (int) $this->pending_delete_id;
+        $this->closeDeleteModal();
+
+        if ($id > 0) {
+            $this->delete($id);
+        }
     }
 
     private function resetForm(): void
     {
-        $this->reset(['name', 'description', 'editingId']);
+        $currentBranchId = (int) $this->branch_id;
+
+        $this->reset(['search', 'name', 'description', 'editingId']);
+
+        $user = auth()->user();
+        $this->isSuperAdmin = (bool) ($user?->role === 'super_admin');
+        if (! $this->isSuperAdmin) {
+            $this->branch_id = (int) ($user?->branch_id ?? 0);
+        } else {
+            $this->branch_id = $currentBranchId > 0
+                ? $currentBranchId
+                : (int) (Branch::query()->where('is_active', true)->orderBy('name')->value('id') ?? 0);
+        }
     }
 
     public function render()
     {
+        $this->syncAuthContext();
+
+        $branches = Branch::query()->where('is_active', true)->orderBy('name')->get();
+
         $bulkUnits = BulkUnit::query()
+            ->with(['branch'])
+            ->when($this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
+            ->when(trim($this->search) !== '', function ($q) {
+                $term = '%' . trim($this->search) . '%';
+                $q->where(function ($qq) use ($term) {
+                    $qq->where('name', 'like', $term)
+                        ->orWhere('description', 'like', $term);
+                });
+            })
             ->orderBy('name')
             ->get();
 
         return view('livewire.setup.bulk-units-index', [
             'bulkUnits' => $bulkUnits,
+            'branches' => $branches,
+            'isSuperAdmin' => $this->isSuperAdmin,
         ]);
     }
 }

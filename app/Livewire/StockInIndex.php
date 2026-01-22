@@ -17,6 +17,10 @@ class StockInIndex extends Component
     public int $branch_id = 0;
     public int $product_id = 0;
 
+    public string $product_search = '';
+    public string $stock_search = '';
+    public string $receipt_search = '';
+
     public string $entry_mode = 'unit';
     public int $bulk_quantity = 1;
 
@@ -29,6 +33,8 @@ class StockInIndex extends Component
 
     public ?string $notes = null;
     public int $selected_receipt_id = 0;
+
+    public bool $show_receipt_modal = false;
 
     protected function rules(): array
     {
@@ -55,13 +61,20 @@ class StockInIndex extends Component
             $this->branch_id = (int) (Branch::query()->where('is_active', true)->orderBy('name')->value('id') ?? 0);
         }
 
-        $this->product_id = (int) (Product::query()->orderBy('name')->value('id') ?? 0);
+        $this->product_id = (int) (Product::query()
+            ->when($this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
+            ->orderBy('name')
+            ->value('id') ?? 0);
         $this->entry_mode = 'unit';
         $this->bulk_quantity = 1;
         $this->quantity = 1;
         $this->cost_price = null;
         $this->notes = null;
         $this->selected_receipt_id = 0;
+
+        $this->product_search = '';
+        $this->stock_search = '';
+        $this->receipt_search = '';
     }
 
     protected function syncAuthContext(): void
@@ -77,6 +90,9 @@ class StockInIndex extends Component
             $this->bulk_quantity = 1;
             $this->quantity = 1;
             $this->cost_price = null;
+            $this->product_search = '';
+            $this->stock_search = '';
+            $this->receipt_search = '';
         }
 
         $this->isSuperAdmin = (bool) ($user?->role === 'super_admin');
@@ -84,7 +100,10 @@ class StockInIndex extends Component
 
     public function updatedProductId(): void
     {
-        $product = Product::query()->with(['bulkType'])->find($this->product_id);
+        $product = Product::query()
+            ->with(['bulkType'])
+            ->when($this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
+            ->find($this->product_id);
         if ($product && (bool) $product->bulk_enabled) {
             $this->entry_mode = 'bulk';
             $this->bulk_quantity = max(1, (int) $this->bulk_quantity);
@@ -96,11 +115,27 @@ class StockInIndex extends Component
         $this->quantity = max(1, (int) $this->quantity);
     }
 
+    public function updatedBranchId(): void
+    {
+        if (! $this->isSuperAdmin) {
+            return;
+        }
+
+        $this->product_id = (int) (Product::query()
+            ->when($this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
+            ->orderBy('name')
+            ->value('id') ?? 0);
+        $this->updatedProductId();
+    }
+
     public function save(): void
     {
         $data = $this->validate();
 
-        $product = Product::query()->with(['bulkType'])->find((int) $data['product_id']);
+        $product = Product::query()
+            ->with(['bulkType'])
+            ->when((int) $data['branch_id'] > 0, fn ($q) => $q->where('branch_id', (int) $data['branch_id']))
+            ->find((int) $data['product_id']);
         if (! $product) {
             return;
         }
@@ -233,6 +268,17 @@ class StockInIndex extends Component
         $this->selected_receipt_id = $id;
     }
 
+    public function openReceiptModal(int $id): void
+    {
+        $this->selected_receipt_id = $id;
+        $this->show_receipt_modal = true;
+    }
+
+    public function closeReceiptModal(): void
+    {
+        $this->show_receipt_modal = false;
+    }
+
     public function render()
     {
         $this->syncAuthContext();
@@ -246,17 +292,31 @@ class StockInIndex extends Component
         } else {
             $branches = Branch::query()->where('is_active', true)->orderBy('name')->get();
         }
-        $products = Product::query()->orderBy('name')->get();
+        $products = Product::query()
+            ->when($this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
+            ->when(trim($this->product_search) !== '', function ($q) {
+                $term = '%' . trim($this->product_search) . '%';
+                $q->where('name', 'like', $term);
+            })
+            ->orderBy('name')
+            ->get();
 
         $selectedProduct = null;
         if ($this->product_id > 0) {
-            $selectedProduct = Product::query()->with(['bulkType.bulkUnit'])->find($this->product_id);
+            $selectedProduct = Product::query()
+                ->with(['bulkType.bulkUnit'])
+                ->when($this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
+                ->find($this->product_id);
         }
 
         $stocks = ProductStock::query()
             ->with(['product'])
             ->when($this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
             ->join('products', 'products.id', '=', 'product_stocks.product_id')
+            ->when(trim($this->stock_search) !== '', function ($q) {
+                $term = '%' . trim($this->stock_search) . '%';
+                $q->where('products.name', 'like', $term);
+            })
             ->orderBy('products.name')
             ->select('product_stocks.*')
             ->get();
@@ -264,6 +324,14 @@ class StockInIndex extends Component
         $receipts = StockInReceipt::query()
             ->with(['branch', 'user'])
             ->when(! $this->isSuperAdmin, fn ($q) => $q->where('branch_id', (int) (auth()->user()?->branch_id ?? 0)))
+            ->when(trim($this->receipt_search) !== '', function ($q) {
+                $term = '%' . trim($this->receipt_search) . '%';
+                $q->where(function ($qq) use ($term) {
+                    $qq->where('receipt_no', 'like', $term)
+                        ->orWhereHas('branch', fn ($qb) => $qb->where('name', 'like', $term))
+                        ->orWhereHas('user', fn ($qu) => $qu->where('name', 'like', $term));
+                });
+            })
             ->orderByDesc('received_at')
             ->limit(15)
             ->get();

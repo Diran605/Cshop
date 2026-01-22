@@ -18,6 +18,9 @@ class SalesIndex extends Component
     public int $branch_id = 0;
     public int $product_id = 0;
 
+    public string $product_search = '';
+    public string $sales_search = '';
+
     public string $entry_mode = 'unit';
     public int $entry_quantity = 1;
     public int $bulk_quantity = 1;
@@ -36,6 +39,8 @@ class SalesIndex extends Component
     public ?string $notes = null;
 
     public int $selected_sale_id = 0;
+
+    public bool $show_sale_modal = false;
 
     protected function rules(): array
     {
@@ -59,7 +64,11 @@ class SalesIndex extends Component
             $this->branch_id = (int) (Branch::query()->where('is_active', true)->orderBy('name')->value('id') ?? 0);
         }
 
-        $this->product_id = (int) (Product::query()->where('status', 'active')->orderBy('name')->value('id') ?? 0);
+        $this->product_id = (int) (Product::query()
+            ->where('status', 'active')
+            ->when($this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
+            ->orderBy('name')
+            ->value('id') ?? 0);
         $this->entry_mode = 'unit';
         $this->entry_quantity = 1;
         $this->bulk_quantity = 1;
@@ -67,6 +76,9 @@ class SalesIndex extends Component
         $this->amount_paid = null;
         $this->notes = null;
         $this->selected_sale_id = 0;
+
+        $this->product_search = '';
+        $this->sales_search = '';
     }
 
     protected function syncAuthContext(): void
@@ -83,6 +95,8 @@ class SalesIndex extends Component
             $this->entry_mode = 'unit';
             $this->entry_quantity = 1;
             $this->bulk_quantity = 1;
+            $this->product_search = '';
+            $this->sales_search = '';
         }
 
         $this->isSuperAdmin = (bool) ($user?->role === 'super_admin');
@@ -90,7 +104,10 @@ class SalesIndex extends Component
 
     public function updatedProductId(): void
     {
-        $product = Product::query()->with(['bulkType'])->find($this->product_id);
+        $product = Product::query()
+            ->with(['bulkType'])
+            ->when($this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
+            ->find($this->product_id);
         if ($product && (bool) $product->bulk_enabled) {
             $this->entry_mode = 'bulk';
             $this->bulk_quantity = max(1, (int) $this->bulk_quantity);
@@ -98,6 +115,24 @@ class SalesIndex extends Component
             $this->entry_mode = 'unit';
             $this->entry_quantity = max(1, (int) $this->entry_quantity);
         }
+    }
+
+    public function updatedBranchId(): void
+    {
+        if (! $this->isSuperAdmin) {
+            return;
+        }
+
+        $this->cart = [];
+        $this->selected_sale_id = 0;
+
+        $this->product_id = (int) (Product::query()
+            ->where('status', 'active')
+            ->when($this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
+            ->orderBy('name')
+            ->value('id') ?? 0);
+
+        $this->updatedProductId();
     }
 
     public function addProduct(): void
@@ -108,7 +143,9 @@ class SalesIndex extends Component
             return;
         }
 
-        $product = Product::query()->find($this->product_id);
+        $product = Product::query()
+            ->when($this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
+            ->find($this->product_id);
         if (! $product) {
             return;
         }
@@ -124,7 +161,10 @@ class SalesIndex extends Component
                 return;
             }
 
-            $product = Product::query()->with(['bulkType'])->find($this->product_id);
+            $product = Product::query()
+                ->with(['bulkType'])
+                ->when($this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
+                ->find($this->product_id);
             if (! $product || ! $product->bulkType) {
                 $this->addError('cart', 'Bulk type is not configured for this product.');
                 return;
@@ -406,6 +446,17 @@ class SalesIndex extends Component
         $this->selected_sale_id = $id;
     }
 
+    public function openSaleModal(int $id): void
+    {
+        $this->selected_sale_id = $id;
+        $this->show_sale_modal = true;
+    }
+
+    public function closeSaleModal(): void
+    {
+        $this->show_sale_modal = false;
+    }
+
     public function render()
     {
         $this->syncAuthContext();
@@ -420,11 +471,22 @@ class SalesIndex extends Component
             $branches = Branch::query()->where('is_active', true)->orderBy('name')->get();
         }
 
-        $products = Product::query()->where('status', 'active')->orderBy('name')->get();
+        $products = Product::query()
+            ->where('status', 'active')
+            ->when($this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
+            ->when(trim($this->product_search) !== '', function ($q) {
+                $term = '%' . trim($this->product_search) . '%';
+                $q->where('name', 'like', $term);
+            })
+            ->orderBy('name')
+            ->get();
 
         $selectedProduct = null;
         if ($this->product_id > 0) {
-            $selectedProduct = Product::query()->with(['bulkType.bulkUnit'])->find($this->product_id);
+            $selectedProduct = Product::query()
+                ->with(['bulkType.bulkUnit'])
+                ->when($this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
+                ->find($this->product_id);
         }
 
         $stockMap = ProductStock::query()
@@ -445,6 +507,14 @@ class SalesIndex extends Component
         $sales = SalesReceipt::query()
             ->with(['branch', 'user'])
             ->when(! $this->isSuperAdmin, fn ($q) => $q->where('branch_id', (int) (auth()->user()?->branch_id ?? 0)))
+            ->when(trim($this->sales_search) !== '', function ($q) {
+                $term = '%' . trim($this->sales_search) . '%';
+                $q->where(function ($qq) use ($term) {
+                    $qq->where('receipt_no', 'like', $term)
+                        ->orWhereHas('branch', fn ($qb) => $qb->where('name', 'like', $term))
+                        ->orWhereHas('user', fn ($qu) => $qu->where('name', 'like', $term));
+                });
+            })
             ->orderByDesc('sold_at')
             ->limit(15)
             ->get();

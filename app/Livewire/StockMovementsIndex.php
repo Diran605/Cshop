@@ -31,7 +31,7 @@ class StockMovementsIndex extends Component
         if (! $this->isSuperAdmin) {
             $this->branch_id = (int) ($user?->branch_id ?? 0);
         } else {
-            $this->branch_id = (int) (Branch::query()->where('is_active', true)->orderBy('name')->value('id') ?? 0);
+            $this->branch_id = 0;
         }
 
         $today = Carbon::today();
@@ -41,6 +41,11 @@ class StockMovementsIndex extends Component
         $this->product_id = 0;
         $this->movement_type = 'all';
         $this->search = '';
+    }
+
+    public function updatedBranchId(): void
+    {
+        $this->product_id = 0;
     }
 
     protected function syncAuthContext(): void
@@ -60,12 +65,23 @@ class StockMovementsIndex extends Component
         }
 
         $this->isSuperAdmin = (bool) ($user?->role === 'super_admin');
+
+        if (! $this->isSuperAdmin) {
+            $this->branch_id = (int) ($user?->branch_id ?? 0);
+        }
     }
 
     public function render()
     {
         $this->syncAuthContext();
         $user = auth()->user();
+
+        if (! $this->date_from) {
+            $this->date_from = Carbon::today()->copy()->startOfMonth()->toDateString();
+        }
+        if (! $this->date_to) {
+            $this->date_to = Carbon::today()->toDateString();
+        }
 
         if (! $this->isSuperAdmin) {
             $this->branch_id = (int) ($user?->branch_id ?? 0);
@@ -77,7 +93,10 @@ class StockMovementsIndex extends Component
             $branches = Branch::query()->where('is_active', true)->orderBy('name')->get();
         }
 
-        $products = Product::query()->orderBy('name')->get();
+        $products = Product::query()
+            ->when($this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
+            ->orderBy('name')
+            ->get();
 
         $from = Carbon::parse($this->date_from)->startOfDay();
         $to = Carbon::parse($this->date_to)->endOfDay();
