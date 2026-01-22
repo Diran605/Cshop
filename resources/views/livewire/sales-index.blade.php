@@ -193,7 +193,7 @@
                                                 {{ number_format((float) $item['unit_price'] * (int) $item['quantity'], 2) }}
                                             </td>
                                             <td class="px-4 py-3 text-sm text-right">
-                                                <button type="button" wire:click="removeItem({{ $item['product_id'] }})" class="text-red-600 hover:text-red-900">{{ __('Remove') }}</button>
+                                                <button type="button" wire:click="removeItem({{ $item['product_id'] }})" class="ui-btn-link-danger">{{ __('Remove') }}</button>
                                             </td>
                                         </tr>
                                     @endforeach
@@ -248,7 +248,7 @@
                                                     {{ number_format((float) $sale->grand_total, 2) }}
                                                 </td>
                                                 <td class="px-4 py-3 text-sm text-right">
-                                                    <button type="button" wire:click="openSaleModal({{ $sale->id }})" class="text-indigo-600 hover:text-indigo-900">{{ __('View') }}</button>
+                                                    <button type="button" wire:click="openSaleModal({{ $sale->id }})" class="ui-btn-link">{{ __('View') }}</button>
                                                 </td>
                                             </tr>
                                         @endforeach

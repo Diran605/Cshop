@@ -186,7 +186,7 @@ class ProductsIndex extends Component
             ->findOrFail($id);
 
         ProductStock::query()->where('product_id', (int) $product->id)->delete();
-        $product->forceDelete();
+        $product->delete();
         $this->resetForm();
     }
 

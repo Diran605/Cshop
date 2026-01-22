@@ -13,13 +13,14 @@
         @endif
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div class="ui-card">
-                <div class="ui-card-body">
-                    <h3 class="ui-card-title">
-                        {{ $editingId > 0 ? __('Edit Branch') : __('Add Branch') }}
-                    </h3>
+            @if (! $show_edit_modal)
+                <div class="ui-card">
+                    <div class="ui-card-body">
+                        <h3 class="ui-card-title">
+                            {{ __('Add Branch') }}
+                        </h3>
 
-                    <div class="mt-4 space-y-4">
+                        <div class="mt-4 space-y-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700">{{ __('Name') }}</label>
                             <input type="text" wire:model.defer="name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
@@ -41,19 +42,14 @@
                         </div>
 
                         <div class="flex items-center justify-end gap-3">
-                            @if ($editingId > 0)
-                                <button type="button" wire:click="resetForm" class="ui-btn-secondary">
-                                    {{ __('Cancel') }}
-                                </button>
-                            @endif
-
                             <button type="button" wire:click="save" class="ui-btn-primary">
-                                {{ $editingId > 0 ? __('Update') : __('Save') }}
+                                {{ __('Save') }}
                             </button>
+                        </div>
                         </div>
                     </div>
                 </div>
-            </div>
+            @endif
 
             <div class="ui-card">
                 <div class="ui-card-body">
@@ -88,8 +84,8 @@
                                         </td>
                                         <td class="px-4 py-3 text-sm text-right">
                                             <div class="inline-flex items-center gap-3">
-                                                <button type="button" wire:click.stop.prevent="edit({{ $branch->id }})" class="text-indigo-600 hover:text-indigo-900">{{ __('Edit') }}</button>
-                                                <button type="button" wire:click.stop.prevent="openDeleteModal({{ $branch->id }})" class="text-red-600 hover:text-red-900">{{ __('Delete') }}</button>
+                                                <button type="button" wire:click.stop.prevent="openEditModal({{ $branch->id }})" class="ui-btn-link">{{ __('Edit') }}</button>
+                                                <button type="button" wire:click.stop.prevent="openDeleteModal({{ $branch->id }})" class="ui-btn-link-danger">{{ __('Delete') }}</button>
                                             </div>
                                         </td>
                                     </tr>
@@ -126,6 +122,50 @@
                     <div class="mt-4 flex items-center justify-end gap-3">
                         <button type="button" wire:click="closeDeleteModal" class="ui-btn-secondary" data-modal-close>{{ __('Cancel') }}</button>
                         <button type="button" wire:click="confirmDelete" class="ui-btn-danger">{{ __('Delete') }}</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    @if ($show_edit_modal)
+        <div class="fixed inset-0 z-50 flex items-center justify-center" data-modal-root>
+            <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" wire:click="closeEditModal" data-modal-overlay></div>
+            <div class="relative w-full max-w-lg mx-4 ui-card">
+                <div class="p-4 border-b border-gray-200 flex items-center justify-between">
+                    <div>
+                        <div class="text-sm text-gray-500">{{ __('Edit Branch') }}</div>
+                        <div class="mt-1 font-semibold text-gray-900">{{ $name ?: '-' }}</div>
+                    </div>
+                    <button type="button" wire:click="closeEditModal" class="ui-btn-secondary" data-modal-close>{{ __('Close') }}</button>
+                </div>
+
+                <div class="p-4">
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">{{ __('Name') }}</label>
+                            <input type="text" wire:model.defer="name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                            @error('name') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">{{ __('Code (optional)') }}</label>
+                            <input type="text" wire:model.defer="code" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                            @error('code') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                        </div>
+
+                        <div>
+                            <label class="inline-flex items-center">
+                                <input type="checkbox" wire:model.defer="is_active" class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" />
+                                <span class="ms-2 text-sm text-gray-700">{{ __('Active') }}</span>
+                            </label>
+                            @error('is_active') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                        </div>
+                    </div>
+
+                    <div class="mt-4 flex items-center justify-end gap-3">
+                        <button type="button" wire:click="closeEditModal" class="ui-btn-secondary" data-modal-close>{{ __('Cancel') }}</button>
+                        <button type="button" wire:click="save" class="ui-btn-primary">{{ __('Update') }}</button>
                     </div>
                 </div>
             </div>

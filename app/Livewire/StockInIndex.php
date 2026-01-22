@@ -58,13 +58,10 @@ class StockInIndex extends Component
         if (! $this->isSuperAdmin) {
             $this->branch_id = (int) ($user?->branch_id ?? 0);
         } else {
-            $this->branch_id = (int) (Branch::query()->where('is_active', true)->orderBy('name')->value('id') ?? 0);
+            $this->branch_id = 0;
         }
 
-        $this->product_id = (int) (Product::query()
-            ->when($this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
-            ->orderBy('name')
-            ->value('id') ?? 0);
+        $this->product_id = 0;
         $this->entry_mode = 'unit';
         $this->bulk_quantity = 1;
         $this->quantity = 1;
@@ -121,11 +118,11 @@ class StockInIndex extends Component
             return;
         }
 
-        $this->product_id = (int) (Product::query()
-            ->when($this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
-            ->orderBy('name')
-            ->value('id') ?? 0);
-        $this->updatedProductId();
+        $this->product_id = 0;
+        $this->product_search = '';
+        $this->entry_mode = 'unit';
+        $this->bulk_quantity = 1;
+        $this->quantity = 1;
     }
 
     public function save(): void
@@ -312,6 +309,7 @@ class StockInIndex extends Component
         $stocks = ProductStock::query()
             ->with(['product'])
             ->when($this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
+            ->when($this->isSuperAdmin && $this->branch_id <= 0, fn ($q) => $q->whereRaw('1 = 0'))
             ->join('products', 'products.id', '=', 'product_stocks.product_id')
             ->when(trim($this->stock_search) !== '', function ($q) {
                 $term = '%' . trim($this->stock_search) . '%';
@@ -324,6 +322,8 @@ class StockInIndex extends Component
         $receipts = StockInReceipt::query()
             ->with(['branch', 'user'])
             ->when(! $this->isSuperAdmin, fn ($q) => $q->where('branch_id', (int) (auth()->user()?->branch_id ?? 0)))
+            ->when($this->isSuperAdmin && $this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
+            ->when($this->isSuperAdmin && $this->branch_id <= 0, fn ($q) => $q->whereRaw('1 = 0'))
             ->when(trim($this->receipt_search) !== '', function ($q) {
                 $term = '%' . trim($this->receipt_search) . '%';
                 $q->where(function ($qq) use ($term) {
@@ -340,6 +340,8 @@ class StockInIndex extends Component
         if ($this->selected_receipt_id > 0) {
             $selectedReceipt = StockInReceipt::query()
                 ->with(['branch', 'user', 'items.product'])
+                ->when(! $this->isSuperAdmin, fn ($q) => $q->where('branch_id', (int) (auth()->user()?->branch_id ?? 0)))
+                ->when($this->isSuperAdmin && $this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
                 ->find($this->selected_receipt_id);
         }
 

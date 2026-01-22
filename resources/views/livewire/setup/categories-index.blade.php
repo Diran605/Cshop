@@ -7,15 +7,16 @@
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div class="ui-card">
-                <div class="ui-card-body">
-                    <div class="flex items-center justify-between">
-                        <h3 class="ui-card-title">
-                            {{ $editingId ? __('Edit Category') : __('New Category') }}
-                        </h3>
-                    </div>
+            @if (! $show_edit_modal)
+                <div class="ui-card">
+                    <div class="ui-card-body">
+                        <div class="flex items-center justify-between">
+                            <h3 class="ui-card-title">
+                                {{ __('New Category') }}
+                            </h3>
+                        </div>
 
-                    <div class="mt-4 space-y-4">
+                        <div class="mt-4 space-y-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700">{{ __('Branch') }}</label>
                             @if ($isSuperAdmin)
@@ -47,19 +48,14 @@
                         </div>
 
                         <div class="flex items-center justify-end gap-3">
-                            @if ($editingId)
-                                <button type="button" wire:click="cancelEdit" class="ui-btn-secondary">
-                                    {{ __('Cancel') }}
-                                </button>
-                            @endif
-
                             <button type="button" wire:click="save" class="ui-btn-primary">
-                                {{ $editingId ? __('Save') : __('Create') }}
+                                {{ __('Create') }}
                             </button>
+                        </div>
                         </div>
                     </div>
                 </div>
-            </div>
+            @endif
 
             <div class="lg:col-span-2 ui-card">
                 <div class="ui-card-body">
@@ -97,8 +93,8 @@
                                         </td>
                                         <td class="px-4 py-3 text-sm text-right">
                                             <div class="inline-flex items-center gap-3">
-                                                <button type="button" wire:click.stop.prevent="edit({{ $category->id }})" class="text-indigo-600 hover:text-indigo-900">{{ __('Edit') }}</button>
-                                                <button type="button" wire:click.stop.prevent="openDeleteModal({{ $category->id }})" class="text-red-600 hover:text-red-900">{{ __('Delete') }}</button>
+                                                <button type="button" wire:click.stop.prevent="openEditModal({{ $category->id }})" class="ui-btn-link">{{ __('Edit') }}</button>
+                                                <button type="button" wire:click.stop.prevent="openDeleteModal({{ $category->id }})" class="ui-btn-link-danger">{{ __('Delete') }}</button>
                                             </div>
                                         </td>
                                     </tr>
@@ -135,6 +131,57 @@
                     <div class="mt-4 flex items-center justify-end gap-3">
                         <button type="button" wire:click="closeDeleteModal" class="ui-btn-secondary" data-modal-close>{{ __('Cancel') }}</button>
                         <button type="button" wire:click="confirmDelete" class="ui-btn-danger">{{ __('Delete') }}</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    @if ($show_edit_modal)
+        <div class="fixed inset-0 z-50 flex items-center justify-center" data-modal-root>
+            <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" wire:click="closeEditModal" data-modal-overlay></div>
+            <div class="relative w-full max-w-lg mx-4 ui-card">
+                <div class="p-4 border-b border-gray-200 flex items-center justify-between">
+                    <div>
+                        <div class="text-sm text-gray-500">{{ __('Edit Category') }}</div>
+                        <div class="mt-1 font-semibold text-gray-900">{{ $name ?: '-' }}</div>
+                    </div>
+                    <button type="button" wire:click="closeEditModal" class="ui-btn-secondary" data-modal-close>{{ __('Close') }}</button>
+                </div>
+
+                <div class="p-4">
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">{{ __('Branch') }}</label>
+                            @if ($isSuperAdmin)
+                                <select wire:model.live="branch_id" @disabled(true) class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 disabled:bg-gray-100">
+                                    @foreach ($branches as $branch)
+                                        <option value="{{ $branch->id }}">{{ $branch->name }}</option>
+                                    @endforeach
+                                </select>
+                            @else
+                                <div class="mt-1 rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-700">
+                                    {{ auth()->user()?->branch?->name ?? '-' }}
+                                </div>
+                            @endif
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">{{ __('Name') }}</label>
+                            <input type="text" wire:model.defer="name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                            @error('name') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">{{ __('Description') }}</label>
+                            <textarea wire:model.defer="description" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"></textarea>
+                            @error('description') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                        </div>
+                    </div>
+
+                    <div class="mt-4 flex items-center justify-end gap-3">
+                        <button type="button" wire:click="closeEditModal" class="ui-btn-secondary" data-modal-close>{{ __('Cancel') }}</button>
+                        <button type="button" wire:click="save" class="ui-btn-primary">{{ __('Save') }}</button>
                     </div>
                 </div>
             </div>

@@ -38,13 +38,17 @@
                         <div>
                             <label class="block text-sm font-medium text-gray-700">{{ __('Product') }}</label>
                             <input type="text" wire:model.live.debounce.300ms="product_search" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" placeholder="Search product..." />
-                            <select wire:model="product_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <select wire:model="product_id" @disabled($isSuperAdmin && $branch_id <= 0) class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 disabled:bg-gray-100">
                                 <option value="0">{{ __('Select...') }}</option>
                                 @foreach ($products as $product)
                                     <option value="{{ $product->id }}">{{ $product->name }}</option>
                                 @endforeach
                             </select>
                             @error('product_id') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+
+                            @if ($isSuperAdmin && $branch_id <= 0)
+                                <div class="mt-1 text-xs text-gray-500">{{ __('Select a branch first to load products.') }}</div>
+                            @endif
                         </div>
 
                         @if ($selectedProduct && (bool) $selectedProduct->bulk_enabled)
@@ -194,7 +198,7 @@
                                                     {{ $receipt->total_quantity }}
                                                 </td>
                                                 <td class="px-4 py-3 text-sm text-right">
-                                                    <button type="button" wire:click="openReceiptModal({{ $receipt->id }})" class="text-indigo-600 hover:text-indigo-900">{{ __('View') }}</button>
+                                                    <button type="button" wire:click="openReceiptModal({{ $receipt->id }})" class="ui-btn-link">{{ __('View') }}</button>
                                                 </td>
                                             </tr>
                                         @endforeach

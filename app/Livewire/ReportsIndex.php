@@ -40,7 +40,7 @@ class ReportsIndex extends Component
         if (! $this->isSuperAdmin) {
             $this->branch_id = (int) ($user?->branch_id ?? 0);
         } else {
-            $this->branch_id = (int) (Branch::query()->where('is_active', true)->orderBy('name')->value('id') ?? 0);
+            $this->branch_id = 0;
         }
 
         $today = Carbon::today();

@@ -26,6 +26,8 @@ class UsersIndex extends Component
     public int $pending_delete_id = 0;
     public string $pending_delete_name = '';
 
+    public bool $show_edit_modal = false;
+
     protected function rules(): array
     {
         $emailRule = Rule::unique('users', 'email');
@@ -49,6 +51,7 @@ class UsersIndex extends Component
         $this->branch_id = (int) (Branch::query()->where('is_active', true)->orderBy('name')->value('id') ?? 0);
         $this->password = null;
         $this->password_confirmation = null;
+        $this->show_edit_modal = false;
         $this->resetErrorBag();
     }
 
@@ -68,6 +71,18 @@ class UsersIndex extends Component
         $this->password = null;
         $this->password_confirmation = null;
         $this->resetErrorBag();
+    }
+
+    public function openEditModal(int $id): void
+    {
+        $this->edit($id);
+        $this->show_edit_modal = true;
+    }
+
+    public function closeEditModal(): void
+    {
+        $this->show_edit_modal = false;
+        $this->resetForm();
     }
 
     public function save(): void

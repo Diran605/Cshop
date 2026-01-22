@@ -166,8 +166,8 @@
                                         </td>
                                         <td class="px-4 py-3 text-sm text-right">
                                             <div class="inline-flex items-center gap-3">
-                                                <button type="button" wire:click.stop.prevent="openEditModal({{ $product->id }})" class="text-indigo-600 hover:text-indigo-900">{{ __('Edit') }}</button>
-                                                <button type="button" wire:click.stop.prevent="openDeleteModal({{ $product->id }})" class="text-red-600 hover:text-red-900">{{ __('Delete') }}</button>
+                                                <button type="button" wire:click.stop.prevent="openEditModal({{ $product->id }})" class="ui-btn-link">{{ __('Edit') }}</button>
+                                                <button type="button" wire:click.stop.prevent="openDeleteModal({{ $product->id }})" class="ui-btn-link-danger">{{ __('Delete') }}</button>
                                             </div>
                                         </td>
                                     </tr>

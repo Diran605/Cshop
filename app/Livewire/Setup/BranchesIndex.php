@@ -14,6 +14,8 @@ class BranchesIndex extends Component
 
     public string $search = '';
 
+    public bool $show_edit_modal = false;
+
     public bool $show_delete_modal = false;
     public int $pending_delete_id = 0;
     public string $pending_delete_name = '';
@@ -34,6 +36,7 @@ class BranchesIndex extends Component
         $this->code = null;
         $this->is_active = true;
         $this->search = '';
+        $this->show_edit_modal = false;
         $this->resetErrorBag();
     }
 
@@ -45,6 +48,18 @@ class BranchesIndex extends Component
         $this->name = (string) $branch->name;
         $this->code = $branch->code !== null ? (string) $branch->code : null;
         $this->is_active = (bool) $branch->is_active;
+    }
+
+    public function openEditModal(int $id): void
+    {
+        $this->edit($id);
+        $this->show_edit_modal = true;
+    }
+
+    public function closeEditModal(): void
+    {
+        $this->show_edit_modal = false;
+        $this->resetForm();
     }
 
     public function save(): void

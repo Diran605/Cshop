@@ -27,6 +27,14 @@
         @apply inline-flex items-center justify-center rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed;
     }
 
+    .ui-btn-link {
+        @apply inline-flex items-center justify-center rounded-md bg-indigo-50 px-3 py-1.5 text-sm font-semibold text-indigo-700 ring-1 ring-inset ring-indigo-200 hover:bg-indigo-100 hover:text-indigo-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2;
+    }
+
+    .ui-btn-link-danger {
+        @apply inline-flex items-center justify-center rounded-md bg-red-50 px-3 py-1.5 text-sm font-semibold text-red-700 ring-1 ring-inset ring-red-200 hover:bg-red-100 hover:text-red-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2;
+    }
+
     .ui-badge {
         @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ring-1 ring-inset;
     }

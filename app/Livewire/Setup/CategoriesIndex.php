@@ -14,6 +14,8 @@ class CategoriesIndex extends Component
     public ?string $description = null;
     public ?int $editingId = null;
 
+    public bool $show_edit_modal = false;
+
     public bool $show_delete_modal = false;
     public int $pending_delete_id = 0;
     public string $pending_delete_name = '';
@@ -99,6 +101,18 @@ class CategoriesIndex extends Component
         $this->description = $category->description;
     }
 
+    public function openEditModal(int $id): void
+    {
+        $this->edit($id);
+        $this->show_edit_modal = true;
+    }
+
+    public function closeEditModal(): void
+    {
+        $this->show_edit_modal = false;
+        $this->resetForm();
+    }
+
     public function cancelEdit(): void
     {
         $this->resetForm();
@@ -111,7 +125,7 @@ class CategoriesIndex extends Component
         $category = Category::query()
             ->when(! $this->isSuperAdmin, fn ($q) => $q->where('branch_id', (int) (auth()->user()?->branch_id ?? 0)))
             ->findOrFail($id);
-        $category->forceDelete();
+        $category->delete();
         $this->resetForm();
     }
 
@@ -149,7 +163,7 @@ class CategoriesIndex extends Component
     {
         $currentBranchId = (int) $this->branch_id;
 
-        $this->reset(['search', 'name', 'description', 'editingId']);
+        $this->reset(['search', 'name', 'description', 'editingId', 'show_edit_modal']);
 
         $user = auth()->user();
         $this->isSuperAdmin = (bool) ($user?->role === 'super_admin');
