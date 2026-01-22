@@ -106,6 +106,7 @@ class ReportsIndex extends Component
             ->join('sales_receipts', 'sales_receipts.id', '=', 'sales_items.sales_receipt_id')
             ->join('products', 'products.id', '=', 'sales_items.product_id')
             ->when($this->branch_id > 0, fn ($q) => $q->where('sales_receipts.branch_id', $this->branch_id))
+            ->whereNull('sales_receipts.voided_at')
             ->whereBetween('sales_receipts.sold_at', [$from, $to]);
 
         if ($this->category_id > 0) {
@@ -150,6 +151,7 @@ class ReportsIndex extends Component
 
         $stockInByDay = StockInReceipt::query()
             ->when($this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
+            ->whereNull('voided_at')
             ->whereBetween('received_at', [$from, $to])
             ->groupBy(DB::raw('DATE(received_at)'))
             ->orderBy(DB::raw('DATE(received_at)'))
@@ -227,6 +229,7 @@ class ReportsIndex extends Component
             ->join('stock_in_receipts', 'stock_in_receipts.id', '=', 'stock_in_items.stock_in_receipt_id')
             ->join('products', 'products.id', '=', 'stock_in_items.product_id')
             ->when($this->branch_id > 0, fn ($q) => $q->where('stock_in_receipts.branch_id', $this->branch_id))
+            ->whereNull('stock_in_receipts.voided_at')
             ->whereBetween('stock_in_receipts.received_at', [$from, $to])
             ->groupBy('stock_in_items.product_id', 'products.name')
             ->select([

@@ -46,6 +46,7 @@ Route::get('/dashboard', function () {
     if (! $isSuperAdmin) {
         $salesTotal = (float) (DB::table('sales_receipts')
             ->where('branch_id', $branchId)
+            ->whereNull('voided_at')
             ->whereBetween('sold_at', [$from, $to])
             ->sum('grand_total') ?? 0);
 
@@ -70,6 +71,7 @@ Route::get('/dashboard', function () {
             ]);
     } else {
         $salesTotal = (float) (DB::table('sales_receipts')
+            ->whereNull('voided_at')
             ->whereBetween('sold_at', [$from, $to])
             ->sum('grand_total') ?? 0);
 
@@ -82,6 +84,7 @@ Route::get('/dashboard', function () {
 
         $topBranchesBySales = DB::table('sales_receipts')
             ->join('branches', 'branches.id', '=', 'sales_receipts.branch_id')
+            ->whereNull('sales_receipts.voided_at')
             ->whereBetween('sales_receipts.sold_at', [$from, $to])
             ->groupBy('branches.id', 'branches.name')
             ->orderByDesc(DB::raw('SUM(sales_receipts.grand_total)'))
