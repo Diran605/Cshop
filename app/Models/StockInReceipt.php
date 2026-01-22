@@ -19,10 +19,14 @@ class StockInReceipt extends Model
         'notes',
         'total_quantity',
         'total_cost',
+        'voided_at',
+        'voided_by',
+        'void_reason',
     ];
 
     protected $casts = [
         'received_at' => 'datetime',
+        'voided_at' => 'datetime',
     ];
 
     public function branch(): BelongsTo
@@ -33,6 +37,11 @@ class StockInReceipt extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function voidedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'voided_by');
     }
 
     public function items(): HasMany

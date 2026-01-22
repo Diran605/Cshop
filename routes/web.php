@@ -2,7 +2,10 @@
 
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Auth\RegisteredUserController;
+use App\Http\Controllers\SalesReceiptsBatchPrintController;
 use App\Http\Controllers\SalesReceiptPrintController;
+use App\Http\Controllers\StockInReceiptPrintController;
+use App\Http\Controllers\StockInReceiptsBatchPrintController;
 use App\Livewire\ProductsIndex;
 use App\Livewire\ReportsIndex;
 use App\Livewire\SalesIndex;
@@ -123,7 +126,11 @@ Route::middleware('auth')->group(function () {
     Route::get('/stock-in', StockInIndex::class)->name('stock_in.index');
 
     Route::get('/sales', SalesIndex::class)->name('sales.index');
+    Route::get('/sales/print', SalesReceiptsBatchPrintController::class)->name('sales.print_batch');
     Route::get('/sales/{sale}/print', SalesReceiptPrintController::class)->name('sales.print');
+
+    Route::get('/stock-in/print', StockInReceiptsBatchPrintController::class)->name('stock_in.print_batch');
+    Route::get('/stock-in/{receipt}/print', StockInReceiptPrintController::class)->name('stock_in.print');
     Route::get('/reports', ReportsIndex::class)->name('reports.index');
     Route::get('/stock-movements', StockMovementsIndex::class)->name('stock_movements.index');
 });

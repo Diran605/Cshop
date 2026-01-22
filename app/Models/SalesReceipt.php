@@ -25,10 +25,14 @@ class SalesReceipt extends Model
         'amount_paid',
         'change_due',
         'notes',
+        'voided_at',
+        'voided_by',
+        'void_reason',
     ];
 
     protected $casts = [
         'sold_at' => 'datetime',
+        'voided_at' => 'datetime',
     ];
 
     public function branch(): BelongsTo
@@ -39,6 +43,11 @@ class SalesReceipt extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function voidedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'voided_by');
     }
 
     public function items(): HasMany

@@ -161,58 +161,117 @@
 
                 <div class="ui-card">
                     <div class="ui-card-body">
-                        <div class="flex items-center justify-between">
-                            <h3 class="ui-card-title">{{ __('Recent Stock In Receipts') }}</h3>
-                            <div class="w-72">
-                                <input type="text" wire:model.live.debounce.300ms="receipt_search" placeholder="{{ __('Search receipts...') }}" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                        <div class="flex items-center justify-between gap-4">
+                            <h3 class="ui-card-title">{{ __('Stock In Records') }}</h3>
+                            <div class="text-sm text-gray-500">
+                                {{ __('Selected:') }}
+                                <span class="font-medium">{{ count($selected_receipts) }}</span>
                             </div>
-                            @if ($selectedReceipt)
-                                <div class="text-sm text-gray-500">
-                                    <span class="font-medium">{{ $selectedReceipt->receipt_no }}</span>
-                                </div>
-                            @endif
                         </div>
 
-                        <div class="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-6">
-                            <div class="overflow-x-auto">
-                                <table class="ui-table">
-                                    <thead>
-                                        <tr>
-                                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Receipt') }}</th>
-                                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Branch') }}</th>
-                                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Qty') }}</th>
-                                            <th class="px-4 py-3"></th>
-                                        </tr>
-                                    </thead>
-                                    <tbody class="bg-white divide-y divide-gray-200">
-                                        @foreach ($receipts as $receipt)
-                                            <tr wire:key="receipt-{{ $receipt->id }}">
-                                                <td class="px-4 py-3 text-sm text-gray-900">
-                                                    <div class="font-medium">{{ $receipt->receipt_no }}</div>
-                                                    <div class="text-xs text-gray-500">{{ $receipt->received_at?->format('Y-m-d H:i') }}</div>
-                                                </td>
-                                                <td class="px-4 py-3 text-sm text-gray-700">
-                                                    {{ $receipt->branch?->name ?? '-' }}
-                                                </td>
-                                                <td class="px-4 py-3 text-sm text-gray-700">
-                                                    {{ $receipt->total_quantity }}
-                                                </td>
-                                                <td class="px-4 py-3 text-sm text-right">
-                                                    <button type="button" wire:click="openReceiptModal({{ $receipt->id }})" class="ui-btn-link">{{ __('View') }}</button>
-                                                </td>
-                                            </tr>
-                                        @endforeach
+                        <div class="mt-4 grid grid-cols-1 md:grid-cols-5 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">{{ __('From') }}</label>
+                                <input type="date" wire:model.live="receipt_date_from" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">{{ __('To') }}</label>
+                                <input type="date" wire:model.live="receipt_date_to" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">{{ __('Status') }}</label>
+                                <select wire:model.live="receipt_status" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    <option value="active">{{ __('Active') }}</option>
+                                    <option value="voided">{{ __('Voided') }}</option>
+                                    <option value="all">{{ __('All') }}</option>
+                                </select>
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-medium text-gray-700">{{ __('Search') }}</label>
+                                <input type="text" wire:model.live.debounce.300ms="receipt_search" placeholder="{{ __('Receipt / Branch / User') }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                            </div>
+                        </div>
 
-                                        @if ($receipts->isEmpty())
-                                            <tr>
-                                                <td colspan="4" class="px-4 py-8 text-center text-sm text-gray-500">{{ __('No receipts yet.') }}</td>
-                                            </tr>
-                                        @endif
-                                    </tbody>
-                                </table>
+                        <div class="mt-4 flex flex-wrap items-center justify-between gap-3">
+                            <div class="flex items-center gap-3">
+                                <button type="button" wire:click="selectAllReceiptsForDay('{{ $receipt_date_from }}')" class="ui-btn-secondary">
+                                    {{ __('Select All For Day') }}
+                                </button>
+                                @if (count($selected_receipts) > 0)
+                                    <button type="button" wire:click="clearSelectedReceipts" class="ui-btn-secondary">
+                                        {{ __('Clear Selection') }}
+                                    </button>
+                                @endif
                             </div>
 
-                            <div></div>
+                            <div class="flex items-center gap-3">
+                                @if (count($selected_receipts) > 0)
+                                    <a href="{{ route('stock_in.print_batch', ['ids' => implode(',', $selected_receipts)]) }}" target="_blank" class="ui-btn-primary">
+                                        {{ __('Print Selected') }}
+                                    </a>
+                                @else
+                                    <button type="button" class="ui-btn-secondary" disabled>
+                                        {{ __('Print Selected') }}
+                                    </button>
+                                @endif
+                            </div>
+                        </div>
+
+                        <div class="mt-4 overflow-x-auto">
+                            <table class="ui-table">
+                                <thead>
+                                    <tr>
+                                        <th class="px-4 py-3"></th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Receipt') }}</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Branch') }}</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Qty') }}</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Status') }}</th>
+                                        <th class="px-4 py-3"></th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    @foreach ($receipts as $receipt)
+                                        <tr wire:key="receipt-{{ $receipt->id }}">
+                                            <td class="px-4 py-3 text-sm">
+                                                <input type="checkbox" value="{{ $receipt->id }}" wire:model.live="selected_receipts" class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" />
+                                            </td>
+                                            <td class="px-4 py-3 text-sm text-gray-900">
+                                                <div class="font-medium">{{ $receipt->receipt_no }}</div>
+                                                <div class="text-xs text-gray-500">{{ $receipt->received_at?->format('Y-m-d H:i') }}</div>
+                                            </td>
+                                            <td class="px-4 py-3 text-sm text-gray-700">
+                                                {{ $receipt->branch?->name ?? '-' }}
+                                            </td>
+                                            <td class="px-4 py-3 text-sm text-gray-700">
+                                                {{ $receipt->total_quantity }}
+                                            </td>
+                                            <td class="px-4 py-3 text-sm">
+                                                @if ($receipt->voided_at)
+                                                    <span class="ui-badge-warning">{{ __('Voided') }}</span>
+                                                @else
+                                                    <span class="ui-badge-success">{{ __('Active') }}</span>
+                                                @endif
+                                            </td>
+                                            <td class="px-4 py-3 text-sm text-right">
+                                                <div class="inline-flex items-center justify-end gap-2">
+                                                    <button type="button" wire:click="openReceiptModal({{ $receipt->id }})" class="ui-btn-link">{{ __('View') }}</button>
+
+                                                    @if (! $receipt->voided_at)
+                                                        <button type="button" wire:click="openEditModal({{ $receipt->id }})" class="ui-btn-link">{{ __('Edit') }}</button>
+                                                        <button type="button" wire:click="openVoidModal({{ $receipt->id }})" class="ui-btn-link-danger">{{ __('Void') }}</button>
+                                                    @endif
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+
+                                    @if ($receipts->isEmpty())
+                                        <tr>
+                                            <td colspan="6" class="px-4 py-8 text-center text-sm text-gray-500">{{ __('No receipts found.') }}</td>
+                                        </tr>
+                                    @endif
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
@@ -240,6 +299,23 @@
                     </div>
 
                     <div class="p-4">
+                        @if ($selectedReceipt->voided_at)
+                            <div class="mb-4 rounded-md bg-yellow-50 p-4 text-sm text-yellow-900">
+                                <div class="font-semibold">{{ __('Voided') }}</div>
+                                <div class="mt-1">{{ __('Voided at:') }} {{ $selectedReceipt->voided_at?->format('Y-m-d H:i') }}</div>
+                                @if ($selectedReceipt->void_reason)
+                                    <div class="mt-1">{{ __('Reason:') }} {{ $selectedReceipt->void_reason }}</div>
+                                @endif
+                            </div>
+                        @endif
+
+                        <div class="flex items-center justify-between">
+                            <div></div>
+                            <a href="{{ route('stock_in.print', $selectedReceipt->id) }}" target="_blank" class="ui-btn-secondary">
+                                {{ __('Print Receipt') }}
+                            </a>
+                        </div>
+
                         @if ($selectedReceipt->notes)
                             <div class="text-sm text-gray-700">{{ $selectedReceipt->notes }}</div>
                         @endif
@@ -278,6 +354,174 @@
                                     @endif
                                 </tbody>
                             </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        @endif
+
+        @if ($show_edit_modal)
+            @php($editCartItems = array_values($edit_cart))
+            @php($editTotalQty = collect($editCartItems)->sum('quantity'))
+            @php($editTotalCost = collect($editCartItems)->reduce(function ($carry, $row) { $cp = $row['cost_price'] ?? null; $qty = (int) ($row['quantity'] ?? 0); return $carry + (($cp !== null && $cp !== '') ? ((float) $cp * $qty) : 0); }, 0))
+
+            <div class="fixed inset-0 z-50 flex items-center justify-center" data-modal-root>
+                <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" wire:click="closeEditModal" data-modal-overlay></div>
+                <div class="relative w-full max-w-5xl mx-4 ui-card">
+                    <div class="p-4 border-b border-gray-200 flex items-center justify-between">
+                        <div>
+                            <div class="text-sm text-gray-500">{{ __('Edit Stock In Receipt') }}</div>
+                            <div class="mt-1 font-semibold text-gray-900">{{ __('Full Edit') }}</div>
+                        </div>
+                        <button type="button" wire:click="closeEditModal" class="ui-btn-secondary" data-modal-close>{{ __('Close') }}</button>
+                    </div>
+
+                    <div class="p-4 space-y-4">
+                        <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-medium text-gray-700">{{ __('Product') }}</label>
+                                <select wire:model="edit_product_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    <option value="0">{{ __('Select...') }}</option>
+                                    @foreach ($editProducts as $p)
+                                        <option value="{{ $p->id }}">{{ $p->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">{{ __('Entry Type') }}</label>
+                                <select wire:model="edit_entry_mode" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    <option value="unit">{{ __('Units') }}</option>
+                                    <option value="bulk">{{ __('Bulk') }}</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                @if ($edit_entry_mode === 'bulk')
+                                    <label class="block text-sm font-medium text-gray-700">{{ __('Bulk Quantity') }}</label>
+                                    <input type="number" min="1" wire:model.defer="edit_bulk_quantity" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                                @else
+                                    <label class="block text-sm font-medium text-gray-700">{{ __('Quantity (Units)') }}</label>
+                                    <input type="number" min="1" wire:model.defer="edit_quantity" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                                @endif
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">{{ __('Cost Price') }}</label>
+                                <input type="number" min="0" step="0.01" wire:model.defer="edit_cost_price" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                            </div>
+                        </div>
+
+                        <div class="flex items-center justify-end">
+                            <button type="button" wire:click="addEditProduct" class="ui-btn-primary">{{ __('Add') }}</button>
+                        </div>
+
+                        @error('edit_cart')
+                            <div class="rounded-md bg-red-50 p-4 text-sm text-red-800">{{ $message }}</div>
+                        @enderror
+
+                        <div class="overflow-x-auto">
+                            <table class="ui-table">
+                                <thead>
+                                    <tr>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Product') }}</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Qty') }}</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Cost') }}</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Total') }}</th>
+                                        <th class="px-4 py-3"></th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    @foreach ($editCartItems as $item)
+                                        @php($isBulk = (string) ($item['entry_mode'] ?? 'unit') === 'bulk')
+                                        @php($displayQty = $isBulk ? (int) ($item['bulk_quantity'] ?? 0) : (int) ($item['quantity'] ?? 0))
+                                        @php($lineTotal = (($item['cost_price'] ?? null) !== null && ($item['cost_price'] ?? '') !== '') ? ((float) $item['cost_price'] * (int) $item['quantity']) : null)
+                                        <tr wire:key="edit-receipt-item-{{ $item['product_id'] }}">
+                                            <td class="px-4 py-3 text-sm text-gray-900">
+                                                <div class="font-medium">{{ $item['name'] ?? '-' }}</div>
+                                                @if ($isBulk)
+                                                    <div class="mt-1 text-xs text-gray-500">{{ __('Units:') }} {{ (int) ($item['quantity'] ?? 0) }}</div>
+                                                @endif
+                                            </td>
+                                            <td class="px-4 py-3 text-sm text-gray-700">
+                                                <div class="inline-flex items-center gap-2">
+                                                    <button type="button" wire:click="decrementEditItem({{ $item['product_id'] }})" class="px-2 py-1 border border-gray-300 rounded">-</button>
+                                                    <input type="number" min="1" class="w-24 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" value="{{ $displayQty }}" wire:change="setEditQuantity({{ $item['product_id'] }}, $event.target.value)" />
+                                                    <button type="button" wire:click="incrementEditItem({{ $item['product_id'] }})" class="px-2 py-1 border border-gray-300 rounded">+</button>
+                                                </div>
+                                            </td>
+                                            <td class="px-4 py-3 text-sm text-gray-700">
+                                                <input type="number" min="0" step="0.01" class="w-28 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" value="{{ (string) ($item['cost_price'] ?? '') }}" wire:change="setEditCostPrice({{ $item['product_id'] }}, $event.target.value)" />
+                                            </td>
+                                            <td class="px-4 py-3 text-sm text-gray-700">
+                                                {{ $lineTotal !== null ? number_format((float) $lineTotal, 2) : '-' }}
+                                            </td>
+                                            <td class="px-4 py-3 text-sm text-right">
+                                                <button type="button" wire:click="removeEditItem({{ $item['product_id'] }})" class="ui-btn-link-danger">{{ __('Remove') }}</button>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+
+                                    @if (count($editCartItems) === 0)
+                                        <tr>
+                                            <td colspan="5" class="px-4 py-8 text-center text-sm text-gray-500">{{ __('Cart is empty.') }}</td>
+                                        </tr>
+                                    @endif
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">{{ __('Notes (optional)') }}</label>
+                            <textarea wire:model.defer="edit_notes" rows="2" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"></textarea>
+                        </div>
+
+                        <div class="rounded-md bg-gray-50 p-4 text-sm text-gray-700 space-y-1">
+                            <div class="flex items-center justify-between">
+                                <div>{{ __('Total Qty') }}</div>
+                                <div class="font-medium">{{ (int) $editTotalQty }}</div>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <div>{{ __('Total Cost') }}</div>
+                                <div class="font-semibold text-gray-900">{{ number_format((float) $editTotalCost, 2) }}</div>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center justify-end gap-3">
+                            <button type="button" wire:click="closeEditModal" class="ui-btn-secondary">{{ __('Cancel') }}</button>
+                            <button type="button" wire:click="saveEdit" class="ui-btn-primary">{{ __('Save Changes') }}</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        @endif
+
+        @if ($show_void_modal)
+            <div class="fixed inset-0 z-50 flex items-center justify-center" data-modal-root>
+                <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" wire:click="closeVoidModal" data-modal-overlay></div>
+                <div class="relative w-full max-w-lg mx-4 ui-card">
+                    <div class="p-4 border-b border-gray-200 flex items-center justify-between">
+                        <div>
+                            <div class="text-sm text-gray-500">{{ __('Void Stock In Receipt') }}</div>
+                            <div class="mt-1 font-semibold text-gray-900">{{ __('Confirm Void') }}</div>
+                        </div>
+                        <button type="button" wire:click="closeVoidModal" class="ui-btn-secondary" data-modal-close>{{ __('Close') }}</button>
+                    </div>
+
+                    <div class="p-4 space-y-4">
+                        <div class="text-sm text-gray-700">
+                            {{ __('This will reverse stock for all items and mark the receipt as voided.') }}
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">{{ __('Reason (optional)') }}</label>
+                            <textarea wire:model.defer="void_reason" rows="2" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"></textarea>
+                            @error('void_reason') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                        </div>
+
+                        <div class="flex items-center justify-end gap-3">
+                            <button type="button" wire:click="closeVoidModal" class="ui-btn-secondary">{{ __('Cancel') }}</button>
+                            <button type="button" wire:click="confirmVoidReceipt" class="ui-btn-danger">{{ __('Void') }}</button>
                         </div>
                     </div>
                 </div>
