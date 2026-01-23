@@ -5,6 +5,7 @@ namespace App\Livewire;
 use App\Models\Branch;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules;
 use Livewire\Component;
@@ -39,7 +40,7 @@ class UsersIndex extends Component
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', $emailRule],
             'branch_id' => ['required', 'integer', 'exists:branches,id'],
-            'password' => [$this->editingId > 0 ? 'nullable' : 'required', 'confirmed', Rules\Password::defaults()],
+            'password' => ['nullable', 'confirmed', Rules\Password::defaults()],
         ];
     }
 
@@ -107,15 +108,18 @@ class UsersIndex extends Component
             return;
         }
 
+        $tempPassword = Str::random(12);
+
         User::query()->create([
             'name' => $data['name'],
             'email' => $data['email'],
             'branch_id' => (int) $data['branch_id'],
             'role' => 'branch_admin',
-            'password' => Hash::make((string) $data['password']),
+            'password' => Hash::make($tempPassword),
         ]);
 
         session()->flash('status', 'User created successfully.');
+        session()->flash('temp_password', $tempPassword);
         $this->resetForm();
     }
 

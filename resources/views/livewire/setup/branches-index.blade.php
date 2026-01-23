@@ -1,18 +1,30 @@
 <div class="py-8">
     <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
         <div class="mb-6">
-            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+            <h2 class="font-semibold text-xl text-slate-900 leading-tight">
                 {{ __('Branches') }}
             </h2>
         </div>
 
         @if (session('status'))
-            <div class="mb-4 rounded-md bg-green-50 p-4 text-sm text-green-800">
+            <div class="ui-alert-success">
                 {{ session('status') }}
             </div>
         @endif
 
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        @if (session('warning'))
+            <div class="ui-alert-warning">
+                {{ session('warning') }}
+            </div>
+        @endif
+
+        @if (session('error'))
+            <div class="ui-alert-danger">
+                {{ session('error') }}
+            </div>
+        @endif
+
+        <div class="space-y-6">
             @if (! $show_edit_modal)
                 <div class="ui-card">
                     <div class="ui-card-body">
@@ -22,21 +34,21 @@
 
                         <div class="mt-4 space-y-4">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">{{ __('Name') }}</label>
-                            <input type="text" wire:model.defer="name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                            <label class="ui-label">{{ __('Name') }}</label>
+                            <input type="text" wire:model.defer="name" class="mt-1 ui-input" />
                             @error('name') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
                         </div>
 
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">{{ __('Code (optional)') }}</label>
-                            <input type="text" wire:model.defer="code" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                            <label class="ui-label">{{ __('Code (optional)') }}</label>
+                            <input type="text" wire:model.defer="code" class="mt-1 ui-input" />
                             @error('code') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
                         </div>
 
                         <div>
                             <label class="inline-flex items-center">
-                                <input type="checkbox" wire:model.defer="is_active" class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" />
-                                <span class="ms-2 text-sm text-gray-700">{{ __('Active') }}</span>
+                                <input type="checkbox" wire:model.defer="is_active" class="ui-checkbox" />
+                                <span class="ms-2 text-sm text-slate-700">{{ __('Active') }}</span>
                             </label>
                             @error('is_active') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
                         </div>
@@ -56,33 +68,34 @@
                     <div class="flex items-center justify-between gap-4">
                         <h3 class="ui-card-title">{{ __('All Branches') }}</h3>
                         <div class="w-64">
-                            <input type="text" wire:model.live.debounce.300ms="search" placeholder="{{ __('Search...') }}" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                            <input type="text" wire:model.live.debounce.300ms="search" placeholder="{{ __('Search...') }}" class="ui-input" />
                         </div>
                     </div>
 
                     <div class="mt-4 overflow-x-auto">
+                        <div class="ui-table-wrap">
                         <table class="ui-table">
                             <thead>
                                 <tr>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Name') }}</th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Code') }}</th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Status') }}</th>
-                                    <th class="px-4 py-3"></th>
+                                    <th>{{ __('Name') }}</th>
+                                    <th>{{ __('Code') }}</th>
+                                    <th>{{ __('Status') }}</th>
+                                    <th></th>
                                 </tr>
                             </thead>
-                            <tbody class="bg-white divide-y divide-gray-200">
+                            <tbody>
                                 @foreach ($branches as $branch)
                                     <tr wire:key="branch-{{ $branch->id }}">
-                                        <td class="px-4 py-3 text-sm text-gray-900">{{ $branch->name }}</td>
-                                        <td class="px-4 py-3 text-sm text-gray-700">{{ $branch->code ?? '-' }}</td>
-                                        <td class="px-4 py-3 text-sm">
+                                        <td>{{ $branch->name }}</td>
+                                        <td>{{ $branch->code ?? '-' }}</td>
+                                        <td>
                                             @if ($branch->is_active)
                                                 <span class="ui-badge-success">{{ __('Active') }}</span>
                                             @else
                                                 <span class="ui-badge-warning">{{ __('Inactive') }}</span>
                                             @endif
                                         </td>
-                                        <td class="px-4 py-3 text-sm text-right">
+                                        <td class="text-right">
                                             <div class="inline-flex items-center gap-3">
                                                 <button type="button" wire:click.stop.prevent="openEditModal({{ $branch->id }})" class="ui-btn-link">{{ __('Edit') }}</button>
                                                 <button type="button" wire:click.stop.prevent="openDeleteModal({{ $branch->id }})" class="ui-btn-link-danger">{{ __('Delete') }}</button>
@@ -93,7 +106,7 @@
 
                                 @if ($branches->isEmpty())
                                     <tr>
-                                        <td colspan="4" class="px-4 py-8 text-center text-sm text-gray-500">{{ __('No branches found.') }}</td>
+                                        <td colspan="4" class="text-center text-sm text-slate-500">{{ __('No branches found.') }}</td>
                                     </tr>
                                 @endif
                             </tbody>
@@ -143,21 +156,21 @@
                 <div class="p-4">
                     <div class="space-y-4">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">{{ __('Name') }}</label>
-                            <input type="text" wire:model.defer="name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                            <label class="ui-label">{{ __('Name') }}</label>
+                            <input type="text" wire:model.defer="name" class="mt-1 ui-input" />
                             @error('name') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
                         </div>
 
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">{{ __('Code (optional)') }}</label>
-                            <input type="text" wire:model.defer="code" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                            <label class="ui-label">{{ __('Code (optional)') }}</label>
+                            <input type="text" wire:model.defer="code" class="mt-1 ui-input" />
                             @error('code') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
                         </div>
 
                         <div>
                             <label class="inline-flex items-center">
-                                <input type="checkbox" wire:model.defer="is_active" class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" />
-                                <span class="ms-2 text-sm text-gray-700">{{ __('Active') }}</span>
+                                <input type="checkbox" wire:model.defer="is_active" class="ui-checkbox" />
+                                <span class="ms-2 text-sm text-slate-700">{{ __('Active') }}</span>
                             </label>
                             @error('is_active') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
                         </div>

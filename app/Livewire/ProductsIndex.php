@@ -7,6 +7,9 @@ use App\Models\BulkType;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\ProductStock;
+use App\Models\SalesItem;
+use App\Models\StockInItem;
+use App\Models\StockMovement;
 use Illuminate\Validation\Rule;
 use Livewire\Component;
 
@@ -184,6 +187,15 @@ class ProductsIndex extends Component
         $product = Product::query()
             ->when(! $this->isSuperAdmin, fn ($q) => $q->where('branch_id', (int) (auth()->user()?->branch_id ?? 0)))
             ->findOrFail($id);
+
+        $hasSales = SalesItem::query()->where('product_id', (int) $product->id)->exists();
+        $hasStockIn = StockInItem::query()->where('product_id', (int) $product->id)->exists();
+        $hasMovement = StockMovement::query()->where('product_id', (int) $product->id)->exists();
+
+        if ($hasSales || $hasStockIn || $hasMovement) {
+            session()->flash('status', 'Cannot delete product because it has transaction history. Set it to inactive instead.');
+            return;
+        }
 
         ProductStock::query()->where('product_id', (int) $product->id)->delete();
         $product->delete();

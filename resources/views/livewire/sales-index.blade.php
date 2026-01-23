@@ -7,8 +7,20 @@
         </div>
 
         @if (session('status'))
-            <div class="mb-4 rounded-md bg-green-50 p-4 text-sm text-green-800">
+            <div class="ui-alert-success">
                 {{ session('status') }}
+            </div>
+        @endif
+
+        @if (session('warning'))
+            <div class="ui-alert-warning">
+                {{ session('warning') }}
+            </div>
+        @endif
+
+        @if (session('error'))
+            <div class="ui-alert-danger">
+                {{ session('error') }}
             </div>
         @endif
 

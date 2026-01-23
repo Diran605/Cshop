@@ -18,81 +18,81 @@
     </head>
     <body class="font-sans antialiased">
         <div class="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 flex">
-            <aside class="w-64 bg-white/90 backdrop-blur border-r border-gray-200 hidden md:flex md:flex-col">
-                <div class="h-16 px-6 flex items-center border-b border-gray-100">
-                    <a href="{{ route('dashboard') }}" class="text-lg font-semibold text-gray-900 tracking-tight">
+            <aside class="w-64 bg-slate-900 text-slate-100 border-r border-slate-800 hidden md:flex md:flex-col">
+                <div class="h-16 px-6 flex items-center border-b border-slate-800">
+                    <a href="{{ route('dashboard') }}" class="text-lg font-semibold text-slate-100 tracking-tight">
                         {{ config('app.name') }}
                     </a>
                 </div>
 
                 <nav class="flex-1 px-3 py-4 space-y-1">
                     <a href="{{ route('dashboard') }}"
-                        class="block px-3 py-2 rounded-lg text-sm font-semibold {{ request()->routeIs('dashboard') ? 'bg-indigo-50 text-indigo-700 ring-1 ring-inset ring-indigo-100' : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900' }}">
+                        class="block px-3 py-2 rounded-lg text-sm font-semibold {{ request()->routeIs('dashboard') ? 'bg-indigo-500/20 text-indigo-100 ring-1 ring-inset ring-indigo-500/30' : 'text-slate-200 hover:bg-slate-800 hover:text-slate-50' }}">
                         {{ __('Dashboard') }}
                     </a>
 
                     <div class="pt-2">
-                        <div class="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">{{ __('Setup') }}</div>
+                        <div class="px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">{{ __('Setup') }}</div>
                         <div class="mt-2 space-y-1">
                             @if (auth()->user() && auth()->user()->role === 'super_admin')
                                 <a href="{{ route('setup.branches') }}"
-                                    class="block px-3 py-2 rounded-lg text-sm font-semibold {{ request()->routeIs('setup.branches') ? 'bg-indigo-50 text-indigo-700 ring-1 ring-inset ring-indigo-100' : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900' }}">
+                                    class="block px-3 py-2 rounded-lg text-sm font-semibold {{ request()->routeIs('setup.branches') ? 'bg-indigo-500/20 text-indigo-100 ring-1 ring-inset ring-indigo-500/30' : 'text-slate-200 hover:bg-slate-800 hover:text-slate-50' }}">
                                     {{ __('Branches') }}
                                 </a>
 
                                 <a href="{{ route('users.index') }}"
-                                    class="block px-3 py-2 rounded-lg text-sm font-semibold {{ request()->routeIs('users.*') ? 'bg-indigo-50 text-indigo-700 ring-1 ring-inset ring-indigo-100' : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900' }}">
+                                    class="block px-3 py-2 rounded-lg text-sm font-semibold {{ request()->routeIs('users.*') ? 'bg-indigo-500/20 text-indigo-100 ring-1 ring-inset ring-indigo-500/30' : 'text-slate-200 hover:bg-slate-800 hover:text-slate-50' }}">
                                     {{ __('Users') }}
                                 </a>
                             @endif
 
                             <a href="{{ route('setup.categories') }}"
-                                class="block px-3 py-2 rounded-lg text-sm font-semibold {{ request()->routeIs('setup.categories') ? 'bg-indigo-50 text-indigo-700 ring-1 ring-inset ring-indigo-100' : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900' }}">
+                                class="block px-3 py-2 rounded-lg text-sm font-semibold {{ request()->routeIs('setup.categories') ? 'bg-indigo-500/20 text-indigo-100 ring-1 ring-inset ring-indigo-500/30' : 'text-slate-200 hover:bg-slate-800 hover:text-slate-50' }}">
                                 {{ __('Categories') }}
                             </a>
 
                             <a href="{{ route('setup.bulk_units') }}"
-                                class="block px-3 py-2 rounded-lg text-sm font-semibold {{ request()->routeIs('setup.bulk_units') ? 'bg-indigo-50 text-indigo-700 ring-1 ring-inset ring-indigo-100' : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900' }}">
+                                class="block px-3 py-2 rounded-lg text-sm font-semibold {{ request()->routeIs('setup.bulk_units') ? 'bg-indigo-500/20 text-indigo-100 ring-1 ring-inset ring-indigo-500/30' : 'text-slate-200 hover:bg-slate-800 hover:text-slate-50' }}">
                                 {{ __('Bulk Units') }}
                             </a>
 
                             <a href="{{ route('setup.bulk_types') }}"
-                                class="block px-3 py-2 rounded-lg text-sm font-semibold {{ request()->routeIs('setup.bulk_types') ? 'bg-indigo-50 text-indigo-700 ring-1 ring-inset ring-indigo-100' : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900' }}">
+                                class="block px-3 py-2 rounded-lg text-sm font-semibold {{ request()->routeIs('setup.bulk_types') ? 'bg-indigo-500/20 text-indigo-100 ring-1 ring-inset ring-indigo-500/30' : 'text-slate-200 hover:bg-slate-800 hover:text-slate-50' }}">
                                 {{ __('Bulk Types') }}
                             </a>
 
                             <a href="{{ route('products.index') }}"
-                                class="block px-3 py-2 rounded-lg text-sm font-semibold {{ request()->routeIs('products.index') ? 'bg-indigo-50 text-indigo-700 ring-1 ring-inset ring-indigo-100' : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900' }}">
+                                class="block px-3 py-2 rounded-lg text-sm font-semibold {{ request()->routeIs('products.index') ? 'bg-indigo-500/20 text-indigo-100 ring-1 ring-inset ring-indigo-500/30' : 'text-slate-200 hover:bg-slate-800 hover:text-slate-50' }}">
                                 {{ __('Products') }}
                             </a>
                         </div>
                     </div>
 
                     <div class="pt-4">
-                        <div class="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">{{ __('Operations') }}</div>
+                        <div class="px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">{{ __('Operations') }}</div>
                         <div class="mt-2 space-y-1">
                             <a href="{{ route('stock_in.index') }}"
-                                class="block px-3 py-2 rounded-lg text-sm font-semibold {{ request()->routeIs('stock_in.index') ? 'bg-indigo-50 text-indigo-700 ring-1 ring-inset ring-indigo-100' : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900' }}">
+                                class="block px-3 py-2 rounded-lg text-sm font-semibold {{ request()->routeIs('stock_in.index') ? 'bg-indigo-500/20 text-indigo-100 ring-1 ring-inset ring-indigo-500/30' : 'text-slate-200 hover:bg-slate-800 hover:text-slate-50' }}">
                                 {{ __('Stock In') }}
                             </a>
 
                             <a href="{{ route('sales.index') }}"
-                                class="block px-3 py-2 rounded-lg text-sm font-semibold {{ request()->routeIs('sales.index') ? 'bg-indigo-50 text-indigo-700 ring-1 ring-inset ring-indigo-100' : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900' }}">
+                                class="block px-3 py-2 rounded-lg text-sm font-semibold {{ request()->routeIs('sales.index') ? 'bg-indigo-500/20 text-indigo-100 ring-1 ring-inset ring-indigo-500/30' : 'text-slate-200 hover:bg-slate-800 hover:text-slate-50' }}">
                                 {{ __('Sales') }}
                             </a>
 
                             <a href="{{ route('stock_movements.index') }}"
-                                class="block px-3 py-2 rounded-lg text-sm font-semibold {{ request()->routeIs('stock_movements.index') ? 'bg-indigo-50 text-indigo-700 ring-1 ring-inset ring-indigo-100' : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900' }}">
+                                class="block px-3 py-2 rounded-lg text-sm font-semibold {{ request()->routeIs('stock_movements.index') ? 'bg-indigo-500/20 text-indigo-100 ring-1 ring-inset ring-indigo-500/30' : 'text-slate-200 hover:bg-slate-800 hover:text-slate-50' }}">
                                 {{ __('Stock Movements') }}
                             </a>
                         </div>
                     </div>
 
                     <div class="pt-4">
-                        <div class="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">{{ __('Analytics') }}</div>
+                        <div class="px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">{{ __('Analytics') }}</div>
                         <div class="mt-2 space-y-1">
                             <a href="{{ route('reports.index') }}"
-                                class="block px-3 py-2 rounded-lg text-sm font-semibold {{ request()->routeIs('reports.index') ? 'bg-indigo-50 text-indigo-700 ring-1 ring-inset ring-indigo-100' : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900' }}">
+                                class="block px-3 py-2 rounded-lg text-sm font-semibold {{ request()->routeIs('reports.index') ? 'bg-indigo-500/20 text-indigo-100 ring-1 ring-inset ring-indigo-500/30' : 'text-slate-200 hover:bg-slate-800 hover:text-slate-50' }}">
                                 {{ __('Reports') }}
                             </a>
                         </div>
@@ -101,12 +101,12 @@
             </aside>
 
             <div class="flex-1 min-w-0">
-                <div class="bg-white/80 backdrop-blur border-b border-gray-200">
+                <div class="bg-slate-900/95 backdrop-blur border-b border-slate-800">
                     <div class="h-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-end">
                         <div class="hidden sm:flex sm:items-center">
                             <x-dropdown align="right" width="48">
                                 <x-slot name="trigger">
-                                    <button class="inline-flex items-center px-3 py-2 text-sm font-semibold rounded-lg text-gray-700 bg-white/50 hover:bg-white hover:text-gray-900 ring-1 ring-inset ring-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                                    <button class="inline-flex items-center px-3 py-2 text-sm font-semibold rounded-lg text-slate-200 bg-slate-800/70 hover:bg-slate-800 hover:text-white ring-1 ring-inset ring-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-slate-900">
                                         <div>{{ Auth::user()->name }}</div>
 
                                         <div class="ms-1">
@@ -139,7 +139,7 @@
 
                 <!-- Page Heading -->
                 @isset($header)
-                    <header class="bg-white shadow">
+                    <header class="bg-white/60 backdrop-blur border-b border-slate-200/70">
                         <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
                             {{ $header }}
                         </div>
