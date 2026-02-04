@@ -11,8 +11,8 @@
         }
     </style>
 </head>
-<body class="bg-gray-100">
-    <div class="max-w-2xl mx-auto py-8 px-4">
+<body class="bg-slate-100">
+    <div class="ui-print-container-sm">
         <div class="no-print mb-4 flex justify-end gap-3">
             <button type="button" onclick="window.print()" class="ui-btn-primary">
                 {{ __('Print') }}

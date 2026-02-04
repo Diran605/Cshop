@@ -1,9 +1,8 @@
-<div class="py-8">
-    <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+<div class="ui-page">
+    <div class="ui-page-container print-container">
         <div class="mb-6">
-            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                {{ __('Reports') }}
-            </h2>
+            <h2 class="ui-page-title">{{ __('Reports') }}</h2>
+            <div class="ui-page-subtitle">{{ __('Sales and inventory analytics for selected filters.') }}</div>
         </div>
 
         <style>
@@ -24,34 +23,34 @@
             <div class="ui-card-body">
                 <div class="grid grid-cols-1 lg:grid-cols-7 gap-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">{{ __('Branch') }}</label>
+                        <label class="ui-label">{{ __('Branch') }}</label>
                         @if ($isSuperAdmin)
-                            <select wire:model="branch_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <select wire:model="branch_id" class="mt-1 ui-select">
                                 <option value="0">{{ __('All') }}</option>
                                 @foreach ($branches as $branch)
                                     <option value="{{ $branch->id }}">{{ $branch->name }}</option>
                                 @endforeach
                             </select>
                         @else
-                            <div class="mt-1 rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-700">
+                            <div class="mt-1 rounded-lg border border-slate-300/80 bg-white/60 px-3 py-2 text-sm text-slate-700">
                                 {{ $branches->first()?->name ?? '-' }}
                             </div>
                         @endif
                     </div>
 
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">{{ __('From') }}</label>
-                        <input type="date" wire:model="date_from" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                        <label class="ui-label">{{ __('From') }}</label>
+                        <input type="date" wire:model="date_from" class="mt-1 ui-input" />
                     </div>
 
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">{{ __('To') }}</label>
-                        <input type="date" wire:model="date_to" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                        <label class="ui-label">{{ __('To') }}</label>
+                        <input type="date" wire:model="date_to" class="mt-1 ui-input" />
                     </div>
 
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">{{ __('Category') }}</label>
-                        <select wire:model="category_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        <label class="ui-label">{{ __('Category') }}</label>
+                        <select wire:model="category_id" class="mt-1 ui-select">
                             <option value="0">{{ __('All') }}</option>
                             @foreach ($categories as $cat)
                                 <option value="{{ $cat->id }}">{{ $cat->name }}</option>
@@ -60,8 +59,8 @@
                     </div>
 
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">{{ __('Product') }}</label>
-                        <select wire:model="product_filter_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        <label class="ui-label">{{ __('Product') }}</label>
+                        <select wire:model="product_filter_id" class="mt-1 ui-select">
                             <option value="0">{{ __('All') }}</option>
                             @foreach ($productsForFilter as $p)
                                 <option value="{{ $p->id }}">{{ $p->name }}</option>
@@ -70,8 +69,8 @@
                     </div>
 
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">{{ __('Sale Mode') }}</label>
-                        <select wire:model="sale_mode" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        <label class="ui-label">{{ __('Sale Mode') }}</label>
+                        <select wire:model="sale_mode" class="mt-1 ui-select">
                             <option value="all">{{ __('All') }}</option>
                             <option value="unit">{{ __('Units') }}</option>
                             <option value="bulk">{{ __('Bulk') }}</option>
@@ -80,16 +79,16 @@
 
                     <div class="flex items-end">
                         <label class="inline-flex items-center">
-                            <input type="checkbox" wire:model="low_stock_only" class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" />
-                            <span class="ms-2 text-sm text-gray-700">{{ __('Low stock only') }}</span>
+                            <input type="checkbox" wire:model="low_stock_only" class="ui-checkbox" />
+                            <span class="ms-2 text-sm text-slate-700">{{ __('Low stock only') }}</span>
                         </label>
                     </div>
                 </div>
 
                 <div class="mt-4 flex items-end justify-between gap-4">
                     <div class="w-full max-w-md">
-                        <label class="block text-sm font-medium text-gray-700">{{ __('Search (Products)') }}</label>
-                        <input type="text" wire:model.live.debounce.300ms="search" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" placeholder="Search product name..." />
+                        <label class="ui-label">{{ __('Search (Products)') }}</label>
+                        <input type="text" wire:model.live.debounce.300ms="search" class="mt-1 ui-input" placeholder="Search product name..." />
                     </div>
                     <div class="flex items-center justify-end">
                         <button type="button" onclick="window.print()" class="ui-btn-primary">
@@ -103,49 +102,49 @@
         <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-6">
             <div class="ui-card">
                 <div class="ui-card-body">
-                    <div class="text-sm text-gray-500">{{ __('Sales Count') }}</div>
-                    <div class="mt-1 text-2xl font-semibold text-gray-900">{{ number_format((int) $salesCount) }}</div>
-                    <div class="mt-2 text-sm text-gray-600">{{ __('Within selected date range') }}</div>
+                    <div class="text-sm text-slate-500">{{ __('Sales Count') }}</div>
+                    <div class="mt-1 text-2xl font-semibold text-slate-900">{{ number_format((int) $salesCount) }}</div>
+                    <div class="mt-2 text-sm text-slate-600">{{ __('Within selected date range') }}</div>
                 </div>
             </div>
 
             <div class="ui-card">
                 <div class="ui-card-body">
-                    <div class="text-sm text-gray-500">{{ __('Sales Total') }}</div>
-                    <div class="mt-1 text-2xl font-semibold text-gray-900">{{ number_format((float) $salesTotal, 2) }}</div>
-                    <div class="mt-2 text-sm text-gray-600">{{ __('Gross revenue (grand total)') }}</div>
+                    <div class="text-sm text-slate-500">{{ __('Sales Total') }}</div>
+                    <div class="mt-1 text-2xl font-semibold text-slate-900">{{ number_format((float) $salesTotal, 2) }}</div>
+                    <div class="mt-2 text-sm text-slate-600">{{ __('Gross revenue (grand total)') }}</div>
                 </div>
             </div>
 
             <div class="ui-card">
                 <div class="ui-card-body">
-                    <div class="text-sm text-gray-500">{{ __('Items Sold') }}</div>
-                    <div class="mt-1 text-2xl font-semibold text-gray-900">{{ number_format((int) $itemsSold) }}</div>
-                    <div class="mt-2 text-sm text-gray-600">{{ __('Total quantity sold') }}</div>
+                    <div class="text-sm text-slate-500">{{ __('Items Sold') }}</div>
+                    <div class="mt-1 text-2xl font-semibold text-slate-900">{{ number_format((int) $itemsSold) }}</div>
+                    <div class="mt-2 text-sm text-slate-600">{{ __('Total quantity sold') }}</div>
                 </div>
             </div>
 
             <div class="ui-card">
                 <div class="ui-card-body">
-                    <div class="text-sm text-gray-500">{{ __('Avg Transaction') }}</div>
-                    <div class="mt-1 text-2xl font-semibold text-gray-900">{{ number_format((float) $avgTransaction, 2) }}</div>
-                    <div class="mt-2 text-sm text-gray-600">{{ __('Sales total / sales count') }}</div>
+                    <div class="text-sm text-slate-500">{{ __('Avg Transaction') }}</div>
+                    <div class="mt-1 text-2xl font-semibold text-slate-900">{{ number_format((float) $avgTransaction, 2) }}</div>
+                    <div class="mt-2 text-sm text-slate-600">{{ __('Sales total / sales count') }}</div>
                 </div>
             </div>
 
             <div class="ui-card">
                 <div class="ui-card-body">
-                    <div class="text-sm text-gray-500">{{ __('COGS') }}</div>
-                    <div class="mt-1 text-2xl font-semibold text-gray-900">{{ number_format((float) $cogsTotal, 2) }}</div>
-                    <div class="mt-2 text-sm text-gray-600">{{ __('Cost of goods sold') }}</div>
+                    <div class="text-sm text-slate-500">{{ __('COGS') }}</div>
+                    <div class="mt-1 text-2xl font-semibold text-slate-900">{{ number_format((float) $cogsTotal, 2) }}</div>
+                    <div class="mt-2 text-sm text-slate-600">{{ __('Cost of goods sold') }}</div>
                 </div>
             </div>
 
             <div class="ui-card">
                 <div class="ui-card-body">
-                    <div class="text-sm text-gray-500">{{ __('Profit') }}</div>
-                    <div class="mt-1 text-2xl font-semibold text-gray-900">{{ number_format((float) $profitTotal, 2) }}</div>
-                    <div class="mt-2 text-sm text-gray-600">{{ __('Gross profit') }}</div>
+                    <div class="text-sm text-slate-500">{{ __('Profit') }}</div>
+                    <div class="mt-1 text-2xl font-semibold text-slate-900">{{ number_format((float) $profitTotal, 2) }}</div>
+                    <div class="mt-2 text-sm text-slate-600">{{ __('Gross profit') }}</div>
                 </div>
             </div>
         </div>
@@ -153,7 +152,7 @@
         <div class="mt-6 ui-card no-print">
             <div class="ui-card-body">
                 <h3 class="ui-card-title">{{ __('Trends') }}</h3>
-                <div class="mt-1 text-sm text-gray-600">{{ __('Revenue vs COGS vs Profit (by day)') }}</div>
+                <div class="mt-1 text-sm text-slate-600">{{ __('Revenue vs COGS vs Profit (by day)') }}</div>
 
                 <div class="mt-4">
                     <canvas id="salesTrendChart" height="100"></canvas>
@@ -333,7 +332,7 @@
             <div class="ui-card">
                 <div class="ui-card-body">
                     <h3 class="ui-card-title">{{ __('Daily Bars') }}</h3>
-                    <div class="mt-1 text-sm text-gray-600">{{ __('Revenue / COGS / Profit (by day)') }}</div>
+                    <div class="mt-1 text-sm text-slate-600">{{ __('Revenue / COGS / Profit (by day)') }}</div>
 
                     <div class="mt-4" style="height: 320px;">
                         <canvas id="salesTrendBarChart"></canvas>
@@ -344,7 +343,7 @@
             <div class="ui-card">
                 <div class="ui-card-body">
                     <h3 class="ui-card-title">{{ __('Quantity Bars') }}</h3>
-                    <div class="mt-1 text-sm text-gray-600">{{ __('Items sold per day') }}</div>
+                    <div class="mt-1 text-sm text-slate-600">{{ __('Items sold per day') }}</div>
 
                     <div class="mt-4" style="height: 320px;">
                         <canvas id="salesQtyBarChart"></canvas>
@@ -359,30 +358,32 @@
                     <h3 class="ui-card-title">{{ __('Top Products') }}</h3>
 
                     <div class="mt-4 overflow-x-auto">
+                        <div class="ui-table-wrap">
                         <table class="ui-table">
                             <thead>
                                 <tr>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Product') }}</th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Qty Sold') }}</th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Amount') }}</th>
+                                    <th>{{ __('Product') }}</th>
+                                    <th>{{ __('Qty Sold') }}</th>
+                                    <th>{{ __('Amount') }}</th>
                                 </tr>
                             </thead>
-                            <tbody class="bg-white divide-y divide-gray-200">
+                            <tbody>
                                 @foreach ($topProducts as $row)
                                     <tr>
-                                        <td class="px-4 py-3 text-sm text-gray-900">{{ $row->product_name }}</td>
-                                        <td class="px-4 py-3 text-sm text-gray-700">{{ (int) $row->qty_sold }}</td>
-                                        <td class="px-4 py-3 text-sm text-gray-700">{{ number_format((float) $row->amount_sold, 2) }}</td>
+                                        <td class="text-slate-900">{{ $row->product_name }}</td>
+                                        <td>{{ (int) $row->qty_sold }}</td>
+                                        <td>{{ number_format((float) $row->amount_sold, 2) }}</td>
                                     </tr>
                                 @endforeach
 
                                 @if ($topProducts->isEmpty())
                                     <tr>
-                                        <td colspan="3" class="px-4 py-8 text-center text-sm text-gray-500">{{ __('No sales data for this period.') }}</td>
+                                        <td colspan="3" class="ui-table-empty">{{ __('No sales data for this period.') }}</td>
                                     </tr>
                                 @endif
                             </tbody>
                         </table>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -392,30 +393,32 @@
                     <h3 class="ui-card-title">{{ __('Inventory') }}</h3>
 
                     <div class="mt-4 overflow-x-auto">
+                        <div class="ui-table-wrap">
                         <table class="ui-table">
                             <thead>
                                 <tr>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Product') }}</th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Current') }}</th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Min') }}</th>
+                                    <th>{{ __('Product') }}</th>
+                                    <th>{{ __('Current') }}</th>
+                                    <th>{{ __('Min') }}</th>
                                 </tr>
                             </thead>
-                            <tbody class="bg-white divide-y divide-gray-200">
+                            <tbody>
                                 @foreach ($inventory as $stock)
                                     <tr wire:key="inventory-{{ $stock->id }}">
-                                        <td class="px-4 py-3 text-sm text-gray-900">{{ $stock->product?->name ?? '-' }}</td>
-                                        <td class="px-4 py-3 text-sm {{ (int) $stock->current_stock <= (int) $stock->minimum_stock ? 'text-red-700' : 'text-gray-700' }}">{{ $stock->current_stock }}</td>
-                                        <td class="px-4 py-3 text-sm text-gray-700">{{ $stock->minimum_stock }}</td>
+                                        <td class="text-slate-900">{{ $stock->product?->name ?? '-' }}</td>
+                                        <td class="{{ (int) $stock->current_stock <= (int) $stock->minimum_stock ? 'text-red-700' : '' }}">{{ $stock->current_stock }}</td>
+                                        <td>{{ $stock->minimum_stock }}</td>
                                     </tr>
                                 @endforeach
 
                                 @if ($inventory->isEmpty())
                                     <tr>
-                                        <td colspan="3" class="px-4 py-8 text-center text-sm text-gray-500">{{ __('No inventory rows found for this branch.') }}</td>
+                                        <td colspan="3" class="ui-table-empty">{{ __('No inventory rows found for this branch.') }}</td>
                                     </tr>
                                 @endif
                             </tbody>
                         </table>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -427,30 +430,32 @@
                     <h3 class="ui-card-title">{{ __('Sales By Day') }}</h3>
 
                     <div class="mt-4 overflow-x-auto">
+                        <div class="ui-table-wrap">
                         <table class="ui-table">
                             <thead>
                                 <tr>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Day') }}</th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Sales') }}</th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Total') }}</th>
+                                    <th>{{ __('Day') }}</th>
+                                    <th>{{ __('Sales') }}</th>
+                                    <th>{{ __('Total') }}</th>
                                 </tr>
                             </thead>
-                            <tbody class="bg-white divide-y divide-gray-200">
+                            <tbody>
                                 @foreach ($salesByDay as $row)
                                     <tr>
-                                        <td class="px-4 py-3 text-sm text-gray-900">{{ $row->day }}</td>
-                                        <td class="px-4 py-3 text-sm text-gray-700">{{ (int) $row->sales_count }}</td>
-                                        <td class="px-4 py-3 text-sm text-gray-700">{{ number_format((float) $row->sales_total, 2) }}</td>
+                                        <td class="text-slate-900">{{ $row->day }}</td>
+                                        <td>{{ (int) $row->sales_count }}</td>
+                                        <td>{{ number_format((float) $row->sales_total, 2) }}</td>
                                     </tr>
                                 @endforeach
 
                                 @if ($salesByDay->isEmpty())
                                     <tr>
-                                        <td colspan="3" class="px-4 py-8 text-center text-sm text-gray-500">{{ __('No sales for this period.') }}</td>
+                                        <td colspan="3" class="ui-table-empty">{{ __('No sales for this period.') }}</td>
                                     </tr>
                                 @endif
                             </tbody>
                         </table>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -460,30 +465,32 @@
                     <h3 class="ui-card-title">{{ __('Stock In vs Sales (By Day)') }}</h3>
 
                     <div class="mt-4 overflow-x-auto">
+                        <div class="ui-table-wrap">
                         <table class="ui-table">
                             <thead>
                                 <tr>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Day') }}</th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Stock In Qty') }}</th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Sold Qty') }}</th>
+                                    <th>{{ __('Day') }}</th>
+                                    <th>{{ __('Stock In Qty') }}</th>
+                                    <th>{{ __('Sold Qty') }}</th>
                                 </tr>
                             </thead>
-                            <tbody class="bg-white divide-y divide-gray-200">
+                            <tbody>
                                 @foreach ($movementByDay as $row)
                                     <tr>
-                                        <td class="px-4 py-3 text-sm text-gray-900">{{ $row['day'] }}</td>
-                                        <td class="px-4 py-3 text-sm text-gray-700">{{ (int) $row['stock_in_qty'] }}</td>
-                                        <td class="px-4 py-3 text-sm text-gray-700">{{ (int) $row['sold_qty'] }}</td>
+                                        <td class="text-slate-900">{{ $row['day'] }}</td>
+                                        <td>{{ (int) $row['stock_in_qty'] }}</td>
+                                        <td>{{ (int) $row['sold_qty'] }}</td>
                                     </tr>
                                 @endforeach
 
                                 @if (count($movementByDay) === 0)
                                     <tr>
-                                        <td colspan="3" class="px-4 py-8 text-center text-sm text-gray-500">{{ __('No movement for this period.') }}</td>
+                                        <td colspan="3" class="ui-table-empty">{{ __('No movement for this period.') }}</td>
                                     </tr>
                                 @endif
                             </tbody>
                         </table>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -492,33 +499,35 @@
         <div class="mt-6 ui-card">
             <div class="ui-card-body">
                 <h3 class="ui-card-title">{{ __('Per-Product Movement') }}</h3>
-                <div class="mt-1 text-sm text-gray-600">{{ __('Totals for selected branch and date range.') }}</div>
+                <div class="mt-1 text-sm text-slate-600">{{ __('Totals for selected branch and date range.') }}</div>
 
                 <div class="mt-4 overflow-x-auto">
+                    <div class="ui-table-wrap">
                     <table class="ui-table">
                         <thead>
                             <tr>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Product') }}</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Stock In Qty') }}</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Sold Qty') }}</th>
+                                <th>{{ __('Product') }}</th>
+                                <th>{{ __('Stock In Qty') }}</th>
+                                <th>{{ __('Sold Qty') }}</th>
                             </tr>
                         </thead>
-                        <tbody class="bg-white divide-y divide-gray-200">
+                        <tbody>
                             @foreach ($movementRows as $row)
                                 <tr>
-                                    <td class="px-4 py-3 text-sm text-gray-900">{{ $row['product_name'] }}</td>
-                                    <td class="px-4 py-3 text-sm text-gray-700">{{ $row['stock_in_qty'] }}</td>
-                                    <td class="px-4 py-3 text-sm text-gray-700">{{ $row['sold_qty'] }}</td>
+                                    <td class="text-slate-900">{{ $row['product_name'] }}</td>
+                                    <td>{{ $row['stock_in_qty'] }}</td>
+                                    <td>{{ $row['sold_qty'] }}</td>
                                 </tr>
                             @endforeach
 
                             @if (count($movementRows) === 0)
                                 <tr>
-                                    <td colspan="3" class="px-4 py-8 text-center text-sm text-gray-500">{{ __('No movement for this period.') }}</td>
+                                    <td colspan="3" class="ui-table-empty">{{ __('No movement for this period.') }}</td>
                                 </tr>
                             @endif
                         </tbody>
                     </table>
+                    </div>
                 </div>
             </div>
         </div>

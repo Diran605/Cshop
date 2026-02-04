@@ -1,10 +1,10 @@
 <x-app-layout>
      <x-slot name="header">
         <div>
-            <h2 class="font-semibold text-xl text-slate-900 leading-tight">
+            <h2 class="ui-page-title">
                 {{ __('Retail Dashboard') }}
             </h2>
-            <div class="mt-1 text-sm text-slate-600">
+            <div class="ui-page-subtitle">
                 @if (auth()->user() && auth()->user()->role === 'branch_admin')
                     {{ __('Branch:') }}
                     <span class="font-medium">{{ auth()->user()->branch?->name ?? '-' }}</span>
@@ -15,37 +15,37 @@
         </div>
     </x-slot>
 
-     <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+     <div class="ui-page">
+        <div class="ui-page-container">
             <div class="mb-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                <div class="ui-card">
-                    <div class="ui-card-body">
-                        <div class="text-sm text-slate-600">
+                <div class="ui-kpi-card ui-kpi-blue">
+                    <div>
+                        <div class="ui-kpi-title">
                             {{ $isSuperAdmin ? __('Total Sales (This Month)') : __('Total Sales (This Month)') }}
                         </div>
-                        <div class="mt-2 text-2xl font-semibold text-slate-900">
+                        <div class="ui-kpi-value">
                             {{ number_format((float) $salesTotal, 2) }}
                         </div>
                     </div>
                 </div>
 
-                <div class="ui-card">
-                    <div class="ui-card-body">
-                        <div class="text-sm text-slate-600">
+                <div class="ui-kpi-card ui-kpi-emerald">
+                    <div>
+                        <div class="ui-kpi-title">
                             {{ __('Inventory Value') }}
                         </div>
-                        <div class="mt-2 text-2xl font-semibold text-slate-900">
+                        <div class="ui-kpi-value">
                             {{ number_format((float) $inventoryValue, 2) }}
                         </div>
                     </div>
                 </div>
 
-                <div class="ui-card">
-                    <div class="ui-card-body">
-                        <div class="text-sm text-slate-600">
+                <div class="ui-kpi-card ui-kpi-pink">
+                    <div>
+                        <div class="ui-kpi-title">
                             {{ __('Low Stock Value') }}
                         </div>
-                        <div class="mt-2 text-2xl font-semibold text-slate-900">
+                        <div class="ui-kpi-value">
                             {{ number_format((float) $lowStockValue, 2) }}
                         </div>
                     </div>

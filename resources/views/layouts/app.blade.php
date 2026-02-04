@@ -17,82 +17,149 @@
         @livewireStyles
     </head>
     <body class="font-sans antialiased">
-        <div class="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 flex">
-            <aside class="w-64 bg-slate-900 text-slate-100 border-r border-slate-800 hidden md:flex md:flex-col">
-                <div class="h-16 px-6 flex items-center border-b border-slate-800">
-                    <a href="{{ route('dashboard') }}" class="text-lg font-semibold text-slate-100 tracking-tight">
+        <div class="ui-shell">
+            <div class="ui-shell-inner">
+            <aside class="ui-sidebar">
+                <div class="ui-sidebar-header">
+                    <a href="{{ route('dashboard') }}" class="ui-sidebar-brand">
                         {{ config('app.name') }}
                     </a>
                 </div>
 
-                <nav class="flex-1 px-3 py-4 space-y-1">
+                <nav class="ui-nav">
                     <a href="{{ route('dashboard') }}"
-                        class="block px-3 py-2 rounded-lg text-sm font-semibold {{ request()->routeIs('dashboard') ? 'bg-indigo-500/20 text-indigo-100 ring-1 ring-inset ring-indigo-500/30' : 'text-slate-200 hover:bg-slate-800 hover:text-slate-50' }}">
+                        class="ui-nav-link {{ request()->routeIs('dashboard') ? 'ui-nav-link-active' : '' }}">
                         {{ __('Dashboard') }}
                     </a>
 
                     <div class="pt-2">
-                        <div class="px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">{{ __('Setup') }}</div>
+                        <div class="ui-nav-section-title">{{ __('Setup') }}</div>
                         <div class="mt-2 space-y-1">
                             @if (auth()->user() && auth()->user()->role === 'super_admin')
                                 <a href="{{ route('setup.branches') }}"
-                                    class="block px-3 py-2 rounded-lg text-sm font-semibold {{ request()->routeIs('setup.branches') ? 'bg-indigo-500/20 text-indigo-100 ring-1 ring-inset ring-indigo-500/30' : 'text-slate-200 hover:bg-slate-800 hover:text-slate-50' }}">
+                                    class="ui-nav-link {{ request()->routeIs('setup.branches') ? 'ui-nav-link-active' : '' }}">
                                     {{ __('Branches') }}
                                 </a>
 
                                 <a href="{{ route('users.index') }}"
-                                    class="block px-3 py-2 rounded-lg text-sm font-semibold {{ request()->routeIs('users.*') ? 'bg-indigo-500/20 text-indigo-100 ring-1 ring-inset ring-indigo-500/30' : 'text-slate-200 hover:bg-slate-800 hover:text-slate-50' }}">
+                                    class="ui-nav-link {{ request()->routeIs('users.*') ? 'ui-nav-link-active' : '' }}">
                                     {{ __('Users') }}
                                 </a>
                             @endif
 
                             <a href="{{ route('setup.categories') }}"
-                                class="block px-3 py-2 rounded-lg text-sm font-semibold {{ request()->routeIs('setup.categories') ? 'bg-indigo-500/20 text-indigo-100 ring-1 ring-inset ring-indigo-500/30' : 'text-slate-200 hover:bg-slate-800 hover:text-slate-50' }}">
+                                class="ui-nav-link {{ request()->routeIs('setup.categories') ? 'ui-nav-link-active' : '' }}">
                                 {{ __('Categories') }}
                             </a>
 
                             <a href="{{ route('setup.bulk_units') }}"
-                                class="block px-3 py-2 rounded-lg text-sm font-semibold {{ request()->routeIs('setup.bulk_units') ? 'bg-indigo-500/20 text-indigo-100 ring-1 ring-inset ring-indigo-500/30' : 'text-slate-200 hover:bg-slate-800 hover:text-slate-50' }}">
+                                class="ui-nav-link {{ request()->routeIs('setup.bulk_units') ? 'ui-nav-link-active' : '' }}">
                                 {{ __('Bulk Units') }}
                             </a>
 
                             <a href="{{ route('setup.bulk_types') }}"
-                                class="block px-3 py-2 rounded-lg text-sm font-semibold {{ request()->routeIs('setup.bulk_types') ? 'bg-indigo-500/20 text-indigo-100 ring-1 ring-inset ring-indigo-500/30' : 'text-slate-200 hover:bg-slate-800 hover:text-slate-50' }}">
+                                class="ui-nav-link {{ request()->routeIs('setup.bulk_types') ? 'ui-nav-link-active' : '' }}">
                                 {{ __('Bulk Types') }}
                             </a>
 
-                            <a href="{{ route('products.index') }}"
-                                class="block px-3 py-2 rounded-lg text-sm font-semibold {{ request()->routeIs('products.index') ? 'bg-indigo-500/20 text-indigo-100 ring-1 ring-inset ring-indigo-500/30' : 'text-slate-200 hover:bg-slate-800 hover:text-slate-50' }}">
-                                {{ __('Products') }}
-                            </a>
+                            <details class="ui-nav-group" {{ request()->routeIs('products.index') ? 'open' : '' }}>
+                                <summary class="ui-nav-group-summary {{ request()->routeIs('products.index') ? 'ui-nav-link-active' : '' }}">
+                                    <span>{{ __('Products') }}</span>
+                                    <svg class="ui-nav-caret" width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                        <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                    </svg>
+                                </summary>
+                                <div class="ui-nav-group-panel">
+                                    <a href="{{ route('products.index', ['mode' => 'add']) }}"
+                                        class="ui-nav-sublink {{ request()->routeIs('products.index') && request()->route('mode') === 'add' ? 'ui-nav-sublink-active' : '' }}">
+                                        {{ __('Add Product') }}
+                                    </a>
+                                    <a href="{{ route('products.index', ['mode' => 'manage']) }}"
+                                        class="ui-nav-sublink {{ request()->routeIs('products.index') && (request()->route('mode') === 'manage' || request()->route('mode') === null) ? 'ui-nav-sublink-active' : '' }}">
+                                        {{ __('Manage Products') }}
+                                    </a>
+                                    <a href="{{ route('products.index', ['mode' => 'expired']) }}"
+                                        class="ui-nav-sublink {{ request()->routeIs('products.index') && request()->route('mode') === 'expired' ? 'ui-nav-sublink-active' : '' }}">
+                                        {{ __('Expired Products') }}
+                                    </a>
+                                </div>
+                            </details>
                         </div>
                     </div>
 
                     <div class="pt-4">
-                        <div class="px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">{{ __('Operations') }}</div>
+                        <div class="ui-nav-section-title">{{ __('Operations') }}</div>
                         <div class="mt-2 space-y-1">
-                            <a href="{{ route('stock_in.index') }}"
-                                class="block px-3 py-2 rounded-lg text-sm font-semibold {{ request()->routeIs('stock_in.index') ? 'bg-indigo-500/20 text-indigo-100 ring-1 ring-inset ring-indigo-500/30' : 'text-slate-200 hover:bg-slate-800 hover:text-slate-50' }}">
-                                {{ __('Stock In') }}
-                            </a>
 
-                            <a href="{{ route('sales.index') }}"
-                                class="block px-3 py-2 rounded-lg text-sm font-semibold {{ request()->routeIs('sales.index') ? 'bg-indigo-500/20 text-indigo-100 ring-1 ring-inset ring-indigo-500/30' : 'text-slate-200 hover:bg-slate-800 hover:text-slate-50' }}">
-                                {{ __('Sales') }}
-                            </a>
+                            <details class="ui-nav-group" {{ request()->routeIs('stock_in.index') ? 'open' : '' }}>
+                                <summary class="ui-nav-group-summary {{ request()->routeIs('stock_in.index') ? 'ui-nav-link-active' : '' }}">
+                                    <span>{{ __('Stock In') }}</span>
+                                    <svg class="ui-nav-caret" width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                        <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                    </svg>
+                                </summary>
+                                <div class="ui-nav-group-panel">
+                                    <a href="{{ route('stock_in.index', ['mode' => 'add']) }}"
+                                        class="ui-nav-sublink {{ request()->routeIs('stock_in.index') && request()->route('mode') === 'add' ? 'ui-nav-sublink-active' : '' }}">
+                                        {{ __('Add Stock In') }}
+                                    </a>
+                                    <a href="{{ route('stock_in.index', ['mode' => 'manage']) }}"
+                                        class="ui-nav-sublink {{ request()->routeIs('stock_in.index') && (request()->route('mode') === 'manage' || request()->route('mode') === null) ? 'ui-nav-sublink-active' : '' }}">
+                                        {{ __('Manage Stock In') }}
+                                    </a>
+                                </div>
+                            </details>
+
+                            <details class="ui-nav-group" {{ request()->routeIs('sales.*') ? 'open' : '' }}>
+                                <summary class="ui-nav-group-summary {{ request()->routeIs('sales.*') ? 'ui-nav-link-active' : '' }}">
+                                    <span>{{ __('Sales') }}</span>
+                                    <svg class="ui-nav-caret" width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                        <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                    </svg>
+                                </summary>
+                                <div class="ui-nav-group-panel">
+                                    <a href="{{ route('sales.add') }}"
+                                        class="ui-nav-sublink {{ request()->routeIs('sales.add') ? 'ui-nav-sublink-active' : '' }}">
+                                        {{ __('Add Sales') }}
+                                    </a>
+                                    <a href="{{ route('sales.manage') }}"
+                                        class="ui-nav-sublink {{ request()->routeIs('sales.manage') ? 'ui-nav-sublink-active' : '' }}">
+                                        {{ __('Manage Sales') }}
+                                    </a>
+                                </div>
+                            </details>
+
+                            <details class="ui-nav-group" {{ request()->routeIs('expenses.index') ? 'open' : '' }}>
+                                <summary class="ui-nav-group-summary {{ request()->routeIs('expenses.index') ? 'ui-nav-link-active' : '' }}">
+                                    <span>{{ __('Expenses') }}</span>
+                                    <svg class="ui-nav-caret" width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                        <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                    </svg>
+                                </summary>
+                                <div class="ui-nav-group-panel">
+                                    <a href="{{ route('expenses.index', ['mode' => 'add']) }}"
+                                        class="ui-nav-sublink {{ request()->routeIs('expenses.index') && request()->route('mode') === 'add' ? 'ui-nav-sublink-active' : '' }}">
+                                        {{ __('Add Expense') }}
+                                    </a>
+                                    <a href="{{ route('expenses.index', ['mode' => 'manage']) }}"
+                                        class="ui-nav-sublink {{ request()->routeIs('expenses.index') && (request()->route('mode') === 'manage' || request()->route('mode') === null) ? 'ui-nav-sublink-active' : '' }}">
+                                        {{ __('Manage Expenses') }}
+                                    </a>
+                                </div>
+                            </details>
 
                             <a href="{{ route('stock_movements.index') }}"
-                                class="block px-3 py-2 rounded-lg text-sm font-semibold {{ request()->routeIs('stock_movements.index') ? 'bg-indigo-500/20 text-indigo-100 ring-1 ring-inset ring-indigo-500/30' : 'text-slate-200 hover:bg-slate-800 hover:text-slate-50' }}">
+                                class="ui-nav-link {{ request()->routeIs('stock_movements.index') ? 'ui-nav-link-active' : '' }}">
                                 {{ __('Stock Movements') }}
                             </a>
                         </div>
                     </div>
 
                     <div class="pt-4">
-                        <div class="px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">{{ __('Analytics') }}</div>
+                        <div class="ui-nav-section-title">{{ __('Analytics') }}</div>
                         <div class="mt-2 space-y-1">
                             <a href="{{ route('reports.index') }}"
-                                class="block px-3 py-2 rounded-lg text-sm font-semibold {{ request()->routeIs('reports.index') ? 'bg-indigo-500/20 text-indigo-100 ring-1 ring-inset ring-indigo-500/30' : 'text-slate-200 hover:bg-slate-800 hover:text-slate-50' }}">
+                                class="ui-nav-link {{ request()->routeIs('reports.index') ? 'ui-nav-link-active' : '' }}">
                                 {{ __('Reports') }}
                             </a>
                         </div>
@@ -101,12 +168,22 @@
             </aside>
 
             <div class="flex-1 min-w-0">
-                <div class="bg-slate-900/95 backdrop-blur border-b border-slate-800">
-                    <div class="h-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-end">
+                <div class="ui-topbar">
+                    <div class="ui-topbar-inner">
+                        <div class="hidden md:flex md:items-center">
+                            <div class="ui-breadcrumb">
+                                <span class="ui-breadcrumb-item">{{ config('app.name') }}</span>
+                                <span class="ui-breadcrumb-sep">/</span>
+                                <span class="ui-breadcrumb-current">
+                                    {{ \Illuminate\Support\Str::of((string) (request()->route()?->getName() ?? ''))->replace('.', ' ')->title() ?: __('Dashboard') }}
+                                </span>
+                            </div>
+                        </div>
+
                         <div class="hidden sm:flex sm:items-center">
                             <x-dropdown align="right" width="48">
                                 <x-slot name="trigger">
-                                    <button class="inline-flex items-center px-3 py-2 text-sm font-semibold rounded-lg text-slate-200 bg-slate-800/70 hover:bg-slate-800 hover:text-white ring-1 ring-inset ring-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-slate-900">
+                                    <button class="ui-user-trigger">
                                         <div>{{ Auth::user()->name }}</div>
 
                                         <div class="ms-1">
@@ -139,8 +216,8 @@
 
                 <!-- Page Heading -->
                 @isset($header)
-                    <header class="bg-white/60 backdrop-blur border-b border-slate-200/70">
-                        <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+                    <header class="ui-page-header">
+                        <div class="ui-page-container py-6">
                             {{ $header }}
                         </div>
                     </header>
@@ -150,6 +227,7 @@
                 <main>
                     {{ $slot }}
                 </main>
+            </div>
             </div>
         </div>
 

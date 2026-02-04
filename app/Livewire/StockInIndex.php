@@ -16,6 +16,8 @@ use Livewire\Component;
 
 class StockInIndex extends Component
 {
+    public string $mode = 'manage';
+
     public int $branch_id = 0;
     public int $product_id = 0;
 
@@ -37,6 +39,8 @@ class StockInIndex extends Component
 
     public int $quantity = 1;
     public ?string $cost_price = null;
+
+    public ?string $expiry_date = null;
 
     public bool $isSuperAdmin = false;
 
@@ -60,6 +64,7 @@ class StockInIndex extends Component
     public int $edit_bulk_quantity = 1;
     public int $edit_quantity = 1;
     public ?string $edit_cost_price = null;
+    public ?string $edit_expiry_date = null;
     public ?string $edit_notes = null;
 
     public int $pending_void_receipt_id = 0;
@@ -74,12 +79,16 @@ class StockInIndex extends Component
             'bulk_quantity' => ['nullable', 'integer', 'min:1', 'required_if:entry_mode,bulk'],
             'quantity' => ['nullable', 'integer', 'min:1', 'required_if:entry_mode,unit'],
             'cost_price' => ['nullable', 'numeric', 'min:0'],
+            'expiry_date' => ['nullable', 'date'],
             'notes' => ['nullable', 'string', 'max:1000'],
         ];
     }
 
-    public function mount(): void
+    public function mount(string $mode = 'manage'): void
     {
+        $mode = strtolower(trim($mode));
+        $this->mode = in_array($mode, ['add', 'manage'], true) ? $mode : 'manage';
+
         $user = auth()->user();
         $this->isSuperAdmin = (bool) ($user?->role === 'super_admin');
         $this->auth_user_id = (int) ($user?->id ?? 0);
@@ -95,6 +104,7 @@ class StockInIndex extends Component
         $this->bulk_quantity = 1;
         $this->quantity = 1;
         $this->cost_price = null;
+        $this->expiry_date = null;
         $this->notes = null;
         $this->selected_receipt_id = 0;
 
@@ -118,6 +128,7 @@ class StockInIndex extends Component
         $this->edit_bulk_quantity = 1;
         $this->edit_quantity = 1;
         $this->edit_cost_price = null;
+        $this->edit_expiry_date = null;
         $this->edit_notes = null;
         $this->pending_void_receipt_id = 0;
         $this->void_reason = null;
@@ -136,6 +147,7 @@ class StockInIndex extends Component
             $this->bulk_quantity = 1;
             $this->quantity = 1;
             $this->cost_price = null;
+            $this->expiry_date = null;
             $this->product_search = '';
             $this->stock_search = '';
             $this->receipt_search = '';
@@ -156,6 +168,7 @@ class StockInIndex extends Component
             $this->edit_bulk_quantity = 1;
             $this->edit_quantity = 1;
             $this->edit_cost_price = null;
+            $this->edit_expiry_date = null;
             $this->edit_notes = null;
             $this->pending_void_receipt_id = 0;
             $this->void_reason = null;
@@ -192,6 +205,19 @@ class StockInIndex extends Component
         $this->entry_mode = 'unit';
         $this->bulk_quantity = 1;
         $this->quantity = 1;
+        $this->expiry_date = null;
+    }
+
+    private function receiptHasAllocations(int $receiptId): bool
+    {
+        if ($receiptId <= 0) {
+            return false;
+        }
+
+        return DB::table('sales_item_allocations')
+            ->join('stock_in_items', 'stock_in_items.id', '=', 'sales_item_allocations.stock_in_item_id')
+            ->where('stock_in_items.stock_in_receipt_id', $receiptId)
+            ->exists();
     }
 
     public function save(): void
@@ -292,7 +318,9 @@ class StockInIndex extends Component
                 'bulk_quantity' => $bulkQty,
                 'units_per_bulk' => $unitsPerBulk,
                 'bulk_type_id' => $bulkTypeId,
+                'expiry_date' => ($data['expiry_date'] ?? null) ?: null,
                 'quantity' => (int) $data['quantity'],
+                'remaining_quantity' => (int) $data['quantity'],
                 'cost_price' => ($data['cost_price'] !== null && $data['cost_price'] !== '') ? $data['cost_price'] : null,
                 'line_total' => ($data['cost_price'] !== null && $data['cost_price'] !== '')
                     ? (string) ((float) $data['cost_price'] * (int) $data['quantity'])
@@ -323,6 +351,7 @@ class StockInIndex extends Component
         $this->entry_mode = 'unit';
         $this->bulk_quantity = 1;
         $this->cost_price = null;
+        $this->expiry_date = null;
         $this->notes = null;
         $this->selected_receipt_id = (int) $receiptId;
 
@@ -356,6 +385,11 @@ class StockInIndex extends Component
             return;
         }
 
+        if ($this->receiptHasAllocations((int) $receipt->id)) {
+            session()->flash('warning', 'Cannot edit this receipt because some items have already been sold.');
+            return;
+        }
+
         $this->editing_receipt_id = (int) $receipt->id;
         $this->edit_branch_id = (int) $receipt->branch_id;
         $this->edit_notes = $receipt->notes;
@@ -366,6 +400,7 @@ class StockInIndex extends Component
                 'product_id' => (int) $item->product_id,
                 'name' => (string) ($item->product?->name ?? '-'),
                 'cost_price' => $item->cost_price !== null ? (string) $item->cost_price : null,
+                'expiry_date' => $item->expiry_date?->toDateString(),
                 'quantity' => (int) $item->quantity,
                 'entry_mode' => (string) ($item->entry_mode ?? 'unit'),
                 'bulk_quantity' => $item->bulk_quantity !== null ? (int) $item->bulk_quantity : null,
@@ -421,6 +456,19 @@ class StockInIndex extends Component
     {
         $this->resetErrorBag('edit_cart');
 
+        if ($this->edit_expiry_date !== null && trim((string) $this->edit_expiry_date) === '') {
+            $this->edit_expiry_date = null;
+        }
+
+        if ($this->edit_expiry_date !== null) {
+            try {
+                $this->edit_expiry_date = Carbon::parse($this->edit_expiry_date)->toDateString();
+            } catch (\Throwable $e) {
+                $this->addError('edit_cart', 'Invalid expiry date.');
+                return;
+            }
+        }
+
         if ($this->editing_receipt_id <= 0 || $this->edit_branch_id <= 0 || $this->edit_product_id <= 0) {
             return;
         }
@@ -474,6 +522,7 @@ class StockInIndex extends Component
             'product_id' => (int) $product->id,
             'name' => (string) $product->name,
             'cost_price' => $this->edit_cost_price,
+            'expiry_date' => $this->edit_expiry_date,
             'quantity' => $unitsQty,
             'entry_mode' => $this->edit_entry_mode,
             'bulk_quantity' => $bulkQty,
@@ -622,6 +671,12 @@ class StockInIndex extends Component
                     abort_unless((int) (auth()->user()?->branch_id ?? 0) === (int) $receipt->branch_id, 403);
                 }
 
+                if ($this->receiptHasAllocations((int) $receipt->id)) {
+                    throw ValidationException::withMessages([
+                        'void_reason' => 'Cannot void receipt: some items have already been sold.',
+                    ]);
+                }
+
                 $receipt->load(['items']);
 
                 foreach ($receipt->items as $item) {
@@ -643,6 +698,10 @@ class StockInIndex extends Component
 
                     $stock->current_stock = $afterStock;
                     $stock->save();
+
+                    StockInItem::query()
+                        ->whereKey((int) $item->id)
+                        ->update(['remaining_quantity' => 0]);
 
                     StockMovement::query()->create([
                         'branch_id' => (int) $receipt->branch_id,
@@ -702,6 +761,12 @@ class StockInIndex extends Component
 
                 if (! $this->isSuperAdmin) {
                     abort_unless((int) (auth()->user()?->branch_id ?? 0) === (int) $receipt->branch_id, 403);
+                }
+
+                if ($this->receiptHasAllocations((int) $receipt->id)) {
+                    throw ValidationException::withMessages([
+                        'edit_cart' => 'Cannot edit receipt: some items have already been sold.',
+                    ]);
                 }
 
                 $receipt->load(['items']);
@@ -787,7 +852,9 @@ class StockInIndex extends Component
                         'bulk_quantity' => $item['bulk_quantity'] ?? null,
                         'units_per_bulk' => $item['units_per_bulk'] ?? null,
                         'bulk_type_id' => $item['bulk_type_id'] ?? null,
+                        'expiry_date' => ($item['expiry_date'] ?? null) ?: null,
                         'quantity' => $qty,
+                        'remaining_quantity' => $qty,
                         'cost_price' => ($item['cost_price'] !== null && $item['cost_price'] !== '') ? (string) $item['cost_price'] : null,
                         'line_total' => $lineTotal !== null ? number_format($lineTotal, 2, '.', '') : null,
                     ]);
@@ -889,7 +956,7 @@ class StockInIndex extends Component
 
         $stocks = ProductStock::query()
             ->with(['product'])
-            ->when($this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
+            ->when($this->branch_id > 0, fn ($q) => $q->where('product_stocks.branch_id', $this->branch_id))
             ->when($this->isSuperAdmin && $this->branch_id <= 0, fn ($q) => $q->whereRaw('1 = 0'))
             ->join('products', 'products.id', '=', 'product_stocks.product_id')
             ->when(trim($this->stock_search) !== '', function ($q) {

@@ -9,12 +9,18 @@ use App\Models\Product;
 use App\Models\ProductStock;
 use App\Models\SalesItem;
 use App\Models\StockInItem;
+use App\Models\StockInReceipt;
 use App\Models\StockMovement;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Livewire\Component;
 
 class ProductsIndex extends Component
 {
+    public string $mode = 'manage';
+
     public int $branch_id = 0;
     public string $search = '';
     public string $name = '';
@@ -25,6 +31,10 @@ class ProductsIndex extends Component
     public ?int $bulk_type_id = null;
     public string $status = 'active';
     public ?int $editingId = null;
+
+    public int $opening_quantity = 0;
+    public ?string $opening_cost_price = null;
+    public ?string $opening_expiry_date = null;
 
     public bool $show_edit_modal = false;
 
@@ -47,11 +57,17 @@ class ProductsIndex extends Component
             'bulk_enabled' => ['boolean'],
             'bulk_type_id' => ['nullable', 'integer', 'min:1', Rule::exists('bulk_types', 'id')->where('branch_id', $this->branch_id)],
             'status' => ['required', 'string', 'in:active,inactive'],
+            'opening_quantity' => ['nullable', 'integer', 'min:0'],
+            'opening_cost_price' => ['nullable', 'numeric', 'min:0'],
+            'opening_expiry_date' => ['nullable', 'date'],
         ];
     }
 
-    public function mount(): void
+    public function mount(string $mode = 'manage'): void
     {
+        $mode = strtolower(trim($mode));
+        $this->mode = in_array($mode, ['add', 'manage', 'expired'], true) ? $mode : 'manage';
+
         $user = auth()->user();
         $this->isSuperAdmin = (bool) ($user?->role === 'super_admin');
         $this->auth_user_id = (int) ($user?->id ?? 0);
@@ -91,15 +107,86 @@ class ProductsIndex extends Component
 
         $data['branch_id'] = (int) $this->branch_id;
 
+        $productData = $data;
+        unset($productData['opening_quantity'], $productData['opening_cost_price'], $productData['opening_expiry_date']);
+
         if (! $data['bulk_enabled']) {
             $data['bulk_type_id'] = null;
+            $productData['bulk_type_id'] = null;
         }
 
         if ($this->editingId) {
-            Product::query()->whereKey($this->editingId)->update($data);
+            Product::query()->whereKey($this->editingId)->update($productData);
         } else {
-            $product = Product::query()->create($data);
-            $this->ensureProductStockForBranch((int) $product->id, (int) $product->branch_id);
+            $openingQty = max(0, (int) ($data['opening_quantity'] ?? 0));
+            $openingCost = ($data['opening_cost_price'] !== null && $data['opening_cost_price'] !== '')
+                ? number_format((float) $data['opening_cost_price'], 2, '.', '')
+                : null;
+            $openingExpiry = ($data['opening_expiry_date'] ?? null) ?: null;
+
+            DB::transaction(function () use ($productData, $openingQty, $openingCost, $openingExpiry) {
+                $product = Product::query()->create($productData);
+
+                $this->ensureProductStockForBranch((int) $product->id, (int) $product->branch_id);
+
+                if ($openingQty > 0) {
+                    $stock = ProductStock::query()
+                        ->where('branch_id', (int) $product->branch_id)
+                        ->where('product_id', (int) $product->id)
+                        ->lockForUpdate()
+                        ->firstOrFail();
+
+                    $beforeStock = (int) $stock->current_stock;
+                    $afterStock = $beforeStock + $openingQty;
+                    $stock->current_stock = $afterStock;
+
+                    if ($openingCost !== null) {
+                        $stock->cost_price = $openingCost;
+                    }
+
+                    $stock->save();
+
+                    $receipt = StockInReceipt::query()->create([
+                        'receipt_no' => 'OS-' . strtoupper(Str::random(10)),
+                        'branch_id' => (int) $product->branch_id,
+                        'user_id' => auth()->id(),
+                        'received_at' => now(),
+                        'notes' => 'OPENING STOCK',
+                        'total_quantity' => $openingQty,
+                        'total_cost' => $openingCost !== null ? number_format(((float) $openingCost) * $openingQty, 2, '.', '') : null,
+                    ]);
+
+                    StockInItem::query()->create([
+                        'stock_in_receipt_id' => (int) $receipt->id,
+                        'product_id' => (int) $product->id,
+                        'entry_mode' => 'unit',
+                        'bulk_quantity' => null,
+                        'units_per_bulk' => null,
+                        'bulk_type_id' => null,
+                        'expiry_date' => $openingExpiry,
+                        'quantity' => $openingQty,
+                        'remaining_quantity' => $openingQty,
+                        'cost_price' => $openingCost,
+                        'line_total' => $openingCost !== null ? number_format(((float) $openingCost) * $openingQty, 2, '.', '') : null,
+                    ]);
+
+                    StockMovement::query()->create([
+                        'branch_id' => (int) $product->branch_id,
+                        'product_id' => (int) $product->id,
+                        'user_id' => auth()->id(),
+                        'movement_type' => 'IN',
+                        'quantity' => $openingQty,
+                        'before_stock' => $beforeStock,
+                        'after_stock' => $afterStock,
+                        'unit_cost' => $openingCost,
+                        'unit_price' => null,
+                        'stock_in_receipt_id' => (int) $receipt->id,
+                        'sales_receipt_id' => null,
+                        'moved_at' => now(),
+                        'notes' => 'OPENING STOCK',
+                    ]);
+                }
+            });
         }
 
         if ($this->show_edit_modal) {
@@ -246,12 +333,18 @@ class ProductsIndex extends Component
             'bulk_type_id',
             'status',
             'editingId',
+            'opening_quantity',
+            'opening_cost_price',
+            'opening_expiry_date',
         ]);
 
         $this->selling_price = '0.00';
         $this->bulk_enabled = false;
         $this->bulk_type_id = null;
         $this->status = 'active';
+        $this->opening_quantity = 0;
+        $this->opening_cost_price = null;
+        $this->opening_expiry_date = null;
 
         $user = auth()->user();
         $this->isSuperAdmin = (bool) ($user?->role === 'super_admin');
@@ -280,6 +373,8 @@ class ProductsIndex extends Component
     {
         $this->syncAuthContext();
 
+        $today = Carbon::today()->toDateString();
+
         $branches = Branch::query()->where('is_active', true)->orderBy('name')->get();
 
         $categories = Category::query()
@@ -292,18 +387,54 @@ class ProductsIndex extends Component
             ->orderBy('name')
             ->get();
 
-        $products = Product::query()
-            ->with(['category', 'bulkType', 'branch'])
-            ->when($this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
-            ->when(trim($this->search) !== '', function ($q) {
-                $term = '%' . trim($this->search) . '%';
-                $q->where(function ($qq) use ($term) {
-                    $qq->where('name', 'like', $term)
-                        ->orWhere('description', 'like', $term);
-                });
-            })
-            ->orderBy('name')
-            ->get();
+        $products = collect();
+        if ($this->mode !== 'add') {
+            $expiredQtyMap = [];
+            $expiredProductIds = [];
+
+            if ($this->mode === 'expired') {
+                $expiredRows = StockInItem::query()
+                    ->join('stock_in_receipts', 'stock_in_receipts.id', '=', 'stock_in_items.stock_in_receipt_id')
+                    ->whereNull('stock_in_receipts.voided_at')
+                    ->where('stock_in_items.remaining_quantity', '>', 0)
+                    ->whereNotNull('stock_in_items.expiry_date')
+                    ->where('stock_in_items.expiry_date', '<', $today)
+                    ->when($this->branch_id > 0, fn ($q) => $q->where('stock_in_receipts.branch_id', $this->branch_id))
+                    ->selectRaw('stock_in_items.product_id as product_id, SUM(stock_in_items.remaining_quantity) as qty')
+                    ->groupBy('stock_in_items.product_id')
+                    ->get();
+
+                $expiredQtyMap = $expiredRows->pluck('qty', 'product_id')->map(fn ($v) => (int) $v)->all();
+                $expiredProductIds = array_keys($expiredQtyMap);
+
+                if (count($expiredProductIds) === 0) {
+                    $products = collect();
+
+                    return view('livewire.products-index', [
+                        'products' => $products,
+                        'categories' => $categories,
+                        'bulkTypes' => $bulkTypes,
+                        'branches' => $branches,
+                        'isSuperAdmin' => $this->isSuperAdmin,
+                        'expiredQtyMap' => $expiredQtyMap,
+                    ]);
+                }
+            }
+
+            $products = Product::query()
+                ->with(['category', 'bulkType', 'branch'])
+                ->when($this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
+                ->when($this->mode === 'expired', fn ($q) => $q->whereIn('id', $expiredProductIds))
+                ->when(trim($this->search) !== '', function ($q) {
+                    $term = '%' . trim($this->search) . '%';
+                    $q->where(function ($qq) use ($term) {
+                        $qq->where('name', 'like', $term)
+                            ->orWhere('description', 'like', $term);
+                    });
+                })
+                ->orderBy('name')
+                ->get();
+        }
 
         return view('livewire.products-index', [
             'products' => $products,
@@ -311,6 +442,7 @@ class ProductsIndex extends Component
             'bulkTypes' => $bulkTypes,
             'branches' => $branches,
             'isSuperAdmin' => $this->isSuperAdmin,
+            'expiredQtyMap' => $expiredQtyMap ?? [],
         ]);
     }
 }

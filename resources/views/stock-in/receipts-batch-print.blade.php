@@ -12,8 +12,8 @@
         }
     </style>
 </head>
-<body class="bg-gray-100">
-    <div class="max-w-3xl mx-auto py-8 px-4">
+<body class="bg-slate-100">
+    <div class="ui-print-container-md">
         <div class="no-print mb-4 flex justify-end gap-3">
             <button type="button" onclick="window.print()" class="ui-btn-primary">{{ __('Print') }}</button>
             <button type="button" onclick="window.close()" class="ui-btn-secondary">{{ __('Close') }}</button>
@@ -24,8 +24,10 @@
                 @include('stock-in._receipt', ['receipt' => $receipt])
             </div>
         @empty
-            <div class="bg-white shadow-sm rounded-lg p-6 text-sm text-gray-700">
+            <div class="ui-card">
+                <div class="ui-card-body text-sm text-slate-700">
                 {{ __('No receipts selected.') }}
+                </div>
             </div>
         @endforelse
     </div>

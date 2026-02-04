@@ -9,6 +9,7 @@ use App\Http\Controllers\StockInReceiptsBatchPrintController;
 use App\Livewire\ProductsIndex;
 use App\Livewire\ReportsIndex;
 use App\Livewire\SalesIndex;
+use App\Livewire\ExpensesIndex;
 use App\Livewire\StockMovementsIndex;
 use App\Livewire\StockInIndex;
 use App\Livewire\UsersIndex;
@@ -125,12 +126,31 @@ Route::middleware('auth')->group(function () {
     Route::get('/setup/bulk-units', BulkUnitsIndex::class)->name('setup.bulk_units');
     Route::get('/setup/bulk-types', BulkTypesIndex::class)->name('setup.bulk_types');
 
-    Route::get('/products', ProductsIndex::class)->name('products.index');
-    Route::get('/stock-in', StockInIndex::class)->name('stock_in.index');
+    Route::get('/products/{mode?}', ProductsIndex::class)
+        ->where('mode', 'add|manage|expired')
+        ->name('products.index');
 
-    Route::get('/sales', SalesIndex::class)->name('sales.index');
+    Route::get('/stock-in/{mode?}', StockInIndex::class)
+        ->where('mode', 'add|manage')
+        ->name('stock_in.index');
+
+    Route::get('/sales/add', SalesIndex::class)
+        ->defaults('mode', 'add')
+        ->name('sales.add');
+
+    Route::get('/sales/manage', SalesIndex::class)
+        ->defaults('mode', 'manage')
+        ->name('sales.manage');
+
+    Route::get('/sales/{mode?}', SalesIndex::class)
+        ->where('mode', 'add|manage')
+        ->name('sales.index');
     Route::get('/sales/print', SalesReceiptsBatchPrintController::class)->name('sales.print_batch');
     Route::get('/sales/{sale}/print', SalesReceiptPrintController::class)->name('sales.print');
+
+    Route::get('/expenses/{mode?}', ExpensesIndex::class)
+        ->where('mode', 'add|manage')
+        ->name('expenses.index');
 
     Route::get('/stock-in/print', StockInReceiptsBatchPrintController::class)->name('stock_in.print_batch');
     Route::get('/stock-in/{receipt}/print', StockInReceiptPrintController::class)->name('stock_in.print');

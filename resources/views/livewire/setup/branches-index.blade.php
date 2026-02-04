@@ -1,9 +1,8 @@
-<div class="py-8">
-    <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+<div class="ui-page">
+    <div class="ui-page-container">
         <div class="mb-6">
-            <h2 class="font-semibold text-xl text-slate-900 leading-tight">
-                {{ __('Branches') }}
-            </h2>
+            <h2 class="ui-page-title">{{ __('Branches') }}</h2>
+            <div class="ui-page-subtitle">{{ __('Manage branch locations and status.') }}</div>
         </div>
 
         @if (session('status'))
@@ -121,13 +120,13 @@
         <div class="fixed inset-0 z-50 flex items-center justify-center" data-modal-root>
             <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" wire:click="closeDeleteModal" data-modal-overlay></div>
             <div class="relative w-full max-w-lg mx-4 ui-card">
-                <div class="p-4 border-b border-gray-200">
-                    <div class="text-sm text-gray-500">{{ __('Confirm Delete') }}</div>
-                    <div class="mt-1 font-semibold text-gray-900">{{ __('Delete Branch') }}</div>
+                <div class="p-4 border-b border-slate-200">
+                    <div class="text-sm text-slate-500">{{ __('Confirm Delete') }}</div>
+                    <div class="mt-1 font-semibold text-slate-900">{{ __('Delete Branch') }}</div>
                 </div>
 
                 <div class="p-4">
-                    <div class="text-sm text-gray-700">
+                    <div class="text-sm text-slate-700">
                         {{ __('Are you sure you want to delete this branch?') }}
                         <span class="font-semibold">{{ $pending_delete_name ?: '-' }}</span>
                     </div>
@@ -145,10 +144,10 @@
         <div class="fixed inset-0 z-50 flex items-center justify-center" data-modal-root>
             <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" wire:click="closeEditModal" data-modal-overlay></div>
             <div class="relative w-full max-w-lg mx-4 ui-card">
-                <div class="p-4 border-b border-gray-200 flex items-center justify-between">
+                <div class="p-4 border-b border-slate-200 flex items-center justify-between">
                     <div>
-                        <div class="text-sm text-gray-500">{{ __('Edit Branch') }}</div>
-                        <div class="mt-1 font-semibold text-gray-900">{{ $name ?: '-' }}</div>
+                        <div class="text-sm text-slate-500">{{ __('Edit Branch') }}</div>
+                        <div class="mt-1 font-semibold text-slate-900">{{ $name ?: '-' }}</div>
                     </div>
                     <button type="button" wire:click="closeEditModal" class="ui-btn-secondary" data-modal-close>{{ __('Close') }}</button>
                 </div>

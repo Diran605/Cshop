@@ -3,8 +3,105 @@
 @tailwind utilities;
 
 @layer components {
+    .ui-shell {
+        @apply min-h-screen bg-slate-50;
+    }
+
+    .ui-shell-inner {
+        @apply flex;
+    }
+
+    .ui-sidebar {
+        @apply w-64 hidden md:flex md:flex-col bg-white text-slate-800 border-r border-slate-200;
+    }
+
+    .ui-sidebar-header {
+        @apply h-16 px-6 flex items-center border-b border-slate-200;
+    }
+
+    .ui-sidebar-brand {
+        @apply text-lg font-semibold text-slate-900 tracking-tight;
+    }
+
+    .ui-nav {
+        @apply flex-1 px-3 py-4 space-y-1;
+    }
+
+    .ui-nav-section-title {
+        @apply px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider;
+    }
+
+    .ui-nav-link {
+        @apply block pl-4 pr-3 py-2 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition border-l-4 border-transparent;
+    }
+
+    .ui-nav-link-active {
+        @apply bg-sky-50 text-sky-800 ring-1 ring-inset ring-sky-100 border-sky-500;
+    }
+
+    .ui-nav-sublink {
+        @apply block pl-4 pr-3 py-2 ml-3 rounded-xl text-sm font-semibold text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition border-l-4 border-transparent;
+    }
+
+    .ui-nav-sublink-active {
+        @apply bg-sky-50 text-sky-800 ring-1 ring-inset ring-sky-100 border-sky-500;
+    }
+
+    .ui-nav-group {
+        @apply rounded-xl;
+    }
+
+    .ui-nav-group[open] > .ui-nav-group-summary {
+        @apply bg-slate-50;
+    }
+
+    .ui-nav-group-summary {
+        @apply list-none w-full flex items-center justify-between gap-2 pl-4 pr-3 py-2 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition border-l-4 border-transparent cursor-pointer select-none;
+    }
+
+    .ui-nav-group-summary::-webkit-details-marker {
+        display: none;
+    }
+
+    .ui-nav-group-summary::marker {
+        content: '';
+    }
+
+    .ui-nav-caret {
+        @apply h-4 w-4 min-h-4 min-w-4 shrink-0 text-slate-400 transition-transform;
+    }
+
+    .ui-nav-group-summary svg.ui-nav-caret {
+        width: 1rem;
+        height: 1rem;
+    }
+
+    .ui-nav-group[open] .ui-nav-caret {
+        @apply rotate-180;
+    }
+
+    .ui-nav-group-panel {
+        @apply mt-1 space-y-1;
+    }
+
+    .ui-topbar {
+        @apply bg-white border-b border-slate-200;
+    }
+
+    .ui-topbar-inner {
+        @apply h-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between;
+    }
+
+    .ui-user-trigger {
+        @apply inline-flex items-center px-3 py-2 text-sm font-semibold rounded-xl text-slate-700 bg-white hover:bg-slate-50 ring-1 ring-inset ring-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 focus:ring-offset-slate-50;
+    }
+
+    .ui-page-header {
+        @apply bg-white border-b border-slate-200;
+    }
+
     .ui-card {
-        @apply rounded-2xl border border-slate-200/70 bg-white/70 shadow-sm shadow-slate-900/5 backdrop-blur;
+        @apply rounded-2xl border border-slate-200 bg-white shadow-sm shadow-slate-900/5;
     }
 
     .ui-card-body {
@@ -13,6 +110,30 @@
 
     .ui-card-title {
         @apply text-lg font-semibold text-slate-900;
+    }
+
+    .ui-page-title {
+        @apply text-2xl font-semibold text-slate-900 tracking-tight;
+    }
+
+    .ui-page-subtitle {
+        @apply mt-1 text-sm text-slate-500;
+    }
+
+    .ui-page {
+        @apply py-8;
+    }
+
+    .ui-page-container {
+        @apply max-w-7xl mx-auto sm:px-6 lg:px-8;
+    }
+
+    .ui-print-container-sm {
+        @apply max-w-2xl mx-auto py-8 px-4;
+    }
+
+    .ui-print-container-md {
+        @apply max-w-3xl mx-auto py-8 px-4;
     }
 
     .ui-label {
@@ -84,7 +205,7 @@
     }
 
     .ui-table-wrap {
-        @apply overflow-hidden rounded-xl border border-slate-200/70 bg-white/60 shadow-sm shadow-slate-900/5;
+        @apply overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm shadow-slate-900/5;
     }
 
     .ui-table {
@@ -92,7 +213,7 @@
     }
 
     .ui-table thead {
-        @apply bg-slate-100/70;
+        @apply bg-slate-50;
     }
 
     .ui-table th {
@@ -103,11 +224,83 @@
         @apply px-4 py-3 text-sm text-slate-700;
     }
 
+    .ui-table td.ui-table-empty {
+        @apply py-8 text-center text-sm text-slate-500;
+    }
+
     .ui-table tbody {
-        @apply divide-y divide-slate-200 bg-white/70;
+        @apply divide-y divide-slate-200 bg-white;
     }
 
     .ui-table tbody tr {
-        @apply hover:bg-slate-50/70;
+        @apply hover:bg-slate-50;
+    }
+
+    .ui-tabs {
+        @apply inline-flex items-center rounded-xl border border-slate-200 bg-slate-50 p-1;
+    }
+
+    .ui-tab {
+        @apply rounded-lg px-3 py-1.5 text-sm font-semibold text-slate-600 hover:text-slate-900;
+    }
+
+    .ui-tab-active {
+        @apply bg-white text-slate-900 shadow-sm shadow-slate-900/5 ring-1 ring-slate-200;
+    }
+
+    .ui-breadcrumb {
+        @apply flex items-center gap-2 text-sm text-slate-500;
+    }
+
+    .ui-breadcrumb-item {
+        @apply font-semibold text-slate-600;
+    }
+
+    .ui-breadcrumb-current {
+        @apply font-semibold text-slate-900;
+    }
+
+    .ui-breadcrumb-sep {
+        @apply text-slate-300;
+    }
+
+    .ui-kpi-card {
+        @apply rounded-2xl p-5 text-white shadow-md shadow-slate-900/10;
+    }
+
+    .ui-kpi-title {
+        @apply text-sm font-semibold text-white/85;
+    }
+
+    .ui-kpi-value {
+        @apply mt-2 text-2xl font-semibold tracking-tight;
+    }
+
+    .ui-kpi-blue {
+        @apply bg-gradient-to-br from-sky-500 to-indigo-600;
+    }
+
+    .ui-kpi-pink {
+        @apply bg-gradient-to-br from-pink-500 to-rose-600;
+    }
+
+    .ui-kpi-violet {
+        @apply bg-gradient-to-br from-violet-500 to-fuchsia-600;
+    }
+
+    .ui-kpi-emerald {
+        @apply bg-gradient-to-br from-emerald-500 to-teal-600;
+    }
+
+    .ui-input-compact {
+        @apply rounded-lg border border-slate-300/80 bg-white/80 px-2 py-1 text-sm text-slate-900 shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30 disabled:cursor-not-allowed disabled:opacity-60;
+    }
+
+    .ui-stepper-btn {
+        @apply inline-flex items-center justify-center rounded-lg border border-slate-300/80 bg-white/70 px-2 py-1 text-sm font-semibold text-slate-700 shadow-sm hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/40;
+    }
+
+    .ui-muted-panel {
+        @apply rounded-xl bg-white/60 p-4 text-sm text-slate-700 ring-1 ring-inset ring-slate-200/70;
     }
 }

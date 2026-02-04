@@ -7,6 +7,7 @@ use App\Models\Product;
 use App\Models\ProductStock;
 use App\Models\SalesItem;
 use App\Models\SalesReceipt;
+use App\Models\StockInItem;
 use App\Models\StockMovement;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -16,6 +17,10 @@ use Livewire\Component;
 
 class SalesIndex extends Component
 {
+    public string $mode = 'add';
+
+    public string $sale_entry_type = 'group';
+
     public int $branch_id = 0;
     public int $product_id = 0;
 
@@ -82,8 +87,11 @@ class SalesIndex extends Component
         ];
     }
 
-    public function mount(): void
+    public function mount(string $mode = 'add'): void
     {
+        $mode = strtolower(trim($mode));
+        $this->mode = in_array($mode, ['add', 'manage'], true) ? $mode : 'add';
+
         $user = auth()->user();
         $this->isSuperAdmin = (bool) ($user?->role === 'super_admin');
         $this->auth_user_id = (int) ($user?->id ?? 0);
@@ -109,6 +117,8 @@ class SalesIndex extends Component
 
         $this->product_search = '';
         $this->sales_search = '';
+
+        $this->sale_entry_type = 'group';
 
         $today = Carbon::today();
         $this->sales_date_from = $today->toDateString();
@@ -148,6 +158,8 @@ class SalesIndex extends Component
             $this->bulk_quantity = 1;
             $this->product_search = '';
             $this->sales_search = '';
+
+            $this->sale_entry_type = 'group';
 
             $today = Carbon::today();
             $this->sales_date_from = $today->toDateString();
@@ -205,6 +217,26 @@ class SalesIndex extends Component
             ->value('id') ?? 0);
 
         $this->updatedProductId();
+    }
+
+    public function updatedSaleEntryType(): void
+    {
+        $this->enforceSingleMode();
+    }
+
+    private function enforceSingleMode(): void
+    {
+        if ($this->sale_entry_type !== 'single') {
+            return;
+        }
+
+        $items = array_values($this->cart);
+        if (count($items) <= 1) {
+            return;
+        }
+
+        $last = $items[count($items) - 1];
+        $this->cart = [(int) $last['product_id'] => $last];
     }
 
     public function addProduct(): void
@@ -277,6 +309,8 @@ class SalesIndex extends Component
             'units_per_bulk' => $unitsPerBulk,
             'bulk_type_id' => $bulkTypeId,
         ];
+
+        $this->enforceSingleMode();
     }
 
     public function incrementItem(int $productId): void
@@ -398,17 +432,24 @@ class SalesIndex extends Component
 
         try {
             $saleId = DB::transaction(function () use ($cartItems, $data, $subTotal, $grandTotal, $amountPaid, $changeDue) {
-                foreach ($cartItems as $item) {
-                    $stock = ProductStock::query()
-                        ->where('branch_id', (int) $data['branch_id'])
-                        ->where('product_id', (int) $item['product_id'])
-                        ->lockForUpdate()
-                        ->first();
+                $today = Carbon::today()->toDateString();
 
-                    $available = (int) ($stock?->current_stock ?? 0);
+                foreach ($cartItems as $item) {
+                    $available = (int) (DB::table('stock_in_items')
+                        ->join('stock_in_receipts', 'stock_in_receipts.id', '=', 'stock_in_items.stock_in_receipt_id')
+                        ->whereNull('stock_in_receipts.voided_at')
+                        ->where('stock_in_receipts.branch_id', (int) $data['branch_id'])
+                        ->where('stock_in_items.product_id', (int) $item['product_id'])
+                        ->where('stock_in_items.remaining_quantity', '>', 0)
+                        ->where(function ($q) use ($today) {
+                            $q->whereNull('stock_in_items.expiry_date')
+                                ->orWhere('stock_in_items.expiry_date', '>=', $today);
+                        })
+                        ->sum('stock_in_items.remaining_quantity'));
+
                     if ($available < (int) $item['quantity']) {
                         throw ValidationException::withMessages([
-                            'cart' => 'Insufficient stock for ' . $item['name'] . '. Available: ' . $available . ', Requested: ' . (int) $item['quantity'] . '.',
+                            'cart' => 'Insufficient non-expired stock for ' . $item['name'] . '. Available: ' . $available . ', Requested: ' . (int) $item['quantity'] . '.',
                         ]);
                     }
                 }
@@ -465,7 +506,7 @@ class SalesIndex extends Component
                     $cogsTotal += $lineCost;
                     $profitTotal += $lineProfit;
 
-                    SalesItem::query()->create([
+                    $salesItem = SalesItem::query()->create([
                         'sales_receipt_id' => $receipt->id,
                         'product_id' => (int) $item['product_id'],
                         'entry_mode' => (string) ($item['entry_mode'] ?? 'unit'),
@@ -479,6 +520,59 @@ class SalesIndex extends Component
                         'line_cost' => number_format($lineCost, 2, '.', ''),
                         'line_profit' => number_format($lineProfit, 2, '.', ''),
                     ]);
+
+                    $toAllocate = (int) $item['quantity'];
+                    $batchRows = DB::table('stock_in_items')
+                        ->join('stock_in_receipts', 'stock_in_receipts.id', '=', 'stock_in_items.stock_in_receipt_id')
+                        ->whereNull('stock_in_receipts.voided_at')
+                        ->where('stock_in_receipts.branch_id', (int) $data['branch_id'])
+                        ->where('stock_in_items.product_id', (int) $item['product_id'])
+                        ->where('stock_in_items.remaining_quantity', '>', 0)
+                        ->where(function ($q) use ($today) {
+                            $q->whereNull('stock_in_items.expiry_date')
+                                ->orWhere('stock_in_items.expiry_date', '>=', $today);
+                        })
+                        ->orderByRaw('CASE WHEN stock_in_items.expiry_date IS NULL THEN 1 ELSE 0 END')
+                        ->orderBy('stock_in_items.expiry_date')
+                        ->orderBy('stock_in_items.id')
+                        ->select(['stock_in_items.id', 'stock_in_items.remaining_quantity'])
+                        ->lockForUpdate()
+                        ->get();
+
+                    foreach ($batchRows as $row) {
+                        if ($toAllocate <= 0) {
+                            break;
+                        }
+
+                        $availableBatch = (int) ($row->remaining_quantity ?? 0);
+                        if ($availableBatch <= 0) {
+                            continue;
+                        }
+
+                        $take = min($toAllocate, $availableBatch);
+
+                        DB::table('stock_in_items')
+                            ->where('id', (int) $row->id)
+                            ->update([
+                                'remaining_quantity' => $availableBatch - $take,
+                            ]);
+
+                        DB::table('sales_item_allocations')->insert([
+                            'sales_item_id' => (int) $salesItem->id,
+                            'stock_in_item_id' => (int) $row->id,
+                            'quantity' => $take,
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ]);
+
+                        $toAllocate -= $take;
+                    }
+
+                    if ($toAllocate > 0) {
+                        throw ValidationException::withMessages([
+                            'cart' => 'Stock allocation failed for ' . $item['name'] . '. Please retry.',
+                        ]);
+                    }
 
                     StockMovement::query()->create([
                         'branch_id' => (int) $data['branch_id'],
@@ -811,6 +905,24 @@ class SalesIndex extends Component
                 $receipt->load(['items']);
 
                 foreach ($receipt->items as $item) {
+                    $allocations = DB::table('sales_item_allocations')
+                        ->where('sales_item_id', (int) $item->id)
+                        ->get();
+
+                    foreach ($allocations as $alloc) {
+                        $batch = StockInItem::query()
+                            ->whereKey((int) $alloc->stock_in_item_id)
+                            ->lockForUpdate()
+                            ->first();
+
+                        if ($batch) {
+                            $batch->remaining_quantity = (int) $batch->remaining_quantity + (int) $alloc->quantity;
+                            $batch->save();
+                        }
+                    }
+
+                    DB::table('sales_item_allocations')->where('sales_item_id', (int) $item->id)->delete();
+
                     $stock = ProductStock::query()->firstOrCreate(
                         ['branch_id' => (int) $receipt->branch_id, 'product_id' => (int) $item->product_id],
                         ['current_stock' => 0, 'minimum_stock' => 0, 'cost_price' => null]
@@ -899,6 +1011,24 @@ class SalesIndex extends Component
                 $receipt->load(['items']);
 
                 foreach ($receipt->items as $oldItem) {
+                    $allocations = DB::table('sales_item_allocations')
+                        ->where('sales_item_id', (int) $oldItem->id)
+                        ->get();
+
+                    foreach ($allocations as $alloc) {
+                        $batch = StockInItem::query()
+                            ->whereKey((int) $alloc->stock_in_item_id)
+                            ->lockForUpdate()
+                            ->first();
+
+                        if ($batch) {
+                            $batch->remaining_quantity = (int) $batch->remaining_quantity + (int) $alloc->quantity;
+                            $batch->save();
+                        }
+                    }
+
+                    DB::table('sales_item_allocations')->where('sales_item_id', (int) $oldItem->id)->delete();
+
                     $stock = ProductStock::query()->firstOrCreate(
                         ['branch_id' => (int) $receipt->branch_id, 'product_id' => (int) $oldItem->product_id],
                         ['current_stock' => 0, 'minimum_stock' => 0, 'cost_price' => null]
@@ -930,22 +1060,30 @@ class SalesIndex extends Component
                 SalesItem::query()->where('sales_receipt_id', (int) $receipt->id)->delete();
 
                 foreach ($items as $item) {
-                    $stock = ProductStock::query()
-                        ->where('branch_id', (int) $receipt->branch_id)
-                        ->where('product_id', (int) $item['product_id'])
-                        ->lockForUpdate()
-                        ->first();
+                    $today = Carbon::today()->toDateString();
+                    $available = (int) (DB::table('stock_in_items')
+                        ->join('stock_in_receipts', 'stock_in_receipts.id', '=', 'stock_in_items.stock_in_receipt_id')
+                        ->whereNull('stock_in_receipts.voided_at')
+                        ->where('stock_in_receipts.branch_id', (int) $receipt->branch_id)
+                        ->where('stock_in_items.product_id', (int) $item['product_id'])
+                        ->where('stock_in_items.remaining_quantity', '>', 0)
+                        ->where(function ($q) use ($today) {
+                            $q->whereNull('stock_in_items.expiry_date')
+                                ->orWhere('stock_in_items.expiry_date', '>=', $today);
+                        })
+                        ->sum('stock_in_items.remaining_quantity'));
 
-                    $available = (int) ($stock?->current_stock ?? 0);
                     if ($available < (int) $item['quantity']) {
                         throw ValidationException::withMessages([
-                            'edit_cart' => 'Insufficient stock for ' . $item['name'] . '. Available: ' . $available . ', Requested: ' . (int) $item['quantity'] . '.',
+                            'edit_cart' => 'Insufficient non-expired stock for ' . $item['name'] . '. Available: ' . $available . ', Requested: ' . (int) $item['quantity'] . '.',
                         ]);
                     }
                 }
 
                 $cogsTotal = 0.0;
                 $profitTotal = 0.0;
+
+                $today = Carbon::today()->toDateString();
 
                 foreach ($items as $item) {
                     $stock = ProductStock::query()
@@ -970,7 +1108,7 @@ class SalesIndex extends Component
                     $cogsTotal += $lineCost;
                     $profitTotal += $lineProfit;
 
-                    SalesItem::query()->create([
+                    $salesItem = SalesItem::query()->create([
                         'sales_receipt_id' => (int) $receipt->id,
                         'product_id' => (int) $item['product_id'],
                         'entry_mode' => (string) ($item['entry_mode'] ?? 'unit'),
@@ -984,6 +1122,59 @@ class SalesIndex extends Component
                         'line_cost' => number_format($lineCost, 2, '.', ''),
                         'line_profit' => number_format($lineProfit, 2, '.', ''),
                     ]);
+
+                    $toAllocate = (int) $item['quantity'];
+                    $batchRows = DB::table('stock_in_items')
+                        ->join('stock_in_receipts', 'stock_in_receipts.id', '=', 'stock_in_items.stock_in_receipt_id')
+                        ->whereNull('stock_in_receipts.voided_at')
+                        ->where('stock_in_receipts.branch_id', (int) $receipt->branch_id)
+                        ->where('stock_in_items.product_id', (int) $item['product_id'])
+                        ->where('stock_in_items.remaining_quantity', '>', 0)
+                        ->where(function ($q) use ($today) {
+                            $q->whereNull('stock_in_items.expiry_date')
+                                ->orWhere('stock_in_items.expiry_date', '>=', $today);
+                        })
+                        ->orderByRaw('CASE WHEN stock_in_items.expiry_date IS NULL THEN 1 ELSE 0 END')
+                        ->orderBy('stock_in_items.expiry_date')
+                        ->orderBy('stock_in_items.id')
+                        ->select(['stock_in_items.id', 'stock_in_items.remaining_quantity'])
+                        ->lockForUpdate()
+                        ->get();
+
+                    foreach ($batchRows as $row) {
+                        if ($toAllocate <= 0) {
+                            break;
+                        }
+
+                        $availableBatch = (int) ($row->remaining_quantity ?? 0);
+                        if ($availableBatch <= 0) {
+                            continue;
+                        }
+
+                        $take = min($toAllocate, $availableBatch);
+
+                        DB::table('stock_in_items')
+                            ->where('id', (int) $row->id)
+                            ->update([
+                                'remaining_quantity' => $availableBatch - $take,
+                            ]);
+
+                        DB::table('sales_item_allocations')->insert([
+                            'sales_item_id' => (int) $salesItem->id,
+                            'stock_in_item_id' => (int) $row->id,
+                            'quantity' => $take,
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ]);
+
+                        $toAllocate -= $take;
+                    }
+
+                    if ($toAllocate > 0) {
+                        throw ValidationException::withMessages([
+                            'edit_cart' => 'Stock allocation failed for ' . $item['name'] . '. Please retry.',
+                        ]);
+                    }
 
                     StockMovement::query()->create([
                         'branch_id' => (int) $receipt->branch_id,

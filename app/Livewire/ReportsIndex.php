@@ -210,7 +210,7 @@ class ReportsIndex extends Component
 
         $inventoryQuery = ProductStock::query()
             ->with(['product'])
-            ->when($this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
+            ->when($this->branch_id > 0, fn ($q) => $q->where('product_stocks.branch_id', $this->branch_id))
             ->join('products', 'products.id', '=', 'product_stocks.product_id')
             ->when(trim($this->search) !== '', function ($q) {
                 $term = '%' . trim($this->search) . '%';

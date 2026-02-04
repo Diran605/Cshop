@@ -16,18 +16,22 @@
 
         @livewireStyles
     </head>
-    <body class="font-sans text-gray-900 antialiased">
+    <body class="font-sans text-slate-900 antialiased">
         <div class="min-h-screen flex flex-col sm:justify-center items-center pt-6 sm:pt-0 bg-gradient-to-b from-slate-50 to-slate-100">
             <div>
                 <a href="/">
-                    <div class="text-2xl font-semibold text-gray-900">
+                    <div class="text-2xl font-semibold text-slate-900">
                         {{ config('app.name') }}
                     </div>
                 </a>
             </div>
 
-            <div class="w-full sm:max-w-md mt-6 px-6 py-4 bg-white shadow-md overflow-hidden sm:rounded-lg">
-                {{ $slot }}
+            <div class="w-full sm:max-w-md mt-6">
+                <div class="ui-card">
+                    <div class="ui-card-body">
+                        {{ $slot }}
+                    </div>
+                </div>
             </div>
         </div>
 

@@ -17,9 +17,15 @@ class StockInItem extends Model
         'bulk_quantity',
         'units_per_bulk',
         'bulk_type_id',
+        'expiry_date',
         'quantity',
+        'remaining_quantity',
         'cost_price',
         'line_total',
+    ];
+
+    protected $casts = [
+        'expiry_date' => 'date',
     ];
 
     public function receipt(): BelongsTo
