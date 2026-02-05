@@ -434,6 +434,7 @@ class SalesIndex extends Component
     {
         $this->cart = [];
         $this->amount_paid = null;
+        $this->customer_name = null;
         $this->notes = null;
         $this->resetErrorBag('cart');
     }
@@ -638,6 +639,19 @@ class SalesIndex extends Component
                         'moved_at' => now(),
                         'notes' => null,
                     ]);
+
+                }
+
+                $receipt->cogs_total = number_format($cogsTotal, 2, '.', '');
+                $receipt->profit_total = number_format($profitTotal, 2, '.', '');
+                $receipt->save();
+
+                return (int) $receipt->id;
+            });
+        } catch (ValidationException $e) {
+            $this->setErrorBag($e->validator->getMessageBag());
+            return;
+        }
 
         $this->clearCart();
         $this->selected_sale_id = (int) $saleId;
@@ -1294,6 +1308,7 @@ class SalesIndex extends Component
             $term = '%' . trim($this->sales_search) . '%';
             $q->where(function ($qq) use ($term) {
                 $qq->where('receipt_no', 'like', $term)
+                    ->orWhere('customer_name', 'like', $term)
                     ->orWhereHas('branch', fn ($qb) => $qb->where('name', 'like', $term))
                     ->orWhereHas('user', fn ($qu) => $qu->where('name', 'like', $term));
             });
