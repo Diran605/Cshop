@@ -35,6 +35,7 @@
                         <tr>
                             <th>{{ __('Product') }}</th>
                             <th>{{ __('Supplier') }}</th>
+                            <th>{{ __('Batch') }}</th>
                             <th>{{ __('Qty') }}</th>
                             <th>{{ __('Cost') }}</th>
                             <th>{{ __('Total') }}</th>
@@ -45,6 +46,7 @@
                             <tr>
                                 <td class="text-slate-900">{{ $item->product?->name ?? '-' }}</td>
                                 <td>{{ $item->supplier_name ?: '-' }}</td>
+                                <td>{{ $item->batch_ref_no ?: '-' }}</td>
                                 <td>
                                     @if ((string) $item->entry_mode === 'bulk')
                                         {{ (int) ($item->bulk_quantity ?? 0) }} {{ __('bulk') }}

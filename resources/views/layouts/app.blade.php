@@ -157,20 +157,60 @@
                                 </div>
                             </details>
 
-                            <a href="{{ route('stock_movements.index') }}"
-                                class="ui-nav-link {{ request()->routeIs('stock_movements.index') ? 'ui-nav-link-active' : '' }}">
-                                {{ __('Stock Movements') }}
-                            </a>
+                            <details class="ui-nav-group" {{ (request()->routeIs('stock_movements.index') || request()->routeIs('activity_logs.index')) ? 'open' : '' }}>
+                                <summary class="ui-nav-group-summary {{ (request()->routeIs('stock_movements.index') || request()->routeIs('activity_logs.index')) ? 'ui-nav-link-active' : '' }}">
+                                    <span>{{ __('Audit Trails') }}</span>
+                                    <svg class="ui-nav-caret" width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                        <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                    </svg>
+                                </summary>
+                                <div class="ui-nav-group-panel">
+                                    <a href="{{ route('stock_movements.index') }}"
+                                        class="ui-nav-sublink {{ request()->routeIs('stock_movements.index') ? 'ui-nav-sublink-active' : '' }}">
+                                        {{ __('Stock Movements') }}
+                                    </a>
+                                    <a href="{{ route('activity_logs.index') }}"
+                                        class="ui-nav-sublink {{ request()->routeIs('activity_logs.index') ? 'ui-nav-sublink-active' : '' }}">
+                                        {{ __('Activity Logs') }}
+                                    </a>
+                                </div>
+                            </details>
                         </div>
                     </div>
 
                     <div class="pt-4">
                         <div class="ui-nav-section-title">{{ __('Analytics') }}</div>
                         <div class="mt-2 space-y-1">
-                            <a href="{{ route('reports.index') }}"
-                                class="ui-nav-link {{ request()->routeIs('reports.index') ? 'ui-nav-link-active' : '' }}">
-                                {{ __('Reports') }}
-                            </a>
+                            <details class="ui-nav-group" {{ request()->routeIs('reports.*') ? 'open' : '' }}>
+                                <summary class="ui-nav-group-summary {{ request()->routeIs('reports.*') ? 'ui-nav-link-active' : '' }}">
+                                    <span>{{ __('Reports') }}</span>
+                                    <svg class="ui-nav-caret" width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                        <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                    </svg>
+                                </summary>
+                                <div class="ui-nav-group-panel">
+                                    <a href="{{ route('reports.index') }}"
+                                        class="ui-nav-sublink {{ request()->routeIs('reports.index') ? 'ui-nav-sublink-active' : '' }}">
+                                        {{ __('Sales') }}
+                                    </a>
+                                    <a href="{{ route('reports.profit') }}"
+                                        class="ui-nav-sublink {{ request()->routeIs('reports.profit') ? 'ui-nav-sublink-active' : '' }}">
+                                        {{ __('Profit') }}
+                                    </a>
+                                    <a href="{{ route('reports.stock') }}"
+                                        class="ui-nav-sublink {{ request()->routeIs('reports.stock') ? 'ui-nav-sublink-active' : '' }}">
+                                        {{ __('Stock') }}
+                                    </a>
+                                    <a href="{{ route('reports.expenses') }}"
+                                        class="ui-nav-sublink {{ request()->routeIs('reports.expenses') ? 'ui-nav-sublink-active' : '' }}">
+                                        {{ __('Expenses') }}
+                                    </a>
+                                    <a href="{{ route('reports.expiry') }}"
+                                        class="ui-nav-sublink {{ request()->routeIs('reports.expiry') ? 'ui-nav-sublink-active' : '' }}">
+                                        {{ __('Expiry') }}
+                                    </a>
+                                </div>
+                            </details>
                         </div>
                     </div>
                 </nav>

@@ -9,6 +9,7 @@ use App\Models\SalesItem;
 use App\Models\SalesReceipt;
 use App\Models\StockInItem;
 use App\Models\StockMovement;
+use App\Support\ActivityLogger;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -83,8 +84,8 @@ class SalesIndex extends Component
     {
         return [
             'branch_id' => ['required', 'integer', 'min:1'],
-            'payment_method' => ['required', 'string', 'in:cash,card'],
-            'amount_paid' => ['nullable', 'numeric', 'min:0'],
+            'payment_method' => ['required', 'string', 'in:cash'],
+            'amount_paid' => ['required', 'numeric', 'min:0'],
             'customer_name' => ['nullable', 'string', 'max:255'],
             'notes' => ['nullable', 'string', 'max:1000'],
         ];
@@ -427,6 +428,14 @@ class SalesIndex extends Component
             $v = 0;
         }
 
+        $mode = (string) ($this->cart[$productId]['entry_mode'] ?? 'unit');
+        if ($mode === 'bulk') {
+            $unitsPerBulk = (int) ($this->cart[$productId]['units_per_bulk'] ?? 0);
+            if ($unitsPerBulk > 0) {
+                $v = $v / $unitsPerBulk;
+            }
+        }
+
         $this->cart[$productId]['unit_price'] = number_format($v, 2, '.', '');
     }
 
@@ -444,6 +453,9 @@ class SalesIndex extends Component
         $this->resetErrorBag('cart');
 
         $data = $this->validate();
+
+        $data['payment_method'] = 'cash';
+        $this->payment_method = 'cash';
 
         if (! $this->isSuperAdmin) {
             $data['branch_id'] = (int) (auth()->user()?->branch_id ?? 0);
@@ -465,7 +477,7 @@ class SalesIndex extends Component
         $amountPaid = ($data['amount_paid'] !== null && $data['amount_paid'] !== '') ? (float) $data['amount_paid'] : 0.0;
         $changeDue = max(0.0, $amountPaid - $grandTotal);
 
-        if ($data['payment_method'] === 'cash' && $amountPaid < $grandTotal) {
+        if ($amountPaid < $grandTotal) {
             $this->addError('amount_paid', 'Amount paid must be greater than or equal to grand total.');
             return;
         }
@@ -534,42 +546,11 @@ class SalesIndex extends Component
                     }
 
                     $beforeStock = (int) $stock->current_stock;
-                    $unitCostFloat = $stock->cost_price !== null ? (float) $stock->cost_price : 0.0;
-                    $unitCost = $stock->cost_price !== null ? (string) $stock->cost_price : null;
 
                     $stock->current_stock = (int) $stock->current_stock - (int) $item['quantity'];
                     $stock->save();
 
                     $afterStock = (int) $stock->current_stock;
-
-                    $lineTotal = (float) $item['unit_price'] * (int) $item['quantity'];
-                    $lineCost = $unitCostFloat * (int) $item['quantity'];
-                    $lineProfit = $lineTotal - $lineCost;
-
-                    $pid = (int) $item['product_id'];
-                    $min = $minMap[$pid] ?? null;
-                    $isLowProfit = $min !== null && (float) $item['unit_price'] < (float) $min;
-                    $isLoss = $unitCostFloat > 0 && (float) $item['unit_price'] < (float) $unitCostFloat;
-
-                    $cogsTotal += $lineCost;
-                    $profitTotal += $lineProfit;
-
-                    $salesItem = SalesItem::query()->create([
-                        'sales_receipt_id' => $receipt->id,
-                        'product_id' => (int) $item['product_id'],
-                        'entry_mode' => (string) ($item['entry_mode'] ?? 'unit'),
-                        'bulk_quantity' => $item['bulk_quantity'] ?? null,
-                        'units_per_bulk' => $item['units_per_bulk'] ?? null,
-                        'bulk_type_id' => $item['bulk_type_id'] ?? null,
-                        'quantity' => (int) $item['quantity'],
-                        'unit_price' => (string) $item['unit_price'],
-                        'unit_cost' => number_format($unitCostFloat, 2, '.', ''),
-                        'line_total' => number_format($lineTotal, 2, '.', ''),
-                        'line_cost' => number_format($lineCost, 2, '.', ''),
-                        'line_profit' => number_format($lineProfit, 2, '.', ''),
-                        'is_low_profit' => (bool) $isLowProfit,
-                        'is_loss' => (bool) $isLoss,
-                    ]);
 
                     $toAllocate = (int) $item['quantity'];
                     $batchRows = DB::table('stock_in_items')
@@ -585,9 +566,14 @@ class SalesIndex extends Component
                         ->orderByRaw('CASE WHEN stock_in_items.expiry_date IS NULL THEN 1 ELSE 0 END')
                         ->orderBy('stock_in_items.expiry_date')
                         ->orderBy('stock_in_items.id')
-                        ->select(['stock_in_items.id', 'stock_in_items.remaining_quantity'])
+                        ->select(['stock_in_items.id', 'stock_in_items.remaining_quantity', 'stock_in_items.cost_price'])
                         ->lockForUpdate()
                         ->get();
+
+                    $allocations = [];
+                    $allocatedQty = 0;
+                    $allocatedCost = 0.0;
+                    $hasCost = false;
 
                     foreach ($batchRows as $row) {
                         if ($toAllocate <= 0) {
@@ -607,13 +593,16 @@ class SalesIndex extends Component
                                 'remaining_quantity' => $availableBatch - $take,
                             ]);
 
-                        DB::table('sales_item_allocations')->insert([
-                            'sales_item_id' => (int) $salesItem->id,
+                        $allocations[] = [
                             'stock_in_item_id' => (int) $row->id,
-                            'quantity' => $take,
-                            'created_at' => now(),
-                            'updated_at' => now(),
-                        ]);
+                            'quantity' => (int) $take,
+                        ];
+
+                        $allocatedQty += (int) $take;
+                        if ($row->cost_price !== null && $row->cost_price !== '') {
+                            $allocatedCost += (float) $row->cost_price * (int) $take;
+                            $hasCost = true;
+                        }
 
                         $toAllocate -= $take;
                     }
@@ -621,6 +610,48 @@ class SalesIndex extends Component
                     if ($toAllocate > 0) {
                         throw ValidationException::withMessages([
                             'cart' => 'Stock allocation failed for ' . $item['name'] . '. Please retry.',
+                        ]);
+                    }
+
+                    $unitCostFloat = ($hasCost && $allocatedQty > 0) ? ($allocatedCost / $allocatedQty) : 0.0;
+                    $unitCostStr = number_format((float) $unitCostFloat, 2, '.', '');
+
+                    $lineTotal = (float) $item['unit_price'] * (int) $item['quantity'];
+                    $lineCost = (float) $allocatedCost;
+                    $lineProfit = $lineTotal - $lineCost;
+
+                    $pid = (int) $item['product_id'];
+                    $min = $minMap[$pid] ?? null;
+                    $isLowProfit = $min !== null && (float) $item['unit_price'] < (float) $min;
+                    $isLoss = $hasCost && (float) $item['unit_price'] < (float) $unitCostFloat;
+
+                    $cogsTotal += $lineCost;
+                    $profitTotal += $lineProfit;
+
+                    $salesItem = SalesItem::query()->create([
+                        'sales_receipt_id' => $receipt->id,
+                        'product_id' => (int) $item['product_id'],
+                        'entry_mode' => (string) ($item['entry_mode'] ?? 'unit'),
+                        'bulk_quantity' => $item['bulk_quantity'] ?? null,
+                        'units_per_bulk' => $item['units_per_bulk'] ?? null,
+                        'bulk_type_id' => $item['bulk_type_id'] ?? null,
+                        'quantity' => (int) $item['quantity'],
+                        'unit_price' => (string) $item['unit_price'],
+                        'unit_cost' => $unitCostStr,
+                        'line_total' => number_format($lineTotal, 2, '.', ''),
+                        'line_cost' => number_format($lineCost, 2, '.', ''),
+                        'line_profit' => number_format($lineProfit, 2, '.', ''),
+                        'is_low_profit' => (bool) $isLowProfit,
+                        'is_loss' => (bool) $isLoss,
+                    ]);
+
+                    foreach ($allocations as $alloc) {
+                        DB::table('sales_item_allocations')->insert([
+                            'sales_item_id' => (int) $salesItem->id,
+                            'stock_in_item_id' => (int) $alloc['stock_in_item_id'],
+                            'quantity' => (int) $alloc['quantity'],
+                            'created_at' => now(),
+                            'updated_at' => now(),
                         ]);
                     }
 
@@ -632,7 +663,7 @@ class SalesIndex extends Component
                         'quantity' => (int) $item['quantity'],
                         'before_stock' => $beforeStock,
                         'after_stock' => $afterStock,
-                        'unit_cost' => $unitCost,
+                        'unit_cost' => $hasCost ? $unitCostStr : null,
                         'unit_price' => (string) $item['unit_price'],
                         'stock_in_receipt_id' => null,
                         'sales_receipt_id' => (int) $receipt->id,
@@ -645,6 +676,21 @@ class SalesIndex extends Component
                 $receipt->cogs_total = number_format($cogsTotal, 2, '.', '');
                 $receipt->profit_total = number_format($profitTotal, 2, '.', '');
                 $receipt->save();
+
+                ActivityLogger::log(
+                    'sale.posted',
+                    $receipt,
+                    'Sale posted',
+                    [
+                        'branch_id' => (int) $receipt->branch_id,
+                        'sales_receipt_id' => (int) $receipt->id,
+                        'grand_total' => (float) $receipt->grand_total,
+                        'amount_paid' => (float) $receipt->amount_paid,
+                        'change_due' => (float) $receipt->change_due,
+                        'items_count' => count($cartItems),
+                    ],
+                    (int) $receipt->branch_id
+                );
 
                 return (int) $receipt->id;
             });
@@ -687,7 +733,7 @@ class SalesIndex extends Component
 
         $this->editing_sale_id = (int) $sale->id;
         $this->edit_branch_id = (int) $sale->branch_id;
-        $this->edit_payment_method = (string) ($sale->payment_method ?? 'cash');
+        $this->edit_payment_method = 'cash';
         $this->edit_amount_paid = $sale->amount_paid !== null ? (string) $sale->amount_paid : null;
         $this->edit_customer_name = $sale->customer_name;
         $this->edit_notes = $sale->notes;
@@ -900,6 +946,14 @@ class SalesIndex extends Component
             $v = 0;
         }
 
+        $mode = (string) ($this->edit_cart[$productId]['entry_mode'] ?? 'unit');
+        if ($mode === 'bulk') {
+            $unitsPerBulk = (int) ($this->edit_cart[$productId]['units_per_bulk'] ?? 0);
+            if ($unitsPerBulk > 0) {
+                $v = $v / $unitsPerBulk;
+            }
+        }
+
         $this->edit_cart[$productId]['unit_price'] = number_format($v, 2, '.', '');
     }
 
@@ -957,14 +1011,6 @@ class SalesIndex extends Component
 
                 $receipt->load(['items']);
 
-                $receipt->customer_name = ($this->edit_customer_name ?? null) ?: null;
-                $receipt->payment_method = (string) ($this->edit_payment_method ?? 'cash');
-                $receipt->amount_paid = number_format((float) $amountPaid, 2, '.', '');
-                $receipt->change_due = number_format((float) $changeDue, 2, '.', '');
-                $receipt->notes = $this->edit_notes;
-                $receipt->sub_total = number_format((float) $subTotal, 2, '.', '');
-                $receipt->grand_total = number_format((float) $grandTotal, 2, '.', '');
-
                 foreach ($receipt->items as $item) {
                     $allocations = DB::table('sales_item_allocations')
                         ->where('sales_item_id', (int) $item->id)
@@ -1016,6 +1062,18 @@ class SalesIndex extends Component
                 $receipt->voided_by = auth()->id();
                 $receipt->void_reason = $this->void_reason;
                 $receipt->save();
+
+                ActivityLogger::log(
+                    'sale.voided',
+                    $receipt,
+                    'Sale voided',
+                    [
+                        'branch_id' => (int) $receipt->branch_id,
+                        'sales_receipt_id' => (int) $receipt->id,
+                        'void_reason' => $receipt->void_reason,
+                    ],
+                    (int) $receipt->branch_id
+                );
             });
         } catch (ValidationException $e) {
             $this->setErrorBag($e->validator->getMessageBag());
@@ -1029,6 +1087,8 @@ class SalesIndex extends Component
     public function saveEdit(): void
     {
         $this->resetErrorBag();
+
+        $this->edit_payment_method = 'cash';
 
         if ($this->editing_sale_id <= 0) {
             return;
@@ -1049,7 +1109,7 @@ class SalesIndex extends Component
         $amountPaid = ($this->edit_amount_paid !== null && $this->edit_amount_paid !== '') ? (float) $this->edit_amount_paid : 0.0;
         $changeDue = max(0.0, $amountPaid - $grandTotal);
 
-        if ((string) $this->edit_payment_method === 'cash' && $amountPaid < $grandTotal) {
+        if ($amountPaid < $grandTotal) {
             $this->addError('edit_amount_paid', 'Amount paid must be greater than or equal to grand total.');
             return;
         }
@@ -1060,6 +1120,8 @@ class SalesIndex extends Component
                     ->whereKey($this->editing_sale_id)
                     ->lockForUpdate()
                     ->firstOrFail();
+
+                $before = $receipt->only(['sub_total', 'grand_total', 'amount_paid', 'change_due', 'notes', 'customer_name']);
 
                 if ($receipt->voided_at) {
                     return;
@@ -1156,42 +1218,11 @@ class SalesIndex extends Component
                         ->firstOrFail();
 
                     $beforeStock = (int) $stock->current_stock;
-                    $unitCostFloat = $stock->cost_price !== null ? (float) $stock->cost_price : 0.0;
-                    $unitCost = $stock->cost_price !== null ? (string) $stock->cost_price : null;
 
                     $stock->current_stock = (int) $stock->current_stock - (int) $item['quantity'];
                     $stock->save();
 
                     $afterStock = (int) $stock->current_stock;
-
-                    $lineTotal = (float) $item['unit_price'] * (int) $item['quantity'];
-                    $lineCost = $unitCostFloat * (int) $item['quantity'];
-                    $lineProfit = $lineTotal - $lineCost;
-
-                    $pid = (int) $item['product_id'];
-                    $min = $minMap[$pid] ?? null;
-                    $isLowProfit = $min !== null && (float) $item['unit_price'] < (float) $min;
-                    $isLoss = $unitCostFloat > 0 && (float) $item['unit_price'] < (float) $unitCostFloat;
-
-                    $cogsTotal += $lineCost;
-                    $profitTotal += $lineProfit;
-
-                    $salesItem = SalesItem::query()->create([
-                        'sales_receipt_id' => (int) $receipt->id,
-                        'product_id' => (int) $item['product_id'],
-                        'entry_mode' => (string) ($item['entry_mode'] ?? 'unit'),
-                        'bulk_quantity' => $item['bulk_quantity'] ?? null,
-                        'units_per_bulk' => $item['units_per_bulk'] ?? null,
-                        'bulk_type_id' => $item['bulk_type_id'] ?? null,
-                        'quantity' => (int) $item['quantity'],
-                        'unit_price' => (string) $item['unit_price'],
-                        'unit_cost' => number_format($unitCostFloat, 2, '.', ''),
-                        'line_total' => number_format($lineTotal, 2, '.', ''),
-                        'line_cost' => number_format($lineCost, 2, '.', ''),
-                        'line_profit' => number_format($lineProfit, 2, '.', ''),
-                        'is_low_profit' => (bool) $isLowProfit,
-                        'is_loss' => (bool) $isLoss,
-                    ]);
 
                     $toAllocate = (int) $item['quantity'];
                     $batchRows = DB::table('stock_in_items')
@@ -1207,9 +1238,14 @@ class SalesIndex extends Component
                         ->orderByRaw('CASE WHEN stock_in_items.expiry_date IS NULL THEN 1 ELSE 0 END')
                         ->orderBy('stock_in_items.expiry_date')
                         ->orderBy('stock_in_items.id')
-                        ->select(['stock_in_items.id', 'stock_in_items.remaining_quantity'])
+                        ->select(['stock_in_items.id', 'stock_in_items.remaining_quantity', 'stock_in_items.cost_price'])
                         ->lockForUpdate()
                         ->get();
+
+                    $allocations = [];
+                    $allocatedQty = 0;
+                    $allocatedCost = 0.0;
+                    $hasCost = false;
 
                     foreach ($batchRows as $row) {
                         if ($toAllocate <= 0) {
@@ -1229,13 +1265,16 @@ class SalesIndex extends Component
                                 'remaining_quantity' => $availableBatch - $take,
                             ]);
 
-                        DB::table('sales_item_allocations')->insert([
-                            'sales_item_id' => (int) $salesItem->id,
+                        $allocations[] = [
                             'stock_in_item_id' => (int) $row->id,
-                            'quantity' => $take,
-                            'created_at' => now(),
-                            'updated_at' => now(),
-                        ]);
+                            'quantity' => (int) $take,
+                        ];
+
+                        $allocatedQty += (int) $take;
+                        if ($row->cost_price !== null && $row->cost_price !== '') {
+                            $allocatedCost += (float) $row->cost_price * (int) $take;
+                            $hasCost = true;
+                        }
 
                         $toAllocate -= $take;
                     }
@@ -1243,6 +1282,48 @@ class SalesIndex extends Component
                     if ($toAllocate > 0) {
                         throw ValidationException::withMessages([
                             'edit_cart' => 'Stock allocation failed for ' . $item['name'] . '. Please retry.',
+                        ]);
+                    }
+
+                    $unitCostFloat = ($hasCost && $allocatedQty > 0) ? ($allocatedCost / $allocatedQty) : 0.0;
+                    $unitCostStr = number_format((float) $unitCostFloat, 2, '.', '');
+
+                    $lineTotal = (float) $item['unit_price'] * (int) $item['quantity'];
+                    $lineCost = (float) $allocatedCost;
+                    $lineProfit = $lineTotal - $lineCost;
+
+                    $pid = (int) $item['product_id'];
+                    $min = $minMap[$pid] ?? null;
+                    $isLowProfit = $min !== null && (float) $item['unit_price'] < (float) $min;
+                    $isLoss = $hasCost && (float) $item['unit_price'] < (float) $unitCostFloat;
+
+                    $cogsTotal += $lineCost;
+                    $profitTotal += $lineProfit;
+
+                    $salesItem = SalesItem::query()->create([
+                        'sales_receipt_id' => (int) $receipt->id,
+                        'product_id' => (int) $item['product_id'],
+                        'entry_mode' => (string) ($item['entry_mode'] ?? 'unit'),
+                        'bulk_quantity' => $item['bulk_quantity'] ?? null,
+                        'units_per_bulk' => $item['units_per_bulk'] ?? null,
+                        'bulk_type_id' => $item['bulk_type_id'] ?? null,
+                        'quantity' => (int) $item['quantity'],
+                        'unit_price' => (string) $item['unit_price'],
+                        'unit_cost' => $unitCostStr,
+                        'line_total' => number_format($lineTotal, 2, '.', ''),
+                        'line_cost' => number_format($lineCost, 2, '.', ''),
+                        'line_profit' => number_format($lineProfit, 2, '.', ''),
+                        'is_low_profit' => (bool) $isLowProfit,
+                        'is_loss' => (bool) $isLoss,
+                    ]);
+
+                    foreach ($allocations as $alloc) {
+                        DB::table('sales_item_allocations')->insert([
+                            'sales_item_id' => (int) $salesItem->id,
+                            'stock_in_item_id' => (int) $alloc['stock_in_item_id'],
+                            'quantity' => (int) $alloc['quantity'],
+                            'created_at' => now(),
+                            'updated_at' => now(),
                         ]);
                     }
 
@@ -1254,7 +1335,7 @@ class SalesIndex extends Component
                         'quantity' => (int) $item['quantity'],
                         'before_stock' => $beforeStock,
                         'after_stock' => $afterStock,
-                        'unit_cost' => $unitCost,
+                        'unit_cost' => $hasCost ? $unitCostStr : null,
                         'unit_price' => (string) $item['unit_price'],
                         'stock_in_receipt_id' => null,
                         'sales_receipt_id' => (int) $receipt->id,
@@ -1273,6 +1354,20 @@ class SalesIndex extends Component
                 $receipt->change_due = (string) $changeDue;
                 $receipt->notes = $this->edit_notes;
                 $receipt->save();
+
+                ActivityLogger::log(
+                    'sale.updated',
+                    $receipt,
+                    'Sale updated',
+                    [
+                        'branch_id' => (int) $receipt->branch_id,
+                        'sales_receipt_id' => (int) $receipt->id,
+                        'before' => $before,
+                        'after' => $receipt->only(['sub_total', 'grand_total', 'amount_paid', 'change_due', 'notes', 'customer_name']),
+                        'items_count' => count($items),
+                    ],
+                    (int) $receipt->branch_id
+                );
             });
         } catch (ValidationException $e) {
             $this->setErrorBag($e->validator->getMessageBag());

@@ -82,12 +82,14 @@
                         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                             <div>
                                 <label class="ui-label">{{ __('Entry Type') }}</label>
-                                <select wire:model="entry_mode" class="mt-1 ui-select" @if (!($selectedProduct && (bool) $selectedProduct->bulk_enabled)) disabled @endif>
-                                    <option value="unit">{{ __('Units') }}</option>
-                                    @if ($selectedProduct && (bool) $selectedProduct->bulk_enabled)
-                                        <option value="bulk">{{ __('Bulk') }}</option>
-                                    @endif
-                                </select>
+                                <div class="mt-1 inline-flex rounded-lg border border-slate-300/80 bg-white/60 p-1">
+                                    <button type="button" wire:click="$set('entry_mode', 'unit')" class="px-3 py-2 text-sm font-medium rounded-md {{ $entry_mode === 'unit' ? 'bg-blue-600 text-white' : 'text-slate-700 hover:bg-blue-50' }}" @if (!($selectedProduct && (bool) $selectedProduct->bulk_enabled)) disabled @endif>
+                                        {{ __('Units') }}
+                                    </button>
+                                    <button type="button" wire:click="$set('entry_mode', 'bulk')" class="px-3 py-2 text-sm font-medium rounded-md {{ $entry_mode === 'bulk' ? 'bg-blue-600 text-white' : 'text-slate-700 hover:bg-blue-50' }}" @if (!($selectedProduct && (bool) $selectedProduct->bulk_enabled)) disabled @endif>
+                                        {{ __('Bulk') }}
+                                    </button>
+                                </div>
                             </div>
 
                             <div class="sm:col-span-2">
@@ -110,6 +112,19 @@
                             </div>
                         </div>
 
+                        <div>
+                            <label class="ui-label">
+                                @if (($selectedProduct && (bool) $selectedProduct->bulk_enabled) && $entry_mode === 'bulk')
+                                    {{ __('Price per Bulk') }}
+                                @else
+                                    {{ __('Price per Unit') }}
+                                @endif
+                            </label>
+                            @php($entryUnitsPerBulk = (int) ($selectedProduct?->bulkType?->units_per_bulk ?? 0))
+                            @php($entryPriceDisplay = (($selectedProduct && (bool) $selectedProduct->bulk_enabled) && $entry_mode === 'bulk' && $entryUnitsPerBulk > 0) ? number_format(((float) ($cart[$product_id]['unit_price'] ?? ($selectedProduct?->selling_price ?? 0)) * $entryUnitsPerBulk), 2, '.', '') : (string) ($cart[$product_id]['unit_price'] ?? ($selectedProduct?->selling_price ?? '0')))
+                            <input type="number" min="0" step="0.01" class="mt-1 ui-input" value="{{ $entryPriceDisplay }}" wire:change="setUnitPrice({{ (int) $product_id }}, $event.target.value)" @if ($product_id <= 0) disabled @endif />
+                        </div>
+
                         <div class="flex items-center justify-end">
                             <button type="button" wire:click="addProduct" class="ui-btn-primary">
                                 {{ __('Add Item') }}
@@ -127,11 +142,9 @@
                                 </div>
                                 <div>
                                     <label class="ui-label">{{ __('Method') }}</label>
-                                    <select wire:model="payment_method" class="mt-1 ui-select">
-                                        <option value="cash">{{ __('Cash') }}</option>
-                                        <option value="card">{{ __('Card') }}</option>
-                                    </select>
-                                    @error('payment_method') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                                    <div class="mt-1 rounded-lg border border-slate-300/80 bg-white/60 px-3 py-2 text-sm text-slate-700">
+                                        {{ __('Cash') }}
+                                    </div>
                                 </div>
 
                                 <div>
@@ -223,7 +236,10 @@
                                                 @endif
                                             </td>
                                             <td>
-                                                <input type="number" min="0" step="0.01" class="w-28 ui-input-compact" value="{{ (string) $item['unit_price'] }}" wire:change="setUnitPrice({{ $item['product_id'] }}, $event.target.value)" />
+                                                @php($isBulk = (string) ($item['entry_mode'] ?? 'unit') === 'bulk')
+                                                @php($unitsPerBulk = (int) ($item['units_per_bulk'] ?? 0))
+                                                @php($displayPrice = $isBulk && $unitsPerBulk > 0 ? number_format(((float) $item['unit_price'] * $unitsPerBulk), 2, '.', '') : (string) $item['unit_price'])
+                                                <input type="number" min="0" step="0.01" class="w-28 ui-input-compact" value="{{ $displayPrice }}" wire:change="setUnitPrice({{ $item['product_id'] }}, $event.target.value)" />
                                                 @if (($item['min_selling_price'] ?? null) !== null && ($item['min_selling_price'] ?? '') !== '')
                                                     <div class="mt-1 text-[11px] text-slate-500">{{ __('Min:') }} {{ number_format((float) $item['min_selling_price'], 2) }}</div>
                                                 @endif
@@ -502,10 +518,14 @@
 
                             <div>
                                 <label class="ui-label">{{ __('Entry Type') }}</label>
-                                <select wire:model="edit_entry_mode" class="mt-1 ui-select">
-                                    <option value="unit">{{ __('Units') }}</option>
-                                    <option value="bulk">{{ __('Bulk') }}</option>
-                                </select>
+                                <div class="mt-1 inline-flex rounded-lg border border-slate-300/80 bg-white/60 p-1">
+                                    <button type="button" wire:click="$set('edit_entry_mode', 'unit')" class="px-3 py-2 text-sm font-medium rounded-md {{ $edit_entry_mode === 'unit' ? 'bg-blue-600 text-white' : 'text-slate-700 hover:bg-blue-50' }}">
+                                        {{ __('Units') }}
+                                    </button>
+                                    <button type="button" wire:click="$set('edit_entry_mode', 'bulk')" class="px-3 py-2 text-sm font-medium rounded-md {{ $edit_entry_mode === 'bulk' ? 'bg-blue-600 text-white' : 'text-slate-700 hover:bg-blue-50' }}">
+                                        {{ __('Bulk') }}
+                                    </button>
+                                </div>
                             </div>
 
                             <div>
@@ -561,7 +581,10 @@
                                                 @endif
                                             </td>
                                             <td>
-                                                <input type="number" min="0" step="0.01" class="w-28 ui-input-compact" value="{{ (string) $item['unit_price'] }}" wire:change="setEditUnitPrice({{ $item['product_id'] }}, $event.target.value)" />
+                                                @php($isBulk = (string) ($item['entry_mode'] ?? 'unit') === 'bulk')
+                                                @php($unitsPerBulk = (int) ($item['units_per_bulk'] ?? 0))
+                                                @php($displayPrice = $isBulk && $unitsPerBulk > 0 ? number_format(((float) $item['unit_price'] * $unitsPerBulk), 2, '.', '') : (string) $item['unit_price'])
+                                                <input type="number" min="0" step="0.01" class="w-28 ui-input-compact" value="{{ $displayPrice }}" wire:change="setEditUnitPrice({{ $item['product_id'] }}, $event.target.value)" />
                                             </td>
                                             <td>
                                                 {{ number_format((float) $item['unit_price'] * (int) $item['quantity'], 2) }}
@@ -590,10 +613,9 @@
                             </div>
                             <div>
                                 <label class="ui-label">{{ __('Method') }}</label>
-                                <select wire:model="edit_payment_method" class="mt-1 ui-select">
-                                    <option value="cash">{{ __('Cash') }}</option>
-                                    <option value="card">{{ __('Card') }}</option>
-                                </select>
+                                <div class="mt-1 rounded-lg border border-slate-300/80 bg-white/60 px-3 py-2 text-sm text-slate-700">
+                                    {{ __('Cash') }}
+                                </div>
                             </div>
                             <div>
                                 <label class="ui-label">{{ __('Amount Paid') }}</label>

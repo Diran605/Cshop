@@ -11,6 +11,7 @@ use App\Models\SalesItem;
 use App\Models\StockInItem;
 use App\Models\StockInReceipt;
 use App\Models\StockMovement;
+use App\Support\ActivityLogger;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -120,7 +121,20 @@ class ProductsIndex extends Component
         }
 
         if ($this->editingId) {
+            $before = Product::query()->find($this->editingId);
             Product::query()->whereKey($this->editingId)->update($productData);
+
+            $after = Product::query()->find($this->editingId);
+            ActivityLogger::log(
+                'product.updated',
+                $after,
+                'Product updated',
+                [
+                    'before' => $before ? $before->only(['name', 'category_id', 'cost_price', 'min_selling_price', 'selling_price', 'bulk_enabled', 'bulk_type_id', 'status', 'branch_id']) : null,
+                    'after' => $after ? $after->only(['name', 'category_id', 'cost_price', 'min_selling_price', 'selling_price', 'bulk_enabled', 'bulk_type_id', 'status', 'branch_id']) : null,
+                ],
+                $after?->branch_id ? (int) $after->branch_id : null
+            );
         } else {
             $openingQty = max(0, (int) ($data['opening_quantity'] ?? 0));
             $openingCost = ($data['opening_cost_price'] !== null && $data['opening_cost_price'] !== '')
@@ -130,6 +144,26 @@ class ProductsIndex extends Component
 
             DB::transaction(function () use ($productData, $openingQty, $openingCost, $openingExpiry) {
                 $product = Product::query()->create($productData);
+
+                ActivityLogger::log(
+                    'product.created',
+                    $product,
+                    'Product created',
+                    [
+                        'name' => $product->name,
+                        'branch_id' => $product->branch_id,
+                        'selling_price' => $product->selling_price,
+                        'cost_price' => $product->cost_price,
+                        'min_selling_price' => $product->min_selling_price,
+                        'bulk_enabled' => $product->bulk_enabled,
+                        'bulk_type_id' => $product->bulk_type_id,
+                        'status' => $product->status,
+                        'opening_quantity' => $openingQty,
+                        'opening_cost_price' => $openingCost,
+                        'opening_expiry_date' => $openingExpiry,
+                    ],
+                    $product->branch_id ? (int) $product->branch_id : null
+                );
 
                 $this->ensureProductStockForBranch((int) $product->id, (int) $product->branch_id);
 
@@ -290,8 +324,18 @@ class ProductsIndex extends Component
             return;
         }
 
+        $snapshot = $product->only(['id', 'name', 'branch_id', 'status']);
+
         ProductStock::query()->where('product_id', (int) $product->id)->delete();
         $product->delete();
+
+        ActivityLogger::log(
+            'product.deleted',
+            ['type' => Product::class, 'id' => (int) $id],
+            'Product deleted',
+            ['product' => $snapshot],
+            isset($snapshot['branch_id']) ? (int) $snapshot['branch_id'] : null
+        );
         $this->resetForm();
     }
 

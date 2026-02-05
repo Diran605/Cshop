@@ -6,8 +6,13 @@ use App\Http\Controllers\SalesReceiptsBatchPrintController;
 use App\Http\Controllers\SalesReceiptPrintController;
 use App\Http\Controllers\StockInReceiptPrintController;
 use App\Http\Controllers\StockInReceiptsBatchPrintController;
+use App\Livewire\ActivityLogsIndex;
 use App\Livewire\ProductsIndex;
 use App\Livewire\ReportsIndex;
+use App\Livewire\ReportsProfitIndex;
+use App\Livewire\ReportsStockIndex;
+use App\Livewire\ReportsExpensesIndex;
+use App\Livewire\ReportsExpiryIndex;
 use App\Livewire\SalesIndex;
 use App\Livewire\ExpensesIndex;
 use App\Livewire\StockMovementsIndex;
@@ -155,7 +160,12 @@ Route::middleware('auth')->group(function () {
     Route::get('/stock-in/print', StockInReceiptsBatchPrintController::class)->name('stock_in.print_batch');
     Route::get('/stock-in/{receipt}/print', StockInReceiptPrintController::class)->name('stock_in.print');
     Route::get('/reports', ReportsIndex::class)->name('reports.index');
+    Route::get('/reports/profit', ReportsProfitIndex::class)->name('reports.profit');
+    Route::get('/reports/stock', ReportsStockIndex::class)->name('reports.stock');
+    Route::get('/reports/expenses', ReportsExpensesIndex::class)->name('reports.expenses');
+    Route::get('/reports/expiry', ReportsExpiryIndex::class)->name('reports.expiry');
     Route::get('/stock-movements', StockMovementsIndex::class)->name('stock_movements.index');
+    Route::get('/activity-logs', ActivityLogsIndex::class)->name('activity_logs.index');
 });
 
 require __DIR__.'/auth.php';

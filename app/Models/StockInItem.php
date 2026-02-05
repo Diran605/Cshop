@@ -14,6 +14,7 @@ class StockInItem extends Model
         'stock_in_receipt_id',
         'product_id',
         'supplier_name',
+        'batch_ref_no',
         'entry_mode',
         'bulk_quantity',
         'units_per_bulk',

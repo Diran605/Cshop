@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use App\Models\Branch;
 use App\Models\Expense;
+use App\Support\ActivityLogger;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -157,6 +158,20 @@ class ExpensesIndex extends Component
                 'notes' => $data['notes'] ?: null,
             ]);
 
+            ActivityLogger::log(
+                'expense.recorded',
+                $expense,
+                'Expense recorded',
+                [
+                    'branch_id' => (int) $expense->branch_id,
+                    'expense_id' => (int) $expense->id,
+                    'amount' => (float) $expense->amount,
+                    'payment_method' => (string) $expense->payment_method,
+                    'expense_type' => $expense->expense_type,
+                ],
+                (int) $expense->branch_id
+            );
+
             $this->selected_expense_id = (int) $expense->id;
         });
 
@@ -244,7 +259,9 @@ class ExpensesIndex extends Component
             ]);
         }
 
-        DB::transaction(function () use ($expense) {
+        $before = $expense->only(['expense_date', 'amount', 'payment_method', 'expense_type', 'description', 'notes']);
+
+        DB::transaction(function () use ($expense, $before) {
             $expense->update([
                 'expense_date' => $this->edit_expense_date,
                 'amount' => (float) $this->edit_amount,
@@ -253,6 +270,19 @@ class ExpensesIndex extends Component
                 'description' => $this->edit_description ?: null,
                 'notes' => $this->edit_notes ?: null,
             ]);
+
+            ActivityLogger::log(
+                'expense.updated',
+                $expense,
+                'Expense updated',
+                [
+                    'branch_id' => (int) $expense->branch_id,
+                    'expense_id' => (int) $expense->id,
+                    'before' => $before,
+                    'after' => $expense->only(['expense_date', 'amount', 'payment_method', 'expense_type', 'description', 'notes']),
+                ],
+                (int) $expense->branch_id
+            );
         });
 
         $this->closeEditModal();
@@ -308,6 +338,18 @@ class ExpensesIndex extends Component
                 'voided_by' => auth()->id(),
                 'void_reason' => $this->void_reason ?: null,
             ]);
+
+            ActivityLogger::log(
+                'expense.voided',
+                $expense,
+                'Expense voided',
+                [
+                    'branch_id' => (int) $expense->branch_id,
+                    'expense_id' => (int) $expense->id,
+                    'void_reason' => $expense->void_reason,
+                ],
+                (int) $expense->branch_id
+            );
         });
 
         $this->closeVoidModal();

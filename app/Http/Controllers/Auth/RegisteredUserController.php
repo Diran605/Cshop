@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\Branch;
 use App\Models\User;
+use App\Support\ActivityLogger;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -54,6 +55,20 @@ class RegisteredUserController extends Controller
                 'branch_id' => (int) $request->branch_id,
             ]);
 
+            ActivityLogger::log(
+                'user.created',
+                $user,
+                'User created (registration)',
+                [
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'branch_id' => $user->branch_id,
+                    'role' => $user->role,
+                ],
+                $user->branch_id ? (int) $user->branch_id : null,
+                $currentUser ? (int) $currentUser->id : null
+            );
+
             event(new Registered($user));
 
             return redirect()->route('users.index')->with('status', 'User created successfully.');
@@ -77,6 +92,19 @@ class RegisteredUserController extends Controller
             'role' => 'super_admin',
             'branch_id' => null,
         ]);
+
+        ActivityLogger::log(
+            'user.created',
+            $user,
+            'Initial super admin created (registration)',
+            [
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => $user->role,
+            ],
+            null,
+            (int) $user->id
+        );
 
         event(new Registered($user));
 

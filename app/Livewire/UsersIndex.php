@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use App\Models\Branch;
 use App\Models\User;
+use App\Support\ActivityLogger;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -91,6 +92,7 @@ class UsersIndex extends Component
         $data = $this->validate();
 
         if ($this->editingId > 0) {
+            $before = User::query()->find($this->editingId);
             $payload = [
                 'name' => $data['name'],
                 'email' => $data['email'],
@@ -103,6 +105,19 @@ class UsersIndex extends Component
             }
 
             User::query()->whereKey($this->editingId)->update($payload);
+
+            $after = User::query()->find($this->editingId);
+            ActivityLogger::log(
+                'user.updated',
+                $after,
+                'User updated',
+                [
+                    'before' => $before ? $before->only(['name', 'email', 'branch_id', 'role']) : null,
+                    'after' => $after ? $after->only(['name', 'email', 'branch_id', 'role']) : null,
+                ],
+                $after?->branch_id ? (int) $after->branch_id : null
+            );
+
             session()->flash('status', 'User updated successfully.');
             $this->resetForm();
             return;
@@ -110,13 +125,26 @@ class UsersIndex extends Component
 
         $tempPassword = Str::random(12);
 
-        User::query()->create([
+        $newUser = User::query()->create([
             'name' => $data['name'],
             'email' => $data['email'],
             'branch_id' => (int) $data['branch_id'],
             'role' => 'branch_admin',
             'password' => Hash::make($tempPassword),
         ]);
+
+        ActivityLogger::log(
+            'user.created',
+            $newUser,
+            'User created',
+            [
+                'name' => $newUser->name,
+                'email' => $newUser->email,
+                'branch_id' => $newUser->branch_id,
+                'role' => $newUser->role,
+            ],
+            $newUser->branch_id ? (int) $newUser->branch_id : null
+        );
 
         session()->flash('status', 'User created successfully.');
         session()->flash('temp_password', $tempPassword);
@@ -131,7 +159,16 @@ class UsersIndex extends Component
         }
 
         $user = User::query()->where('role', 'branch_admin')->findOrFail($id);
+        $snapshot = $user->only(['id', 'name', 'email', 'branch_id', 'role']);
         $user->delete();
+
+        ActivityLogger::log(
+            'user.deleted',
+            ['type' => User::class, 'id' => (int) $id],
+            'User deleted',
+            ['user' => $snapshot],
+            isset($snapshot['branch_id']) ? (int) $snapshot['branch_id'] : null
+        );
 
         if ($this->editingId === (int) $id) {
             $this->resetForm();

@@ -68,10 +68,14 @@
                             @if ($selectedProduct && (bool) $selectedProduct->bulk_enabled)
                                 <div>
                                     <label class="ui-label">{{ __('Entry Type') }}</label>
-                                    <select wire:model="entry_mode" class="mt-1 ui-select">
-                                        <option value="unit">{{ __('Units') }}</option>
-                                        <option value="bulk">{{ __('Bulk') }}</option>
-                                    </select>
+                                    <div class="mt-1 inline-flex rounded-lg border border-slate-300/80 bg-white/60 p-1">
+                                        <button type="button" wire:click="$set('entry_mode', 'unit')" class="px-3 py-2 text-sm font-medium rounded-md {{ $entry_mode === 'unit' ? 'bg-blue-600 text-white' : 'text-slate-700 hover:bg-blue-50' }}">
+                                            {{ __('Units') }}
+                                        </button>
+                                        <button type="button" wire:click="$set('entry_mode', 'bulk')" class="px-3 py-2 text-sm font-medium rounded-md {{ $entry_mode === 'bulk' ? 'bg-blue-600 text-white' : 'text-slate-700 hover:bg-blue-50' }}">
+                                            {{ __('Bulk') }}
+                                        </button>
+                                    </div>
                                     @error('entry_mode') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
                                 </div>
                             @endif
@@ -98,7 +102,13 @@
                             </div>
 
                             <div>
-                                <label class="ui-label">{{ __('Cost Price (optional)') }}</label>
+                                <label class="ui-label">
+                                    @if (($selectedProduct && (bool) $selectedProduct->bulk_enabled) && $entry_mode === 'bulk')
+                                        {{ __('Cost Price per Bulk (optional)') }}
+                                    @else
+                                        {{ __('Cost Price per Unit (optional)') }}
+                                    @endif
+                                </label>
                                 <input type="number" min="0" step="0.01" wire:model.defer="cost_price" class="mt-1 ui-input" />
                                 @error('cost_price') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
                             </div>
@@ -110,21 +120,116 @@
                             </div>
 
                             <div>
+                                <label class="ui-label">{{ __('Batch Ref No (optional)') }}</label>
+                                <input type="text" wire:model.defer="batch_ref_no" class="mt-1 ui-input" />
+                                @error('batch_ref_no') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                            </div>
+
+                            <div>
                                 <label class="ui-label">{{ __('Expiry Date (optional)') }}</label>
                                 <input type="date" wire:model.defer="expiry_date" class="mt-1 ui-input" />
                                 @error('expiry_date') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
                             </div>
 
+                            <div class="flex flex-wrap items-center justify-end gap-3">
+                                <button type="button" wire:click="addDraftLine" class="ui-btn-secondary">
+                                    {{ __('Add Line') }}
+                                </button>
+                                <button type="button" wire:click="save" class="ui-btn-primary">
+                                    {{ __('Post Receipt') }}
+                                </button>
+                            </div>
+
+                            @error('draft_lines')
+                                <div class="rounded-md bg-red-50 p-4 text-sm text-red-800">{{ $message }}</div>
+                            @enderror
+
+                            @php($draftItems = array_values($draft_lines))
+                            @php($draftTotalQty = collect($draftItems)->sum('quantity'))
+                            @php($draftTotalCost = collect($draftItems)->reduce(function ($carry, $row) { $cp = $row['cost_price'] ?? null; $qty = (int) ($row['quantity'] ?? 0); return $carry + (($cp !== null && $cp !== '') ? ((float) $cp * $qty) : 0); }, 0))
+
+                            <div class="overflow-x-auto">
+                                <div class="ui-table-wrap">
+                                    <table class="ui-table">
+                                        <thead>
+                                            <tr>
+                                                <th>{{ __('Product') }}</th>
+                                                <th>{{ __('Supplier') }}</th>
+                                                <th>{{ __('Batch') }}</th>
+                                                <th>{{ __('Qty') }}</th>
+                                                <th>{{ __('Expiry') }}</th>
+                                                <th>{{ __('Cost') }}</th>
+                                                <th>{{ __('Total') }}</th>
+                                                <th class="px-4 py-3"></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach ($draftItems as $line)
+                                                @php($isBulk = (string) ($line['entry_mode'] ?? 'unit') === 'bulk')
+                                                @php($displayQty = $isBulk ? (int) ($line['bulk_quantity'] ?? 0) : (int) ($line['quantity'] ?? 0))
+                                                @php($unitsPerBulk = (int) ($line['units_per_bulk'] ?? 0))
+                                                @php($displayCost = $isBulk ? ((($line['cost_price'] ?? null) !== null && ($line['cost_price'] ?? '') !== '' && $unitsPerBulk > 0) ? number_format(((float) $line['cost_price'] * $unitsPerBulk), 2, '.', '') : '') : (string) ($line['cost_price'] ?? ''))
+                                                @php($lineTotal = (($line['cost_price'] ?? null) !== null && ($line['cost_price'] ?? '') !== '') ? ((float) $line['cost_price'] * (int) ($line['quantity'] ?? 0)) : null)
+                                                <tr wire:key="draft-line-{{ $line['key'] }}">
+                                                    <td class="text-slate-900">
+                                                        <div class="font-medium">{{ $line['name'] ?? '-' }}</div>
+                                                        @if ($isBulk)
+                                                            <div class="mt-1 text-xs text-slate-500">{{ __('Units:') }} {{ (int) ($line['quantity'] ?? 0) }}</div>
+                                                        @endif
+                                                    </td>
+                                                    <td>
+                                                        <input type="text" class="w-44 ui-input-compact" value="{{ (string) ($line['supplier_name'] ?? '') }}" wire:change="setDraftLineSupplierName({{ (int) $line['key'] }}, $event.target.value)" />
+                                                    </td>
+                                                    <td>
+                                                        <input type="text" class="w-36 ui-input-compact" value="{{ (string) ($line['batch_ref_no'] ?? '') }}" wire:change="setDraftLineBatchRefNo({{ (int) $line['key'] }}, $event.target.value)" />
+                                                    </td>
+                                                    <td>
+                                                        <div class="inline-flex items-center gap-2">
+                                                            <button type="button" wire:click="decrementDraftLine({{ (int) $line['key'] }})" class="ui-stepper-btn">-</button>
+                                                            <input type="number" min="1" class="w-24 ui-input-compact" value="{{ $displayQty }}" wire:change="setDraftLineQuantity({{ (int) $line['key'] }}, $event.target.value)" />
+                                                            <button type="button" wire:click="incrementDraftLine({{ (int) $line['key'] }})" class="ui-stepper-btn">+</button>
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <input type="date" class="w-44 ui-input-compact" value="{{ (string) ($line['expiry_date'] ?? '') }}" wire:change="setDraftLineExpiryDate({{ (int) $line['key'] }}, $event.target.value)" />
+                                                    </td>
+                                                    <td>
+                                                        <input type="number" min="0" step="0.01" class="w-28 ui-input-compact" value="{{ $displayCost }}" wire:change="setDraftLineCostPrice({{ (int) $line['key'] }}, $event.target.value)" />
+                                                    </td>
+                                                    <td>
+                                                        {{ $lineTotal !== null ? number_format((float) $lineTotal, 2) : '-' }}
+                                                    </td>
+                                                    <td class="px-4 py-3 text-sm text-right">
+                                                        <button type="button" wire:click="removeDraftLine({{ (int) $line['key'] }})" class="ui-btn-link-danger">{{ __('Remove') }}</button>
+                                                    </td>
+                                                </tr>
+                                            @endforeach
+
+                                            @if (count($draftItems) === 0)
+                                                <tr>
+                                                    <td colspan="8" class="ui-table-empty">{{ __('No lines added.') }}</td>
+                                                </tr>
+                                            @endif
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
                             <div>
                                 <label class="ui-label">{{ __('Notes (optional)') }}</label>
-                                <textarea wire:model.defer="notes" rows="3" class="mt-1 ui-input"></textarea>
+                                <textarea wire:model.defer="notes" rows="2" class="mt-1 ui-input"></textarea>
                                 @error('notes') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
                             </div>
 
-                            <div class="flex items-center justify-end">
-                                <button type="button" wire:click="save" class="ui-btn-primary">
-                                    {{ __('Post Stock In') }}
-                                </button>
+                            <div class="ui-muted-panel space-y-1">
+                                <div class="flex items-center justify-between">
+                                    <div>{{ __('Total Qty') }}</div>
+                                    <div class="font-medium">{{ (int) $draftTotalQty }}</div>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <div>{{ __('Total Cost') }}</div>
+                                    <div class="font-semibold text-slate-900">{{ number_format((float) $draftTotalCost, 2) }}</div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -360,6 +465,7 @@
                                     <tr>
                                         <th>{{ __('Product') }}</th>
                                         <th>{{ __('Supplier') }}</th>
+                                        <th>{{ __('Batch') }}</th>
                                         <th>{{ __('Qty') }}</th>
                                         <th>{{ __('Expiry') }}</th>
                                         <th>{{ __('Cost') }}</th>
@@ -371,6 +477,7 @@
                                         <tr wire:key="receipt-modal-item-{{ $item->id }}">
                                             <td class="text-slate-900">{{ $item->product?->name ?? '-' }}</td>
                                             <td>{{ $item->supplier_name ?: '-' }}</td>
+                                            <td>{{ $item->batch_ref_no ?: '-' }}</td>
                                             <td>
                                                 @if ((string) $item->entry_mode === 'bulk')
                                                     {{ (int) ($item->bulk_quantity ?? 0) }} {{ __('bulk') }}
@@ -389,7 +496,7 @@
 
                                     @if ($selectedReceipt->items->isEmpty())
                                         <tr>
-                                            <td colspan="6" class="ui-table-empty">{{ __('No items found.') }}</td>
+                                            <td colspan="7" class="ui-table-empty">{{ __('No items found.') }}</td>
                                         </tr>
                                     @endif
                                 </tbody>
@@ -431,10 +538,14 @@
 
                             <div>
                                 <label class="ui-label">{{ __('Entry Type') }}</label>
-                                <select wire:model="edit_entry_mode" class="mt-1 ui-select">
-                                    <option value="unit">{{ __('Units') }}</option>
-                                    <option value="bulk">{{ __('Bulk') }}</option>
-                                </select>
+                                <div class="mt-1 inline-flex rounded-lg border border-slate-300/80 bg-white/60 p-1">
+                                    <button type="button" wire:click="$set('edit_entry_mode', 'unit')" class="px-3 py-2 text-sm font-medium rounded-md {{ $edit_entry_mode === 'unit' ? 'bg-blue-600 text-white' : 'text-slate-700 hover:bg-blue-50' }}">
+                                        {{ __('Units') }}
+                                    </button>
+                                    <button type="button" wire:click="$set('edit_entry_mode', 'bulk')" class="px-3 py-2 text-sm font-medium rounded-md {{ $edit_entry_mode === 'bulk' ? 'bg-blue-600 text-white' : 'text-slate-700 hover:bg-blue-50' }}">
+                                        {{ __('Bulk') }}
+                                    </button>
+                                </div>
                             </div>
 
                             <div>
@@ -448,7 +559,13 @@
                             </div>
 
                             <div>
-                                <label class="ui-label">{{ __('Cost Price') }}</label>
+                                <label class="ui-label">
+                                    @if ($edit_entry_mode === 'bulk')
+                                        {{ __('Cost Price per Bulk') }}
+                                    @else
+                                        {{ __('Cost Price per Unit') }}
+                                    @endif
+                                </label>
                                 <input type="number" min="0" step="0.01" wire:model.defer="edit_cost_price" class="mt-1 ui-input" />
                             </div>
                         </div>
@@ -463,6 +580,14 @@
                                 <label class="ui-label">{{ __('Supplier (optional)') }}</label>
                                 <input type="text" wire:model.defer="edit_supplier_name" class="mt-1 ui-input" />
                             </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+                            <div class="md:col-span-2">
+                                <label class="ui-label">{{ __('Batch Ref No (optional)') }}</label>
+                                <input type="text" wire:model.defer="edit_batch_ref_no" class="mt-1 ui-input" />
+                            </div>
+                            <div class="md:col-span-3"></div>
                         </div>
 
                         <div class="flex items-center justify-end">
@@ -480,6 +605,7 @@
                                     <tr>
                                         <th>{{ __('Product') }}</th>
                                         <th>{{ __('Supplier') }}</th>
+                                        <th>{{ __('Batch') }}</th>
                                         <th>{{ __('Qty') }}</th>
                                         <th>{{ __('Expiry') }}</th>
                                         <th>{{ __('Cost') }}</th>
@@ -491,8 +617,10 @@
                                     @foreach ($editCartItems as $item)
                                         @php($isBulk = (string) ($item['entry_mode'] ?? 'unit') === 'bulk')
                                         @php($displayQty = $isBulk ? (int) ($item['bulk_quantity'] ?? 0) : (int) ($item['quantity'] ?? 0))
+                                        @php($unitsPerBulk = (int) ($item['units_per_bulk'] ?? 0))
+                                        @php($displayCost = $isBulk ? ((($item['cost_price'] ?? null) !== null && ($item['cost_price'] ?? '') !== '' && $unitsPerBulk > 0) ? number_format(((float) $item['cost_price'] * $unitsPerBulk), 2, '.', '') : '') : (string) ($item['cost_price'] ?? ''))
                                         @php($lineTotal = (($item['cost_price'] ?? null) !== null && ($item['cost_price'] ?? '') !== '') ? ((float) $item['cost_price'] * (int) $item['quantity']) : null)
-                                        <tr wire:key="edit-receipt-item-{{ $item['product_id'] }}">
+                                        <tr wire:key="edit-receipt-item-{{ (int) ($item['key'] ?? 0) }}">
                                             <td class="text-slate-900">
                                                 <div class="font-medium">{{ $item['name'] ?? '-' }}</div>
                                                 @if ($isBulk)
@@ -500,33 +628,36 @@
                                                 @endif
                                             </td>
                                             <td>
-                                                <input type="text" class="w-44 ui-input-compact" value="{{ (string) ($item['supplier_name'] ?? '') }}" wire:change="setEditSupplierName({{ $item['product_id'] }}, $event.target.value)" />
+                                                <input type="text" class="w-44 ui-input-compact" value="{{ (string) ($item['supplier_name'] ?? '') }}" wire:change="setEditSupplierName({{ (int) ($item['key'] ?? 0) }}, $event.target.value)" />
+                                            </td>
+                                            <td>
+                                                <input type="text" class="w-36 ui-input-compact" value="{{ (string) ($item['batch_ref_no'] ?? '') }}" wire:change="setEditBatchRefNo({{ (int) ($item['key'] ?? 0) }}, $event.target.value)" />
                                             </td>
                                             <td>
                                                 <div class="inline-flex items-center gap-2">
-                                                    <button type="button" wire:click="decrementEditItem({{ $item['product_id'] }})" class="ui-stepper-btn">-</button>
-                                                    <input type="number" min="1" class="w-24 ui-input-compact" value="{{ $displayQty }}" wire:change="setEditQuantity({{ $item['product_id'] }}, $event.target.value)" />
-                                                    <button type="button" wire:click="incrementEditItem({{ $item['product_id'] }})" class="ui-stepper-btn">+</button>
+                                                    <button type="button" wire:click="decrementEditItem({{ (int) ($item['key'] ?? 0) }})" class="ui-stepper-btn">-</button>
+                                                    <input type="number" min="1" class="w-24 ui-input-compact" value="{{ $displayQty }}" wire:change="setEditQuantity({{ (int) ($item['key'] ?? 0) }}, $event.target.value)" />
+                                                    <button type="button" wire:click="incrementEditItem({{ (int) ($item['key'] ?? 0) }})" class="ui-stepper-btn">+</button>
                                                 </div>
                                             </td>
                                             <td>
                                                 {{ ($item['expiry_date'] ?? null) ?: '-' }}
                                             </td>
                                             <td>
-                                                <input type="number" min="0" step="0.01" class="w-28 ui-input-compact" value="{{ (string) ($item['cost_price'] ?? '') }}" wire:change="setEditCostPrice({{ $item['product_id'] }}, $event.target.value)" />
+                                                <input type="number" min="0" step="0.01" class="w-28 ui-input-compact" value="{{ $displayCost }}" wire:change="setEditCostPrice({{ (int) ($item['key'] ?? 0) }}, $event.target.value)" />
                                             </td>
                                             <td>
                                                 {{ $lineTotal !== null ? number_format((float) $lineTotal, 2) : '-' }}
                                             </td>
                                             <td class="px-4 py-3 text-sm text-right">
-                                                <button type="button" wire:click="removeEditItem({{ $item['product_id'] }})" class="ui-btn-link-danger">{{ __('Remove') }}</button>
+                                                <button type="button" wire:click="removeEditItem({{ (int) ($item['key'] ?? 0) }})" class="ui-btn-link-danger">{{ __('Remove') }}</button>
                                             </td>
                                         </tr>
                                     @endforeach
 
                                     @if (count($editCartItems) === 0)
                                         <tr>
-                                            <td colspan="7" class="ui-table-empty">{{ __('Cart is empty.') }}</td>
+                                            <td colspan="8" class="ui-table-empty">{{ __('Cart is empty.') }}</td>
                                         </tr>
                                     @endif
                                 </tbody>

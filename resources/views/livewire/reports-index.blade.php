@@ -1,8 +1,8 @@
 <div class="ui-page">
     <div class="ui-page-container print-container">
         <div class="mb-6">
-            <h2 class="ui-page-title">{{ __('Reports') }}</h2>
-            <div class="ui-page-subtitle">{{ __('Sales and inventory analytics for selected filters.') }}</div>
+            <h2 class="ui-page-title">{{ __('Sales Report') }}</h2>
+            <div class="ui-page-subtitle">{{ __('Sales performance and inventory analytics for selected filters.') }}</div>
         </div>
 
         <style>
@@ -21,7 +21,20 @@
 
         <div class="ui-card no-print">
             <div class="ui-card-body">
-                <div class="grid grid-cols-1 lg:grid-cols-7 gap-4">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div class="inline-flex items-center gap-2">
+                        <a href="{{ route('reports.index') }}" class="ui-btn-primary">{{ __('Sales') }}</a>
+                        <a href="{{ route('reports.profit') }}" class="ui-btn-secondary">{{ __('Profit') }}</a>
+                        <a href="{{ route('reports.stock') }}" class="ui-btn-secondary">{{ __('Stock') }}</a>
+                        <a href="{{ route('reports.expenses') }}" class="ui-btn-secondary">{{ __('Expenses') }}</a>
+                        <a href="{{ route('reports.expiry') }}" class="ui-btn-secondary">{{ __('Expiry') }}</a>
+                    </div>
+                    <button type="button" onclick="window.print()" class="ui-btn-primary">
+                        {{ __('Print') }}
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-8 gap-4">
                     <div>
                         <label class="ui-label">{{ __('Branch') }}</label>
                         @if ($isSuperAdmin)
@@ -77,6 +90,15 @@
                         </select>
                     </div>
 
+                    <div>
+                        <label class="ui-label">{{ __('Trend View') }}</label>
+                        <select wire:model="trend_granularity" class="mt-1 ui-select">
+                            <option value="day">{{ __('Daily') }}</option>
+                            <option value="week">{{ __('Weekly') }}</option>
+                            <option value="month">{{ __('Monthly') }}</option>
+                        </select>
+                    </div>
+
                     <div class="flex items-end">
                         <label class="inline-flex items-center">
                             <input type="checkbox" wire:model="low_stock_only" class="ui-checkbox" />
@@ -90,16 +112,11 @@
                         <label class="ui-label">{{ __('Search (Products)') }}</label>
                         <input type="text" wire:model.live.debounce.300ms="search" class="mt-1 ui-input" placeholder="Search product name..." />
                     </div>
-                    <div class="flex items-center justify-end">
-                        <button type="button" onclick="window.print()" class="ui-btn-primary">
-                            {{ __('Print') }}
-                        </button>
-                    </div>
                 </div>
             </div>
         </div>
 
-        <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-8 gap-6">
+        <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-8 gap-6">
             <div class="ui-card">
                 <div class="ui-card-body">
                     <div class="text-sm text-slate-500">{{ __('Sales Count') }}</div>
@@ -168,10 +185,93 @@
         <div class="mt-6 ui-card no-print">
             <div class="ui-card-body">
                 <h3 class="ui-card-title">{{ __('Trends') }}</h3>
-                <div class="mt-1 text-sm text-slate-600">{{ __('Revenue vs COGS vs Profit (by day)') }}</div>
+                @php
+                    $periodLabel = $trend_granularity === 'week' ? __('week') : ($trend_granularity === 'month' ? __('month') : __('day'));
+                @endphp
+                <div class="mt-1 text-sm text-slate-600">{{ __('Revenue vs COGS vs Profit (by :period)', ['period' => $periodLabel]) }}</div>
 
                 <div class="mt-4">
                     <canvas id="salesTrendChart" height="100"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-6 ui-card no-print">
+            <div class="ui-card-body">
+                <h3 class="ui-card-title">{{ __('Selling Price Trend') }}</h3>
+                @php
+                    $selectedProductName = null;
+                    if ((int) ($product_filter_id ?? 0) > 0) {
+                        $p = $productsForFilter->firstWhere('id', (int) $product_filter_id);
+                        $selectedProductName = $p?->name;
+                    }
+                    $priceScopeLabel = $selectedProductName ? $selectedProductName : __('All products');
+                @endphp
+                <div class="mt-1 text-sm text-slate-600">{{ __('Avg / Min / Max unit selling price (by :period) - :scope', ['period' => $periodLabel, 'scope' => $priceScopeLabel]) }}</div>
+
+                <div class="mt-4">
+                    <canvas id="priceTrendChart" height="90"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6 no-print">
+            <div class="ui-card">
+                <div class="ui-card-body">
+                    <h3 class="ui-card-title">{{ __('Sales By Hour') }}</h3>
+                    <div class="mt-1 text-sm text-slate-600">{{ __('Peak sales hours (count + revenue)') }}</div>
+
+                    <div class="mt-4" style="height: 320px;">
+                        <canvas id="salesByHourChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="ui-card">
+                <div class="ui-card-body">
+                    <h3 class="ui-card-title">{{ __('Branch Breakdown') }}</h3>
+                    <div class="mt-1 text-sm text-slate-600">{{ __('Only shown for Super Admin (All branches)') }}</div>
+
+                    <div class="mt-4 overflow-x-auto">
+                        <div class="ui-table-wrap">
+                            <table class="ui-table">
+                                <thead>
+                                    <tr>
+                                        <th>{{ __('Branch') }}</th>
+                                        <th class="text-right">{{ __('Sales') }}</th>
+                                        <th class="text-right">{{ __('Items') }}</th>
+                                        <th class="text-right">{{ __('Revenue') }}</th>
+                                        <th class="text-right">{{ __('COGS') }}</th>
+                                        <th class="text-right">{{ __('Profit') }}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @if ($isSuperAdmin && (int) ($branch_id ?? 0) <= 0)
+                                        @foreach ($branchSales as $row)
+                                            <tr>
+                                                <td class="font-medium text-slate-900">{{ $row->branch_name }}</td>
+                                                <td class="text-right">{{ number_format((int) $row->sales_count) }}</td>
+                                                <td class="text-right">{{ number_format((int) $row->items_sold) }}</td>
+                                                <td class="text-right">{{ number_format((float) $row->sales_total, 2) }}</td>
+                                                <td class="text-right">{{ number_format((float) $row->cogs_total, 2) }}</td>
+                                                <td class="text-right">{{ number_format((float) $row->profit_total, 2) }}</td>
+                                            </tr>
+                                        @endforeach
+
+                                        @if ($branchSales->isEmpty())
+                                            <tr>
+                                                <td colspan="6" class="ui-table-empty">{{ __('No branch sales found for this period.') }}</td>
+                                            </tr>
+                                        @endif
+                                    @else
+                                        <tr>
+                                            <td colspan="6" class="ui-table-empty">{{ __('Select All branches as Super Admin to view this breakdown.') }}</td>
+                                        </tr>
+                                    @endif
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -183,12 +283,35 @@
             $trendProfit = [];
             $trendSoldQty = [];
 
+            $priceTrendLabels = [];
+            $priceAvg = [];
+            $priceMin = [];
+            $priceMax = [];
+
+            $hourLabels = [];
+            $hourSalesCount = [];
+            $hourRevenue = [];
+
             foreach ($salesByDay as $row) {
                 $trendLabels[] = (string) $row->day;
                 $trendRevenue[] = (float) ($row->sales_total ?? 0);
                 $trendCogs[] = (float) ($row->cogs_total ?? 0);
                 $trendProfit[] = (float) ($row->profit_total ?? 0);
                 $trendSoldQty[] = (int) ($row->sold_qty ?? 0);
+            }
+
+            foreach ($priceByDay as $row) {
+                $priceTrendLabels[] = (string) $row->day;
+                $priceAvg[] = (float) ($row->avg_unit_price ?? 0);
+                $priceMin[] = (float) ($row->min_unit_price ?? 0);
+                $priceMax[] = (float) ($row->max_unit_price ?? 0);
+            }
+
+            foreach ($salesByHour as $row) {
+                $h = (int) ($row->hour ?? 0);
+                $hourLabels[] = str_pad((string) $h, 2, '0', STR_PAD_LEFT) . ':00';
+                $hourSalesCount[] = (int) ($row->sales_count ?? 0);
+                $hourRevenue[] = (float) ($row->sales_total ?? 0);
             }
         @endphp
 
@@ -207,6 +330,15 @@
                 const profit = @json($trendProfit);
                 const soldQty = @json($trendSoldQty);
 
+                const priceLabels = @json($priceTrendLabels);
+                const priceAvg = @json($priceAvg);
+                const priceMin = @json($priceMin);
+                const priceMax = @json($priceMax);
+
+                const hourLabels = @json($hourLabels);
+                const hourSalesCount = @json($hourSalesCount);
+                const hourRevenue = @json($hourRevenue);
+
                 if (el._chart) {
                     el._chart.destroy();
                 }
@@ -219,8 +351,8 @@
                             {
                                 label: 'Revenue',
                                 data: revenue,
-                                borderColor: '#4F46E5',
-                                backgroundColor: 'rgba(79, 70, 229, 0.12)',
+                                borderColor: '#2563EB',
+                                backgroundColor: 'rgba(37, 99, 235, 0.12)',
                                 tension: 0.3,
                                 fill: true,
                             },
@@ -281,7 +413,7 @@
                                 {
                                     label: 'Revenue',
                                     data: revenue,
-                                    backgroundColor: 'rgba(79, 70, 229, 0.65)',
+                                    backgroundColor: 'rgba(37, 99, 235, 0.65)',
                                 },
                                 {
                                     label: 'COGS',
@@ -325,8 +457,8 @@
                                 {
                                     label: 'Items Sold (Units)',
                                     data: soldQty,
-                                    backgroundColor: 'rgba(99, 102, 241, 0.35)',
-                                    borderColor: '#4F46E5',
+                                    backgroundColor: 'rgba(37, 99, 235, 0.25)',
+                                    borderColor: '#2563EB',
                                     borderWidth: 1,
                                 }
                             ]
@@ -341,14 +473,131 @@
                         }
                     });
                 }
+
+                const priceEl = document.getElementById('priceTrendChart');
+                if (priceEl) {
+                    if (priceEl._chart) {
+                        priceEl._chart.destroy();
+                    }
+
+                    priceEl._chart = new Chart(priceEl, {
+                        type: 'line',
+                        data: {
+                            labels: priceLabels,
+                            datasets: [
+                                {
+                                    label: 'Avg Unit Price',
+                                    data: priceAvg,
+                                    borderColor: '#2563EB',
+                                    backgroundColor: 'rgba(37, 99, 235, 0.12)',
+                                    tension: 0.3,
+                                    fill: true,
+                                },
+                                {
+                                    label: 'Min Unit Price',
+                                    data: priceMin,
+                                    borderColor: '#64748B',
+                                    backgroundColor: 'rgba(100, 116, 139, 0.08)',
+                                    tension: 0.3,
+                                    fill: false,
+                                },
+                                {
+                                    label: 'Max Unit Price',
+                                    data: priceMax,
+                                    borderColor: '#16A34A',
+                                    backgroundColor: 'rgba(22, 163, 74, 0.08)',
+                                    tension: 0.3,
+                                    fill: false,
+                                },
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            interaction: { mode: 'index', intersect: false },
+                            plugins: {
+                                legend: { position: 'bottom' },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function (ctx) {
+                                            const v = (ctx.parsed.y ?? 0);
+                                            return ctx.dataset.label + ': ' + v.toFixed(2);
+                                        }
+                                    }
+                                }
+                            },
+                            scales: {
+                                y: {
+                                    ticks: {
+                                        callback: function (v) { return Number(v).toFixed(2); }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+
+                const hourEl = document.getElementById('salesByHourChart');
+                if (hourEl) {
+                    if (hourEl._chart) {
+                        hourEl._chart.destroy();
+                    }
+
+                    hourEl._chart = new Chart(hourEl, {
+                        data: {
+                            labels: hourLabels,
+                            datasets: [
+                                {
+                                    type: 'bar',
+                                    label: 'Revenue',
+                                    data: hourRevenue,
+                                    backgroundColor: 'rgba(37, 99, 235, 0.25)',
+                                    borderColor: '#2563EB',
+                                    borderWidth: 1,
+                                    yAxisID: 'y',
+                                },
+                                {
+                                    type: 'line',
+                                    label: 'Sales Count',
+                                    data: hourSalesCount,
+                                    borderColor: '#0F172A',
+                                    backgroundColor: 'rgba(15, 23, 42, 0.08)',
+                                    tension: 0.3,
+                                    yAxisID: 'y1',
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            interaction: { mode: 'index', intersect: false },
+                            plugins: {
+                                legend: { position: 'bottom' },
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    ticks: {
+                                        callback: function (v) { return Number(v).toFixed(2); }
+                                    }
+                                },
+                                y1: {
+                                    beginAtZero: true,
+                                    position: 'right',
+                                    grid: { drawOnChartArea: false },
+                                }
+                            }
+                        }
+                    });
+                }
             })();
         </script>
 
         <div class="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6 no-print">
             <div class="ui-card">
                 <div class="ui-card-body">
-                    <h3 class="ui-card-title">{{ __('Daily Bars') }}</h3>
-                    <div class="mt-1 text-sm text-slate-600">{{ __('Revenue / COGS / Profit (by day)') }}</div>
+                    <h3 class="ui-card-title">{{ __('Period Bars') }}</h3>
+                    <div class="mt-1 text-sm text-slate-600">{{ __('Revenue / COGS / Profit (by :period)', ['period' => $periodLabel]) }}</div>
 
                     <div class="mt-4" style="height: 320px;">
                         <canvas id="salesTrendBarChart"></canvas>
@@ -359,7 +608,7 @@
             <div class="ui-card">
                 <div class="ui-card-body">
                     <h3 class="ui-card-title">{{ __('Quantity Bars') }}</h3>
-                    <div class="mt-1 text-sm text-slate-600">{{ __('Items sold per day') }}</div>
+                    <div class="mt-1 text-sm text-slate-600">{{ __('Items sold per :period', ['period' => $periodLabel]) }}</div>
 
                     <div class="mt-4" style="height: 320px;">
                         <canvas id="salesQtyBarChart"></canvas>
@@ -443,14 +692,14 @@
         <div class="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div class="ui-card">
                 <div class="ui-card-body">
-                    <h3 class="ui-card-title">{{ __('Sales By Day') }}</h3>
+                    <h3 class="ui-card-title">{{ __('Sales By Period') }}</h3>
 
                     <div class="mt-4 overflow-x-auto">
                         <div class="ui-table-wrap">
                         <table class="ui-table">
                             <thead>
                                 <tr>
-                                    <th>{{ __('Day') }}</th>
+                                    <th>{{ __('Period') }}</th>
                                     <th>{{ __('Sales') }}</th>
                                     <th>{{ __('Total') }}</th>
                                 </tr>
@@ -478,14 +727,14 @@
 
             <div class="ui-card">
                 <div class="ui-card-body">
-                    <h3 class="ui-card-title">{{ __('Stock In vs Sales (By Day)') }}</h3>
+                    <h3 class="ui-card-title">{{ __('Stock In vs Sales (By Period)') }}</h3>
 
                     <div class="mt-4 overflow-x-auto">
                         <div class="ui-table-wrap">
                         <table class="ui-table">
                             <thead>
                                 <tr>
-                                    <th>{{ __('Day') }}</th>
+                                    <th>{{ __('Period') }}</th>
                                     <th>{{ __('Stock In Qty') }}</th>
                                     <th>{{ __('Sold Qty') }}</th>
                                 </tr>
