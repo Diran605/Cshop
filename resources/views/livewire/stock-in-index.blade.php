@@ -104,6 +104,12 @@
                             </div>
 
                             <div>
+                                <label class="ui-label">{{ __('Supplier (optional)') }}</label>
+                                <input type="text" wire:model.defer="supplier_name" class="mt-1 ui-input" />
+                                @error('supplier_name') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                            </div>
+
+                            <div>
                                 <label class="ui-label">{{ __('Expiry Date (optional)') }}</label>
                                 <input type="date" wire:model.defer="expiry_date" class="mt-1 ui-input" />
                                 @error('expiry_date') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
@@ -353,6 +359,7 @@
                                 <thead>
                                     <tr>
                                         <th>{{ __('Product') }}</th>
+                                        <th>{{ __('Supplier') }}</th>
                                         <th>{{ __('Qty') }}</th>
                                         <th>{{ __('Expiry') }}</th>
                                         <th>{{ __('Cost') }}</th>
@@ -363,6 +370,7 @@
                                     @foreach ($selectedReceipt->items as $item)
                                         <tr wire:key="receipt-modal-item-{{ $item->id }}">
                                             <td class="text-slate-900">{{ $item->product?->name ?? '-' }}</td>
+                                            <td>{{ $item->supplier_name ?: '-' }}</td>
                                             <td>
                                                 @if ((string) $item->entry_mode === 'bulk')
                                                     {{ (int) ($item->bulk_quantity ?? 0) }} {{ __('bulk') }}
@@ -381,7 +389,7 @@
 
                                     @if ($selectedReceipt->items->isEmpty())
                                         <tr>
-                                            <td colspan="5" class="ui-table-empty">{{ __('No items found.') }}</td>
+                                            <td colspan="6" class="ui-table-empty">{{ __('No items found.') }}</td>
                                         </tr>
                                     @endif
                                 </tbody>
@@ -450,6 +458,11 @@
                                 <label class="ui-label">{{ __('Expiry Date (optional)') }}</label>
                                 <input type="date" wire:model.defer="edit_expiry_date" class="mt-1 ui-input" />
                             </div>
+
+                            <div class="md:col-span-3">
+                                <label class="ui-label">{{ __('Supplier (optional)') }}</label>
+                                <input type="text" wire:model.defer="edit_supplier_name" class="mt-1 ui-input" />
+                            </div>
                         </div>
 
                         <div class="flex items-center justify-end">
@@ -466,6 +479,7 @@
                                 <thead>
                                     <tr>
                                         <th>{{ __('Product') }}</th>
+                                        <th>{{ __('Supplier') }}</th>
                                         <th>{{ __('Qty') }}</th>
                                         <th>{{ __('Expiry') }}</th>
                                         <th>{{ __('Cost') }}</th>
@@ -484,6 +498,9 @@
                                                 @if ($isBulk)
                                                     <div class="mt-1 text-xs text-slate-500">{{ __('Units:') }} {{ (int) ($item['quantity'] ?? 0) }}</div>
                                                 @endif
+                                            </td>
+                                            <td>
+                                                <input type="text" class="w-44 ui-input-compact" value="{{ (string) ($item['supplier_name'] ?? '') }}" wire:change="setEditSupplierName({{ $item['product_id'] }}, $event.target.value)" />
                                             </td>
                                             <td>
                                                 <div class="inline-flex items-center gap-2">
@@ -509,7 +526,7 @@
 
                                     @if (count($editCartItems) === 0)
                                         <tr>
-                                            <td colspan="6" class="ui-table-empty">{{ __('Cart is empty.') }}</td>
+                                            <td colspan="7" class="ui-table-empty">{{ __('Cart is empty.') }}</td>
                                         </tr>
                                     @endif
                                 </tbody>

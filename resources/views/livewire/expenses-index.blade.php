@@ -69,6 +69,12 @@
                                 @error('payment_method') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
                             </div>
 
+                            <div>
+                                <label class="ui-label">{{ __('Expense Type (optional)') }}</label>
+                                <input type="text" wire:model.defer="expense_type" class="mt-1 ui-input" />
+                                @error('expense_type') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                            </div>
+
                             <div class="md:col-span-2">
                                 <label class="ui-label">{{ __('Description (optional)') }}</label>
                                 <input type="text" wire:model.defer="description" class="mt-1 ui-input" />
@@ -180,6 +186,7 @@
                                             <th>{{ __('Date') }}</th>
                                             <th>{{ __('Branch') }}</th>
                                             <th>{{ __('Method') }}</th>
+                                            <th>{{ __('Type') }}</th>
                                             <th class="text-right">{{ __('Amount') }}</th>
                                             <th>{{ __('Description') }}</th>
                                             <th>{{ __('Status') }}</th>
@@ -199,6 +206,7 @@
                                                 <td>{{ $expense->expense_date?->format('Y-m-d') }}</td>
                                                 <td>{{ $expense->branch?->name ?? '-' }}</td>
                                                 <td>{{ strtoupper($expense->payment_method) }}</td>
+                                                <td>{{ $expense->expense_type ?: '-' }}</td>
                                                 <td class="text-right text-slate-900">{{ number_format((float) $expense->amount, 2) }}</td>
                                                 <td>{{ $expense->description ?: '-' }}</td>
                                                 <td>
@@ -222,7 +230,7 @@
 
                                         @if ($expenses->isEmpty())
                                             <tr>
-                                                <td colspan="9" class="ui-table-empty">{{ __('No expenses found.') }}</td>
+                                                <td colspan="10" class="ui-table-empty">{{ __('No expenses found.') }}</td>
                                             </tr>
                                         @endif
                                     </tbody>
@@ -274,6 +282,10 @@
                                 <div class="font-medium">{{ strtoupper($selectedExpense->payment_method) }}</div>
                             </div>
                             <div class="flex items-center justify-between">
+                                <div>{{ __('Type') }}</div>
+                                <div class="font-medium">{{ $selectedExpense->expense_type ?: '-' }}</div>
+                            </div>
+                            <div class="flex items-center justify-between">
                                 <div>{{ __('Description') }}</div>
                                 <div class="font-medium">{{ $selectedExpense->description ?: '-' }}</div>
                             </div>
@@ -321,6 +333,12 @@
                                     <option value="transfer">{{ __('Transfer') }}</option>
                                 </select>
                                 @error('edit_payment_method') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                            </div>
+
+                            <div>
+                                <label class="ui-label">{{ __('Expense Type (optional)') }}</label>
+                                <input type="text" wire:model.defer="edit_expense_type" class="mt-1 ui-input" />
+                                @error('edit_expense_type') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
                             </div>
 
                             <div>

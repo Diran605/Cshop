@@ -40,6 +40,8 @@ class StockInIndex extends Component
     public int $quantity = 1;
     public ?string $cost_price = null;
 
+    public ?string $supplier_name = null;
+
     public ?string $expiry_date = null;
 
     public bool $isSuperAdmin = false;
@@ -64,6 +66,7 @@ class StockInIndex extends Component
     public int $edit_bulk_quantity = 1;
     public int $edit_quantity = 1;
     public ?string $edit_cost_price = null;
+    public ?string $edit_supplier_name = null;
     public ?string $edit_expiry_date = null;
     public ?string $edit_notes = null;
 
@@ -79,6 +82,7 @@ class StockInIndex extends Component
             'bulk_quantity' => ['nullable', 'integer', 'min:1', 'required_if:entry_mode,bulk'],
             'quantity' => ['nullable', 'integer', 'min:1', 'required_if:entry_mode,unit'],
             'cost_price' => ['nullable', 'numeric', 'min:0'],
+            'supplier_name' => ['nullable', 'string', 'max:255'],
             'expiry_date' => ['nullable', 'date'],
             'notes' => ['nullable', 'string', 'max:1000'],
         ];
@@ -104,6 +108,7 @@ class StockInIndex extends Component
         $this->bulk_quantity = 1;
         $this->quantity = 1;
         $this->cost_price = null;
+        $this->supplier_name = null;
         $this->expiry_date = null;
         $this->notes = null;
         $this->selected_receipt_id = 0;
@@ -128,6 +133,7 @@ class StockInIndex extends Component
         $this->edit_bulk_quantity = 1;
         $this->edit_quantity = 1;
         $this->edit_cost_price = null;
+        $this->edit_supplier_name = null;
         $this->edit_expiry_date = null;
         $this->edit_notes = null;
         $this->pending_void_receipt_id = 0;
@@ -147,6 +153,7 @@ class StockInIndex extends Component
             $this->bulk_quantity = 1;
             $this->quantity = 1;
             $this->cost_price = null;
+            $this->supplier_name = null;
             $this->expiry_date = null;
             $this->product_search = '';
             $this->stock_search = '';
@@ -168,6 +175,7 @@ class StockInIndex extends Component
             $this->edit_bulk_quantity = 1;
             $this->edit_quantity = 1;
             $this->edit_cost_price = null;
+            $this->edit_supplier_name = null;
             $this->edit_expiry_date = null;
             $this->edit_notes = null;
             $this->pending_void_receipt_id = 0;
@@ -205,6 +213,7 @@ class StockInIndex extends Component
         $this->entry_mode = 'unit';
         $this->bulk_quantity = 1;
         $this->quantity = 1;
+        $this->supplier_name = null;
         $this->expiry_date = null;
     }
 
@@ -223,6 +232,11 @@ class StockInIndex extends Component
     public function save(): void
     {
         $data = $this->validate();
+
+        if (array_key_exists('supplier_name', $data)) {
+            $supplier = trim((string) ($data['supplier_name'] ?? ''));
+            $data['supplier_name'] = $supplier !== '' ? $supplier : null;
+        }
 
         $product = Product::query()
             ->with(['bulkType'])
@@ -314,6 +328,7 @@ class StockInIndex extends Component
             StockInItem::query()->create([
                 'stock_in_receipt_id' => $receipt->id,
                 'product_id' => (int) $data['product_id'],
+                'supplier_name' => ($data['supplier_name'] ?? null) ?: null,
                 'entry_mode' => (string) $data['entry_mode'],
                 'bulk_quantity' => $bulkQty,
                 'units_per_bulk' => $unitsPerBulk,
@@ -351,6 +366,7 @@ class StockInIndex extends Component
         $this->entry_mode = 'unit';
         $this->bulk_quantity = 1;
         $this->cost_price = null;
+        $this->supplier_name = null;
         $this->expiry_date = null;
         $this->notes = null;
         $this->selected_receipt_id = (int) $receiptId;
@@ -400,6 +416,7 @@ class StockInIndex extends Component
                 'product_id' => (int) $item->product_id,
                 'name' => (string) ($item->product?->name ?? '-'),
                 'cost_price' => $item->cost_price !== null ? (string) $item->cost_price : null,
+                'supplier_name' => $item->supplier_name,
                 'expiry_date' => $item->expiry_date?->toDateString(),
                 'quantity' => (int) $item->quantity,
                 'entry_mode' => (string) ($item->entry_mode ?? 'unit'),
@@ -414,6 +431,7 @@ class StockInIndex extends Component
         $this->edit_bulk_quantity = 1;
         $this->edit_quantity = 1;
         $this->edit_cost_price = null;
+        $this->edit_supplier_name = null;
 
         $this->resetErrorBag();
         $this->show_edit_modal = true;
@@ -430,6 +448,7 @@ class StockInIndex extends Component
         $this->edit_bulk_quantity = 1;
         $this->edit_quantity = 1;
         $this->edit_cost_price = null;
+        $this->edit_supplier_name = null;
         $this->edit_notes = null;
         $this->resetErrorBag();
     }
@@ -455,6 +474,11 @@ class StockInIndex extends Component
     public function addEditProduct(): void
     {
         $this->resetErrorBag('edit_cart');
+
+        if ($this->edit_supplier_name !== null) {
+            $supplier = trim((string) $this->edit_supplier_name);
+            $this->edit_supplier_name = $supplier !== '' ? $supplier : null;
+        }
 
         if ($this->edit_expiry_date !== null && trim((string) $this->edit_expiry_date) === '') {
             $this->edit_expiry_date = null;
@@ -515,6 +539,11 @@ class StockInIndex extends Component
             } else {
                 $this->edit_cart[$product->id]['quantity'] = (int) $this->edit_cart[$product->id]['quantity'] + $unitsQty;
             }
+
+            $existingSupplier = (string) ($this->edit_cart[$product->id]['supplier_name'] ?? '');
+            if ($existingSupplier === '' && $this->edit_supplier_name !== null && trim((string) $this->edit_supplier_name) !== '') {
+                $this->edit_cart[$product->id]['supplier_name'] = trim((string) $this->edit_supplier_name);
+            }
             return;
         }
 
@@ -522,6 +551,7 @@ class StockInIndex extends Component
             'product_id' => (int) $product->id,
             'name' => (string) $product->name,
             'cost_price' => $this->edit_cost_price,
+            'supplier_name' => ($this->edit_supplier_name !== null && trim((string) $this->edit_supplier_name) !== '') ? trim((string) $this->edit_supplier_name) : null,
             'expiry_date' => $this->edit_expiry_date,
             'quantity' => $unitsQty,
             'entry_mode' => $this->edit_entry_mode,
@@ -617,6 +647,18 @@ class StockInIndex extends Component
         }
 
         $this->edit_cart[$productId]['cost_price'] = number_format($v, 2, '.', '');
+    }
+
+    public function setEditSupplierName(int $productId, mixed $supplierName): void
+    {
+        $this->resetErrorBag('edit_cart');
+
+        if (! isset($this->edit_cart[$productId])) {
+            return;
+        }
+
+        $value = trim((string) $supplierName);
+        $this->edit_cart[$productId]['supplier_name'] = $value !== '' ? mb_substr($value, 0, 255) : null;
     }
 
     public function removeEditItem(int $productId): void
@@ -848,6 +890,7 @@ class StockInIndex extends Component
                     StockInItem::query()->create([
                         'stock_in_receipt_id' => (int) $receipt->id,
                         'product_id' => (int) $item['product_id'],
+                        'supplier_name' => ($item['supplier_name'] ?? null) ?: null,
                         'entry_mode' => (string) ($item['entry_mode'] ?? 'unit'),
                         'bulk_quantity' => $item['bulk_quantity'] ?? null,
                         'units_per_bulk' => $item['units_per_bulk'] ?? null,
@@ -917,7 +960,8 @@ class StockInIndex extends Component
             $q->where(function ($qq) use ($term) {
                 $qq->where('receipt_no', 'like', $term)
                     ->orWhereHas('branch', fn ($qb) => $qb->where('name', 'like', $term))
-                    ->orWhereHas('user', fn ($qu) => $qu->where('name', 'like', $term));
+                    ->orWhereHas('user', fn ($qu) => $qu->where('name', 'like', $term))
+                    ->orWhereHas('items', fn ($qi) => $qi->where('supplier_name', 'like', $term));
             });
         }
 
@@ -977,7 +1021,8 @@ class StockInIndex extends Component
                 $q->where(function ($qq) use ($term) {
                     $qq->where('receipt_no', 'like', $term)
                         ->orWhereHas('branch', fn ($qb) => $qb->where('name', 'like', $term))
-                        ->orWhereHas('user', fn ($qu) => $qu->where('name', 'like', $term));
+                        ->orWhereHas('user', fn ($qu) => $qu->where('name', 'like', $term))
+                        ->orWhereHas('items', fn ($qi) => $qi->where('supplier_name', 'like', $term));
                 });
             })
             ->when($this->receipt_date_from !== '' && $this->receipt_date_to !== '', function ($q) {

@@ -23,6 +23,8 @@ class SalesItem extends Model
         'line_total',
         'line_cost',
         'line_profit',
+        'is_low_profit',
+        'is_loss',
     ];
 
     public function receipt(): BelongsTo

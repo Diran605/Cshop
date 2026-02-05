@@ -99,7 +99,7 @@
             </div>
         </div>
 
-        <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-6">
+        <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-8 gap-6">
             <div class="ui-card">
                 <div class="ui-card-body">
                     <div class="text-sm text-slate-500">{{ __('Sales Count') }}</div>
@@ -145,6 +145,22 @@
                     <div class="text-sm text-slate-500">{{ __('Profit') }}</div>
                     <div class="mt-1 text-2xl font-semibold text-slate-900">{{ number_format((float) $profitTotal, 2) }}</div>
                     <div class="mt-2 text-sm text-slate-600">{{ __('Gross profit') }}</div>
+                </div>
+            </div>
+
+            <div class="ui-card">
+                <div class="ui-card-body">
+                    <div class="text-sm text-slate-500">{{ __('Low Profit Lines') }}</div>
+                    <div class="mt-1 text-2xl font-semibold text-slate-900">{{ number_format((int) ($lowProfitLines ?? 0)) }}</div>
+                    <div class="mt-2 text-sm text-slate-600">{{ __('Sold below minimum price') }}</div>
+                </div>
+            </div>
+
+            <div class="ui-card">
+                <div class="ui-card-body">
+                    <div class="text-sm text-slate-500">{{ __('Loss Lines') }}</div>
+                    <div class="mt-1 text-2xl font-semibold text-slate-900">{{ number_format((int) ($lossLines ?? 0)) }}</div>
+                    <div class="mt-2 text-sm text-slate-600">{{ __('Sold below cost price') }}</div>
                 </div>
             </div>
         </div>

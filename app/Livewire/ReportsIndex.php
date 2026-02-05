@@ -128,6 +128,8 @@ class ReportsIndex extends Component
                 DB::raw('SUM(sales_items.line_cost) as cogs_total'),
                 DB::raw('SUM(sales_items.line_profit) as profit_total'),
                 DB::raw('SUM(sales_items.quantity) as items_sold'),
+                DB::raw('SUM(CASE WHEN sales_items.is_low_profit = 1 THEN 1 ELSE 0 END) as low_profit_lines'),
+                DB::raw('SUM(CASE WHEN sales_items.is_loss = 1 THEN 1 ELSE 0 END) as loss_lines'),
             ])
             ->first();
 
@@ -137,6 +139,9 @@ class ReportsIndex extends Component
         $profitTotal = (float) ($summaryRow?->profit_total ?? 0);
         $itemsSold = (int) ($summaryRow?->items_sold ?? 0);
         $avgTransaction = $salesCount > 0 ? ($salesTotal / $salesCount) : 0.0;
+
+        $lowProfitLines = (int) ($summaryRow?->low_profit_lines ?? 0);
+        $lossLines = (int) ($summaryRow?->loss_lines ?? 0);
 
         $salesByDay = (clone $salesItemsBase)
             ->groupBy(DB::raw('DATE(sales_receipts.sold_at)'))
@@ -280,6 +285,8 @@ class ReportsIndex extends Component
             'profitTotal' => $profitTotal,
             'itemsSold' => $itemsSold,
             'avgTransaction' => $avgTransaction,
+            'lowProfitLines' => $lowProfitLines,
+            'lossLines' => $lossLines,
             'salesByDay' => $salesByDay,
             'movementByDay' => $movementByDay,
             'topProducts' => $topProducts,

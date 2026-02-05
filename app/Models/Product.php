@@ -17,6 +17,8 @@ class Product extends Model
         'name',
         'description',
         'category_id',
+        'cost_price',
+        'min_selling_price',
         'selling_price',
         'bulk_enabled',
         'bulk_type_id',

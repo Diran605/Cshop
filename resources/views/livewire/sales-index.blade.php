@@ -119,7 +119,12 @@
                         <div>
                             <div class="text-sm font-semibold text-slate-700">{{ __('Payment') }}</div>
 
-                            <div class="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div class="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                <div class="sm:col-span-3">
+                                    <label class="ui-label">{{ __('Customer Name (optional)') }}</label>
+                                    <input type="text" wire:model.defer="customer_name" class="mt-1 ui-input" />
+                                    @error('customer_name') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                                </div>
                                 <div>
                                     <label class="ui-label">{{ __('Method') }}</label>
                                     <select wire:model="payment_method" class="mt-1 ui-select">
@@ -218,7 +223,10 @@
                                                 @endif
                                             </td>
                                             <td>
-                                                {{ number_format((float) $item['unit_price'], 2) }}
+                                                <input type="number" min="0" step="0.01" class="w-28 ui-input-compact" value="{{ (string) $item['unit_price'] }}" wire:change="setUnitPrice({{ $item['product_id'] }}, $event.target.value)" />
+                                                @if (($item['min_selling_price'] ?? null) !== null && ($item['min_selling_price'] ?? '') !== '')
+                                                    <div class="mt-1 text-[11px] text-slate-500">{{ __('Min:') }} {{ number_format((float) $item['min_selling_price'], 2) }}</div>
+                                                @endif
                                             </td>
                                             <td>
                                                 {{ number_format((float) $item['unit_price'] * (int) $item['quantity'], 2) }}
@@ -378,6 +386,11 @@
                                 @endif
                                 {{ '• ' . $selectedSale->sold_at?->format('Y-m-d H:i') }}
                             </div>
+                            @if ($selectedSale->customer_name)
+                                <div class="mt-1 text-sm text-slate-600">
+                                    {{ __('Customer:') }} {{ $selectedSale->customer_name }}
+                                </div>
+                            @endif
                         </div>
 
                         <button type="button" wire:click="closeSaleModal" class="ui-btn-secondary" data-modal-close>{{ __('Close') }}</button>
@@ -570,6 +583,11 @@
                         </div>
 
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="md:col-span-2">
+                                <label class="ui-label">{{ __('Customer Name (optional)') }}</label>
+                                <input type="text" wire:model.defer="edit_customer_name" class="mt-1 ui-input" />
+                                @error('edit_customer_name') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                            </div>
                             <div>
                                 <label class="ui-label">{{ __('Method') }}</label>
                                 <select wire:model="edit_payment_method" class="mt-1 ui-select">

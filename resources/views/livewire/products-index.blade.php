@@ -58,6 +58,18 @@
                         </div>
 
                         <div>
+                            <label class="ui-label">{{ __('Cost Price (optional)') }}</label>
+                            <input type="number" min="0" step="0.01" wire:model.defer="cost_price" class="mt-1 ui-input" />
+                            @error('cost_price') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                        </div>
+
+                        <div>
+                            <label class="ui-label">{{ __('Minimum Selling Price (optional)') }}</label>
+                            <input type="number" min="0" step="0.01" wire:model.defer="min_selling_price" class="mt-1 ui-input" />
+                            @error('min_selling_price') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                        </div>
+
+                        <div>
                             <label class="ui-label">{{ __('Status') }}</label>
                             <select wire:model.defer="status" class="mt-1 ui-select">
                                 <option value="active">{{ __('Active') }}</option>
@@ -158,6 +170,8 @@
                                             <th>{{ __('Expired Qty') }}</th>
                                         @endif
                                         <th>{{ __('Category') }}</th>
+                                        <th>{{ __('Cost') }}</th>
+                                        <th>{{ __('Min Price') }}</th>
                                         <th>{{ __('Price') }}</th>
                                         <th>{{ __('Bulk Type') }}</th>
                                         <th>{{ __('Status') }}</th>
@@ -188,6 +202,12 @@
                                                 {{ $product->category?->name ?? '-' }}
                                             </td>
                                             <td>
+                                                {{ $product->cost_price !== null ? number_format((float) $product->cost_price, 2) : '-' }}
+                                            </td>
+                                            <td>
+                                                {{ $product->min_selling_price !== null ? number_format((float) $product->min_selling_price, 2) : '-' }}
+                                            </td>
+                                            <td>
                                                 {{ number_format((float) $product->selling_price, 2) }}
                                             </td>
                                             <td>
@@ -215,7 +235,7 @@
 
                                     @if ($products->isEmpty())
                                         <tr>
-                                            <td colspan="{{ ($isSuperAdmin ? 7 : 6) + ($mode === 'expired' ? 1 : 0) }}" class="ui-table-empty">{{ __('No products found.') }}</td>
+                                            <td colspan="{{ ($isSuperAdmin ? 9 : 8) + ($mode === 'expired' ? 1 : 0) }}" class="ui-table-empty">{{ __('No products found.') }}</td>
                                         </tr>
                                     @endif
                                 </tbody>
@@ -278,6 +298,18 @@
                             <label class="ui-label">{{ __('Selling Price') }}</label>
                             <input type="number" min="0" step="0.01" wire:model.defer="selling_price" class="mt-1 ui-input" />
                             @error('selling_price') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                        </div>
+
+                        <div>
+                            <label class="ui-label">{{ __('Cost Price (optional)') }}</label>
+                            <input type="number" min="0" step="0.01" wire:model.defer="cost_price" class="mt-1 ui-input" />
+                            @error('cost_price') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                        </div>
+
+                        <div>
+                            <label class="ui-label">{{ __('Minimum Selling Price (optional)') }}</label>
+                            <input type="number" min="0" step="0.01" wire:model.defer="min_selling_price" class="mt-1 ui-input" />
+                            @error('min_selling_price') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
                         </div>
 
                         <div>

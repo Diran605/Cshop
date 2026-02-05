@@ -17,6 +17,7 @@ class SalesReceipt extends Model
         'user_id',
         'sold_at',
         'payment_method',
+        'customer_name',
         'sub_total',
         'discount_total',
         'grand_total',

@@ -52,15 +52,24 @@
                                 {{ __('Categories') }}
                             </a>
 
-                            <a href="{{ route('setup.bulk_units') }}"
-                                class="ui-nav-link {{ request()->routeIs('setup.bulk_units') ? 'ui-nav-link-active' : '' }}">
-                                {{ __('Bulk Units') }}
-                            </a>
-
-                            <a href="{{ route('setup.bulk_types') }}"
-                                class="ui-nav-link {{ request()->routeIs('setup.bulk_types') ? 'ui-nav-link-active' : '' }}">
-                                {{ __('Bulk Types') }}
-                            </a>
+                            <details class="ui-nav-group" {{ request()->routeIs('setup.bulk_units') || request()->routeIs('setup.bulk_types') ? 'open' : '' }}>
+                                <summary class="ui-nav-group-summary {{ request()->routeIs('setup.bulk_units') || request()->routeIs('setup.bulk_types') ? 'ui-nav-link-active' : '' }}">
+                                    <span>{{ __('Bulk Units & Types') }}</span>
+                                    <svg class="ui-nav-caret" width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                        <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                    </svg>
+                                </summary>
+                                <div class="ui-nav-group-panel">
+                                    <a href="{{ route('setup.bulk_units') }}"
+                                        class="ui-nav-sublink {{ request()->routeIs('setup.bulk_units') ? 'ui-nav-sublink-active' : '' }}">
+                                        {{ __('Bulk Units') }}
+                                    </a>
+                                    <a href="{{ route('setup.bulk_types') }}"
+                                        class="ui-nav-sublink {{ request()->routeIs('setup.bulk_types') ? 'ui-nav-sublink-active' : '' }}">
+                                        {{ __('Bulk Types') }}
+                                    </a>
+                                </div>
+                            </details>
 
                             <details class="ui-nav-group" {{ request()->routeIs('products.index') ? 'open' : '' }}>
                                 <summary class="ui-nav-group-summary {{ request()->routeIs('products.index') ? 'ui-nav-link-active' : '' }}">

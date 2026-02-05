@@ -19,6 +19,7 @@ class ExpensesIndex extends Component
     public string $expense_date;
     public ?string $amount = null;
     public string $payment_method = 'cash';
+    public ?string $expense_type = null;
     public ?string $description = null;
     public ?string $notes = null;
 
@@ -47,6 +48,7 @@ class ExpensesIndex extends Component
     public string $edit_expense_date;
     public ?string $edit_amount = null;
     public string $edit_payment_method = 'cash';
+    public ?string $edit_expense_type = null;
     public ?string $edit_description = null;
     public ?string $edit_notes = null;
 
@@ -60,6 +62,7 @@ class ExpensesIndex extends Component
             'expense_date' => ['required', 'date'],
             'amount' => ['required', 'numeric', 'min:0'],
             'payment_method' => ['required', 'string', 'in:cash,card,transfer'],
+            'expense_type' => ['nullable', 'string', 'max:100'],
             'description' => ['nullable', 'string', 'max:255'],
             'notes' => ['nullable', 'string', 'max:1000'],
         ];
@@ -87,6 +90,7 @@ class ExpensesIndex extends Component
 
         $this->payment_method = 'cash';
         $this->amount = null;
+        $this->expense_type = null;
         $this->description = null;
         $this->notes = null;
 
@@ -104,6 +108,7 @@ class ExpensesIndex extends Component
         $this->edit_expense_date = $today->toDateString();
         $this->edit_payment_method = 'cash';
         $this->edit_amount = null;
+        $this->edit_expense_type = null;
         $this->edit_description = null;
         $this->edit_notes = null;
 
@@ -147,6 +152,7 @@ class ExpensesIndex extends Component
                 'expense_date' => $data['expense_date'],
                 'amount' => (float) $data['amount'],
                 'payment_method' => $data['payment_method'],
+                'expense_type' => ($data['expense_type'] ?? null) ?: null,
                 'description' => $data['description'] ?: null,
                 'notes' => $data['notes'] ?: null,
             ]);
@@ -155,6 +161,7 @@ class ExpensesIndex extends Component
         });
 
         $this->amount = null;
+        $this->expense_type = null;
         $this->description = null;
         $this->notes = null;
         $this->payment_method = 'cash';
@@ -201,6 +208,7 @@ class ExpensesIndex extends Component
         $this->edit_expense_date = optional($expense->expense_date)->format('Y-m-d') ?: Carbon::today()->toDateString();
         $this->edit_amount = (string) $expense->amount;
         $this->edit_payment_method = (string) ($expense->payment_method ?: 'cash');
+        $this->edit_expense_type = $expense->expense_type;
         $this->edit_description = $expense->description;
         $this->edit_notes = $expense->notes;
 
@@ -222,6 +230,7 @@ class ExpensesIndex extends Component
             'edit_expense_date' => ['required', 'date'],
             'edit_amount' => ['required', 'numeric', 'min:0'],
             'edit_payment_method' => ['required', 'string', 'in:cash,card,transfer'],
+            'edit_expense_type' => ['nullable', 'string', 'max:100'],
             'edit_description' => ['nullable', 'string', 'max:255'],
             'edit_notes' => ['nullable', 'string', 'max:1000'],
         ]);
@@ -240,6 +249,7 @@ class ExpensesIndex extends Component
                 'expense_date' => $this->edit_expense_date,
                 'amount' => (float) $this->edit_amount,
                 'payment_method' => $this->edit_payment_method,
+                'expense_type' => ($this->edit_expense_type ?? null) ?: null,
                 'description' => $this->edit_description ?: null,
                 'notes' => $this->edit_notes ?: null,
             ]);
@@ -369,6 +379,7 @@ class ExpensesIndex extends Component
                 $q->where(function ($qq) use ($term) {
                     $qq->where('expense_no', 'like', $term)
                         ->orWhere('payment_method', 'like', $term)
+                        ->orWhere('expense_type', 'like', $term)
                         ->orWhere('description', 'like', $term)
                         ->orWhereHas('branch', fn ($qb) => $qb->where('name', 'like', $term))
                         ->orWhereHas('user', fn ($qu) => $qu->where('name', 'like', $term));

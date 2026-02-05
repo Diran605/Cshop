@@ -17,6 +17,7 @@ class Expense extends Model
         'expense_date',
         'amount',
         'payment_method',
+        'expense_type',
         'description',
         'notes',
         'voided_at',

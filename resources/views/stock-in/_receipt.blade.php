@@ -34,6 +34,7 @@
                     <thead>
                         <tr>
                             <th>{{ __('Product') }}</th>
+                            <th>{{ __('Supplier') }}</th>
                             <th>{{ __('Qty') }}</th>
                             <th>{{ __('Cost') }}</th>
                             <th>{{ __('Total') }}</th>
@@ -43,6 +44,7 @@
                         @foreach ($receipt->items as $item)
                             <tr>
                                 <td class="text-slate-900">{{ $item->product?->name ?? '-' }}</td>
+                                <td>{{ $item->supplier_name ?: '-' }}</td>
                                 <td>
                                     @if ((string) $item->entry_mode === 'bulk')
                                         {{ (int) ($item->bulk_quantity ?? 0) }} {{ __('bulk') }}

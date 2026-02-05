@@ -26,6 +26,8 @@ class ProductsIndex extends Component
     public string $name = '';
     public ?string $description = null;
     public ?int $category_id = null;
+    public ?string $cost_price = null;
+    public ?string $min_selling_price = null;
     public string $selling_price = '0.00';
     public bool $bulk_enabled = false;
     public ?int $bulk_type_id = null;
@@ -53,6 +55,8 @@ class ProductsIndex extends Component
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'category_id' => ['nullable', 'integer', 'min:1', Rule::exists('categories', 'id')->where('branch_id', $this->branch_id)],
+            'cost_price' => ['nullable', 'numeric', 'min:0'],
+            'min_selling_price' => ['nullable', 'numeric', 'min:0', 'lte:selling_price'],
             'selling_price' => ['required', 'numeric', 'min:0'],
             'bulk_enabled' => ['boolean'],
             'bulk_type_id' => ['nullable', 'integer', 'min:1', Rule::exists('bulk_types', 'id')->where('branch_id', $this->branch_id)],
@@ -212,6 +216,8 @@ class ProductsIndex extends Component
         $this->name = $product->name;
         $this->description = $product->description;
         $this->category_id = $product->category_id ? (int) $product->category_id : null;
+        $this->cost_price = $product->cost_price !== null ? (string) $product->cost_price : null;
+        $this->min_selling_price = $product->min_selling_price !== null ? (string) $product->min_selling_price : null;
         $this->selling_price = (string) $product->selling_price;
         $this->bulk_enabled = (bool) $product->bulk_enabled;
         $this->bulk_type_id = $product->bulk_type_id ? (int) $product->bulk_type_id : null;
@@ -328,6 +334,8 @@ class ProductsIndex extends Component
             'name',
             'description',
             'category_id',
+            'cost_price',
+            'min_selling_price',
             'selling_price',
             'bulk_enabled',
             'bulk_type_id',
@@ -339,6 +347,8 @@ class ProductsIndex extends Component
         ]);
 
         $this->selling_price = '0.00';
+        $this->cost_price = null;
+        $this->min_selling_price = null;
         $this->bulk_enabled = false;
         $this->bulk_type_id = null;
         $this->status = 'active';

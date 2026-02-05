@@ -22,6 +22,12 @@
                 <div class="text-slate-500">{{ __('Payment') }}</div>
                 <div class="font-medium text-slate-900">{{ strtoupper($sale->payment_method) }}</div>
             </div>
+            @if ($sale->customer_name)
+                <div class="col-span-2">
+                    <div class="text-slate-500">{{ __('Customer') }}</div>
+                    <div class="font-medium text-slate-900">{{ $sale->customer_name }}</div>
+                </div>
+            @endif
         </div>
 
         <div class="mt-6 overflow-x-auto">

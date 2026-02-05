@@ -51,6 +51,7 @@ class SalesIndex extends Component
 
     public string $payment_method = 'cash';
     public ?string $amount_paid = null;
+    public ?string $customer_name = null;
     public ?string $notes = null;
 
     public int $selected_sale_id = 0;
@@ -72,6 +73,7 @@ class SalesIndex extends Component
 
     public string $edit_payment_method = 'cash';
     public ?string $edit_amount_paid = null;
+    public ?string $edit_customer_name = null;
     public ?string $edit_notes = null;
 
     public int $pending_void_sale_id = 0;
@@ -83,8 +85,24 @@ class SalesIndex extends Component
             'branch_id' => ['required', 'integer', 'min:1'],
             'payment_method' => ['required', 'string', 'in:cash,card'],
             'amount_paid' => ['nullable', 'numeric', 'min:0'],
+            'customer_name' => ['nullable', 'string', 'max:255'],
             'notes' => ['nullable', 'string', 'max:1000'],
         ];
+    }
+
+    private function getMinPriceMap(int $branchId, array $productIds): array
+    {
+        $ids = collect($productIds)->map(fn ($v) => (int) $v)->filter(fn ($v) => $v > 0)->unique()->values();
+        if ($branchId <= 0 || $ids->isEmpty()) {
+            return [];
+        }
+
+        return Product::query()
+            ->where('branch_id', $branchId)
+            ->whereIn('id', $ids->all())
+            ->pluck('min_selling_price', 'id')
+            ->map(fn ($v) => $v !== null ? (float) $v : null)
+            ->all();
     }
 
     public function mount(string $mode = 'add'): void
@@ -112,6 +130,7 @@ class SalesIndex extends Component
         $this->bulk_quantity = 1;
         $this->payment_method = 'cash';
         $this->amount_paid = null;
+        $this->customer_name = null;
         $this->notes = null;
         $this->selected_sale_id = 0;
 
@@ -137,6 +156,7 @@ class SalesIndex extends Component
         $this->edit_bulk_quantity = 1;
         $this->edit_payment_method = 'cash';
         $this->edit_amount_paid = null;
+        $this->edit_customer_name = null;
         $this->edit_notes = null;
         $this->pending_void_sale_id = 0;
         $this->void_reason = null;
@@ -152,6 +172,7 @@ class SalesIndex extends Component
             $this->cart = [];
             $this->selected_sale_id = 0;
             $this->amount_paid = null;
+            $this->customer_name = null;
             $this->notes = null;
             $this->entry_mode = 'unit';
             $this->entry_quantity = 1;
@@ -178,6 +199,7 @@ class SalesIndex extends Component
             $this->edit_bulk_quantity = 1;
             $this->edit_payment_method = 'cash';
             $this->edit_amount_paid = null;
+            $this->edit_customer_name = null;
             $this->edit_notes = null;
             $this->pending_void_sale_id = 0;
             $this->void_reason = null;
@@ -308,6 +330,7 @@ class SalesIndex extends Component
             'bulk_quantity' => $bulkQty,
             'units_per_bulk' => $unitsPerBulk,
             'bulk_type_id' => $bulkTypeId,
+            'min_selling_price' => $product->min_selling_price !== null ? (string) $product->min_selling_price : null,
         ];
 
         $this->enforceSingleMode();
@@ -391,6 +414,22 @@ class SalesIndex extends Component
         $this->cart[$productId]['quantity'] = $qty;
     }
 
+    public function setUnitPrice(int $productId, mixed $unitPrice): void
+    {
+        $this->resetErrorBag('cart');
+
+        if (! isset($this->cart[$productId])) {
+            return;
+        }
+
+        $v = (float) $unitPrice;
+        if ($v < 0) {
+            $v = 0;
+        }
+
+        $this->cart[$productId]['unit_price'] = number_format($v, 2, '.', '');
+    }
+
     public function clearCart(): void
     {
         $this->cart = [];
@@ -460,6 +499,7 @@ class SalesIndex extends Component
                     'user_id' => auth()->id(),
                     'sold_at' => now(),
                     'payment_method' => $data['payment_method'],
+                    'customer_name' => ($data['customer_name'] ?? null) ?: null,
                     'sub_total' => (string) $subTotal,
                     'discount_total' => '0.00',
                     'grand_total' => (string) $grandTotal,
@@ -472,6 +512,8 @@ class SalesIndex extends Component
 
                 $cogsTotal = 0.0;
                 $profitTotal = 0.0;
+
+                $minMap = $this->getMinPriceMap((int) $data['branch_id'], array_map(fn ($row) => (int) ($row['product_id'] ?? 0), $cartItems));
 
                 foreach ($cartItems as $item) {
                     $stock = ProductStock::query()
@@ -503,6 +545,11 @@ class SalesIndex extends Component
                     $lineCost = $unitCostFloat * (int) $item['quantity'];
                     $lineProfit = $lineTotal - $lineCost;
 
+                    $pid = (int) $item['product_id'];
+                    $min = $minMap[$pid] ?? null;
+                    $isLowProfit = $min !== null && (float) $item['unit_price'] < (float) $min;
+                    $isLoss = $unitCostFloat > 0 && (float) $item['unit_price'] < (float) $unitCostFloat;
+
                     $cogsTotal += $lineCost;
                     $profitTotal += $lineProfit;
 
@@ -519,6 +566,8 @@ class SalesIndex extends Component
                         'line_total' => number_format($lineTotal, 2, '.', ''),
                         'line_cost' => number_format($lineCost, 2, '.', ''),
                         'line_profit' => number_format($lineProfit, 2, '.', ''),
+                        'is_low_profit' => (bool) $isLowProfit,
+                        'is_loss' => (bool) $isLoss,
                     ]);
 
                     $toAllocate = (int) $item['quantity'];
@@ -589,18 +638,6 @@ class SalesIndex extends Component
                         'moved_at' => now(),
                         'notes' => null,
                     ]);
-                }
-
-                $receipt->cogs_total = number_format($cogsTotal, 2, '.', '');
-                $receipt->profit_total = number_format($profitTotal, 2, '.', '');
-                $receipt->save();
-
-                return (int) $receipt->id;
-            });
-        } catch (ValidationException $e) {
-            $this->setErrorBag($e->validator->getMessageBag());
-            return;
-        }
 
         $this->clearCart();
         $this->selected_sale_id = (int) $saleId;
@@ -638,6 +675,7 @@ class SalesIndex extends Component
         $this->edit_branch_id = (int) $sale->branch_id;
         $this->edit_payment_method = (string) ($sale->payment_method ?? 'cash');
         $this->edit_amount_paid = $sale->amount_paid !== null ? (string) $sale->amount_paid : null;
+        $this->edit_customer_name = $sale->customer_name;
         $this->edit_notes = $sale->notes;
 
         $this->edit_cart = [];
@@ -675,6 +713,7 @@ class SalesIndex extends Component
         $this->edit_bulk_quantity = 1;
         $this->edit_payment_method = 'cash';
         $this->edit_amount_paid = null;
+        $this->edit_customer_name = null;
         $this->edit_notes = null;
         $this->resetErrorBag();
     }
@@ -904,6 +943,14 @@ class SalesIndex extends Component
 
                 $receipt->load(['items']);
 
+                $receipt->customer_name = ($this->edit_customer_name ?? null) ?: null;
+                $receipt->payment_method = (string) ($this->edit_payment_method ?? 'cash');
+                $receipt->amount_paid = number_format((float) $amountPaid, 2, '.', '');
+                $receipt->change_due = number_format((float) $changeDue, 2, '.', '');
+                $receipt->notes = $this->edit_notes;
+                $receipt->sub_total = number_format((float) $subTotal, 2, '.', '');
+                $receipt->grand_total = number_format((float) $grandTotal, 2, '.', '');
+
                 foreach ($receipt->items as $item) {
                     $allocations = DB::table('sales_item_allocations')
                         ->where('sales_item_id', (int) $item->id)
@@ -1085,6 +1132,8 @@ class SalesIndex extends Component
 
                 $today = Carbon::today()->toDateString();
 
+                $minMap = $this->getMinPriceMap((int) $receipt->branch_id, array_map(fn ($row) => (int) ($row['product_id'] ?? 0), $items));
+
                 foreach ($items as $item) {
                     $stock = ProductStock::query()
                         ->where('branch_id', (int) $receipt->branch_id)
@@ -1105,6 +1154,11 @@ class SalesIndex extends Component
                     $lineCost = $unitCostFloat * (int) $item['quantity'];
                     $lineProfit = $lineTotal - $lineCost;
 
+                    $pid = (int) $item['product_id'];
+                    $min = $minMap[$pid] ?? null;
+                    $isLowProfit = $min !== null && (float) $item['unit_price'] < (float) $min;
+                    $isLoss = $unitCostFloat > 0 && (float) $item['unit_price'] < (float) $unitCostFloat;
+
                     $cogsTotal += $lineCost;
                     $profitTotal += $lineProfit;
 
@@ -1121,6 +1175,8 @@ class SalesIndex extends Component
                         'line_total' => number_format($lineTotal, 2, '.', ''),
                         'line_cost' => number_format($lineCost, 2, '.', ''),
                         'line_profit' => number_format($lineProfit, 2, '.', ''),
+                        'is_low_profit' => (bool) $isLowProfit,
+                        'is_loss' => (bool) $isLoss,
                     ]);
 
                     $toAllocate = (int) $item['quantity'];
@@ -1323,6 +1379,7 @@ class SalesIndex extends Component
                 $term = '%' . trim($this->sales_search) . '%';
                 $q->where(function ($qq) use ($term) {
                     $qq->where('receipt_no', 'like', $term)
+                        ->orWhere('customer_name', 'like', $term)
                         ->orWhereHas('branch', fn ($qb) => $qb->where('name', 'like', $term))
                         ->orWhereHas('user', fn ($qu) => $qu->where('name', 'like', $term));
                 });
