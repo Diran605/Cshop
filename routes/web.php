@@ -22,6 +22,8 @@ use App\Livewire\Setup\BranchesIndex;
 use App\Livewire\Setup\BulkTypesIndex;
 use App\Livewire\Setup\BulkUnitsIndex;
 use App\Livewire\Setup\CategoriesIndex;
+use App\Livewire\Setup\RolesIndex;
+use App\Livewire\Setup\UserRolesIndex;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
@@ -119,8 +121,11 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
-    Route::middleware('role:super_admin')->group(function () {
+    Route::middleware('legacy_role:super_admin')->group(function () {
         Route::get('/setup/branches', BranchesIndex::class)->name('setup.branches');
+
+        Route::get('/setup/roles', RolesIndex::class)->name('setup.roles');
+        Route::get('/setup/user-roles', UserRolesIndex::class)->name('setup.user_roles');
 
         Route::get('/users', UsersIndex::class)->name('users.index');
         Route::get('/users/create', [RegisteredUserController::class, 'create'])->name('users.create');

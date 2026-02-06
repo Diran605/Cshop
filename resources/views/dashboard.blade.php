@@ -18,7 +18,7 @@
      <div class="ui-page">
         <div class="ui-page-container">
             <div class="mb-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                <div class="ui-kpi-card ui-kpi-blue">
+                <div class="ui-kpi-card">
                     <div>
                         <div class="ui-kpi-title">
                             {{ $isSuperAdmin ? __('Total Sales (This Month)') : __('Total Sales (This Month)') }}
@@ -29,7 +29,7 @@
                     </div>
                 </div>
 
-                <div class="ui-kpi-card ui-kpi-emerald">
+                <div class="ui-kpi-card">
                     <div>
                         <div class="ui-kpi-title">
                             {{ __('Inventory Value') }}
@@ -40,7 +40,7 @@
                     </div>
                 </div>
 
-                <div class="ui-kpi-card ui-kpi-pink">
+                <div class="ui-kpi-card">
                     <div>
                         <div class="ui-kpi-title">
                             {{ __('Low Stock Value') }}
