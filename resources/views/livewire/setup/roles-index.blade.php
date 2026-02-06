@@ -89,7 +89,7 @@
                                     @foreach ($roles as $role)
                                         <tr wire:key="role-{{ $role->id }}">
                                             <td class="font-medium text-slate-900">
-                                                <button type="button" wire:click="toggleRolePermissions({{ $role->id }})" class="flex items-center gap-2 hover:text-blue-600">
+                                                <button type="button" wire:click="toggleRolePermissions({{ $role->id }})" class="flex items-center gap-2 hover:text-primary-blue">
                                                     <svg class="w-4 h-4 transition-transform {{ $expanded_role_id === $role->id ? 'rotate-90' : '' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
                                                     </svg>
@@ -161,7 +161,7 @@
                 <div class="p-4 border-b border-slate-200 flex items-center justify-between">
                     <div>
                         <div class="text-sm text-slate-500">{{ __('Edit Role') }}</div>
-                        <div class="mt-1 font-semibold text-slate-900">{{ $name ?: '-' }}</div>
+                        <div class="mt-3 text-sm font-semibold text-primary-blue">{{ $name ?: '-' }}</div>
                     </div>
                     <button type="button" wire:click="closeEditModal" class="ui-btn-secondary" data-modal-close>{{ __('Close') }}</button>
                 </div>

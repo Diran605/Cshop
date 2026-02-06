@@ -49,27 +49,6 @@
                                 </a>
                             @endcan
 
-                            @can('rbac.manage')
-                                <details class="ui-nav-group" {{ (request()->routeIs('setup.roles') || request()->routeIs('setup.user_roles')) ? 'open' : '' }}>
-                                    <summary class="ui-nav-group-summary {{ (request()->routeIs('setup.roles') || request()->routeIs('setup.user_roles')) ? 'ui-nav-link-active' : '' }}">
-                                        <span>{{ __('Settings') }}</span>
-                                        <svg class="ui-nav-caret" width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                            <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
-                                        </svg>
-                                    </summary>
-                                    <div class="ui-nav-group-panel">
-                                        <a href="{{ route('setup.roles') }}"
-                                            class="ui-nav-sublink {{ request()->routeIs('setup.roles') ? 'ui-nav-sublink-active' : '' }}">
-                                            {{ __('Roles') }}
-                                        </a>
-                                        <a href="{{ route('setup.user_roles') }}"
-                                            class="ui-nav-sublink {{ request()->routeIs('setup.user_roles') ? 'ui-nav-sublink-active' : '' }}">
-                                            {{ __('User Roles') }}
-                                        </a>
-                                    </div>
-                                </details>
-                            @endcan
-
                             @can('setup.categories.manage')
                                 <a href="{{ route('setup.categories') }}"
                                     class="ui-nav-link {{ request()->routeIs('setup.categories') ? 'ui-nav-link-active' : '' }}">
@@ -191,31 +170,6 @@
                                     </div>
                                 </details>
                             @endcan
-
-                            @canany(['audit.stock_movements.view', 'audit.activity_logs.view'])
-                                <details class="ui-nav-group" {{ (request()->routeIs('stock_movements.index') || request()->routeIs('activity_logs.index')) ? 'open' : '' }}>
-                                    <summary class="ui-nav-group-summary {{ (request()->routeIs('stock_movements.index') || request()->routeIs('activity_logs.index')) ? 'ui-nav-link-active' : '' }}">
-                                        <span>{{ __('Audit Trails') }}</span>
-                                        <svg class="ui-nav-caret" width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                            <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
-                                        </svg>
-                                    </summary>
-                                    <div class="ui-nav-group-panel">
-                                        @can('audit.stock_movements.view')
-                                            <a href="{{ route('stock_movements.index') }}"
-                                                class="ui-nav-sublink {{ request()->routeIs('stock_movements.index') ? 'ui-nav-sublink-active' : '' }}">
-                                                {{ __('Stock Movements') }}
-                                            </a>
-                                        @endcan
-                                        @can('audit.activity_logs.view')
-                                            <a href="{{ route('activity_logs.index') }}"
-                                                class="ui-nav-sublink {{ request()->routeIs('activity_logs.index') ? 'ui-nav-sublink-active' : '' }}">
-                                                {{ __('Activity Logs') }}
-                                            </a>
-                                        @endcan
-                                    </div>
-                                </details>
-                            @endcanany
                         </div>
                     </div>
 
@@ -256,6 +210,62 @@
                             </div>
                         </div>
                     @endcan
+
+                    @can('rbac.manage')
+                        <div class="pt-4">
+                            <div class="ui-nav-section-title">{{ __('Settings') }}</div>
+                            <div class="mt-2 space-y-1">
+                                <details class="ui-nav-group" {{ (request()->routeIs('setup.roles') || request()->routeIs('setup.user_roles')) ? 'open' : '' }}>
+                                    <summary class="ui-nav-group-summary {{ (request()->routeIs('setup.roles') || request()->routeIs('setup.user_roles')) ? 'ui-nav-link-active' : '' }}">
+                                        <span>{{ __('Settings') }}</span>
+                                        <svg class="ui-nav-caret" width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                            <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                        </svg>
+                                    </summary>
+                                    <div class="ui-nav-group-panel">
+                                        <a href="{{ route('setup.roles') }}"
+                                            class="ui-nav-sublink {{ request()->routeIs('setup.roles') ? 'ui-nav-sublink-active' : '' }}">
+                                            {{ __('Roles') }}
+                                        </a>
+                                        <a href="{{ route('setup.user_roles') }}"
+                                            class="ui-nav-sublink {{ request()->routeIs('setup.user_roles') ? 'ui-nav-sublink-active' : '' }}">
+                                            {{ __('User Roles') }}
+                                        </a>
+                                    </div>
+                                </details>
+                            </div>
+                        </div>
+                    @endcan
+
+                    @canany(['audit.stock_movements.view', 'audit.activity_logs.view'])
+                        <div class="pt-4">
+                            <div class="ui-nav-section-title">{{ __('Audit') }}</div>
+                            <div class="mt-2 space-y-1">
+                                <details class="ui-nav-group" {{ (request()->routeIs('stock_movements.index') || request()->routeIs('activity_logs.index')) ? 'open' : '' }}>
+                                    <summary class="ui-nav-group-summary {{ (request()->routeIs('stock_movements.index') || request()->routeIs('activity_logs.index')) ? 'ui-nav-link-active' : '' }}">
+                                        <span>{{ __('Audit Trails') }}</span>
+                                        <svg class="ui-nav-caret" width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                            <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                        </svg>
+                                    </summary>
+                                    <div class="ui-nav-group-panel">
+                                        @can('audit.stock_movements.view')
+                                            <a href="{{ route('stock_movements.index') }}"
+                                                class="ui-nav-sublink {{ request()->routeIs('stock_movements.index') ? 'ui-nav-sublink-active' : '' }}">
+                                                {{ __('Stock Movements') }}
+                                            </a>
+                                        @endcan
+                                        @can('audit.activity_logs.view')
+                                            <a href="{{ route('activity_logs.index') }}"
+                                                class="ui-nav-sublink {{ request()->routeIs('activity_logs.index') ? 'ui-nav-sublink-active' : '' }}">
+                                                {{ __('Activity Logs') }}
+                                            </a>
+                                        @endcan
+                                    </div>
+                                </details>
+                            </div>
+                        </div>
+                    @endcanany
                 </nav>
             </aside>
 
@@ -272,7 +282,11 @@
                             </div>
                         </div>
 
-                        <div class="hidden sm:flex sm:items-center">
+                        <div class="hidden sm:flex sm:items-center gap-3">
+                            @canany(['alerts.stock_adjustment', 'alerts.expired_stock', 'alerts.expiry_warning', 'alerts.low_stock'])
+                                <x-notification-bell />
+                            @endcanany
+
                             <x-dropdown align="right" width="48">
                                 <x-slot name="trigger">
                                     <button class="ui-user-trigger">

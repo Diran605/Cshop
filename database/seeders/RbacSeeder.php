@@ -71,6 +71,11 @@ class RbacSeeder extends Seeder
 
             'audit.stock_movements.view',
             'audit.activity_logs.view',
+
+            'alerts.stock_adjustment',
+            'alerts.expired_stock',
+            'alerts.expiry_warning',
+            'alerts.low_stock',
         ];
 
         foreach ($permissions as $name) {

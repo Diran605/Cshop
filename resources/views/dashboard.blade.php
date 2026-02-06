@@ -52,6 +52,12 @@
                 </div>
             </div>
 
+            @canany(['alerts.stock_adjustment', 'alerts.expired_stock', 'alerts.expiry_warning', 'alerts.low_stock'])
+                <div class="mb-6">
+                    <livewire:dashboard-alerts />
+                </div>
+            @endcanany
+
             @if (! $isSuperAdmin)
                 <div class="mb-6 ui-card">
                     <div class="ui-card-body">
@@ -138,7 +144,7 @@
                          <div class="text-sm text-slate-600">Setup</div>
                          <div class="mt-1 text-lg font-semibold text-slate-900">Bulk Units & Types</div>
                          <div class="mt-2 text-sm text-slate-600">Define packaging units and reusable bulk configurations.</div>
-                         <div class="mt-3 text-sm font-semibold text-indigo-600">
+                         <div class="mt-3 text-sm font-semibold text-primary-blue">
                              {{ __('Go to Bulk Units') }}
                          </div>
                      </a>

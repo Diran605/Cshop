@@ -69,10 +69,10 @@
                                 <div>
                                     <label class="ui-label">{{ __('Entry Type') }}</label>
                                     <div class="mt-1 inline-flex rounded-lg border border-slate-300/80 bg-white/60 p-1">
-                                        <button type="button" wire:click="$set('entry_mode', 'unit')" class="px-3 py-2 text-sm font-medium rounded-md {{ $entry_mode === 'unit' ? 'bg-blue-600 text-white' : 'text-slate-700 hover:bg-blue-50' }}">
+                                        <button type="button" wire:click="$set('entry_mode', 'unit')" class="px-3 py-2 text-sm font-medium rounded-md {{ $entry_mode === 'unit' ? 'bg-primary-blue text-white' : 'text-slate-700 hover:bg-soft-blue' }}">
                                             {{ __('Units') }}
                                         </button>
-                                        <button type="button" wire:click="$set('entry_mode', 'bulk')" class="px-3 py-2 text-sm font-medium rounded-md {{ $entry_mode === 'bulk' ? 'bg-blue-600 text-white' : 'text-slate-700 hover:bg-blue-50' }}">
+                                        <button type="button" wire:click="$set('entry_mode', 'bulk')" class="px-3 py-2 text-sm font-medium rounded-md {{ $entry_mode === 'bulk' ? 'bg-primary-blue text-white' : 'text-slate-700 hover:bg-soft-blue' }}">
                                             {{ __('Bulk') }}
                                         </button>
                                     </div>
@@ -539,10 +539,10 @@
                             <div>
                                 <label class="ui-label">{{ __('Entry Type') }}</label>
                                 <div class="mt-1 inline-flex rounded-lg border border-slate-300/80 bg-white/60 p-1">
-                                    <button type="button" wire:click="$set('edit_entry_mode', 'unit')" class="px-3 py-2 text-sm font-medium rounded-md {{ $edit_entry_mode === 'unit' ? 'bg-blue-600 text-white' : 'text-slate-700 hover:bg-blue-50' }}">
+                                    <button type="button" wire:click="$set('edit_entry_mode', 'unit')" class="px-3 py-2 text-sm font-medium rounded-md {{ $edit_entry_mode === 'unit' ? 'bg-primary-blue text-white' : 'text-slate-700 hover:bg-soft-blue' }}">
                                         {{ __('Units') }}
                                     </button>
-                                    <button type="button" wire:click="$set('edit_entry_mode', 'bulk')" class="px-3 py-2 text-sm font-medium rounded-md {{ $edit_entry_mode === 'bulk' ? 'bg-blue-600 text-white' : 'text-slate-700 hover:bg-blue-50' }}">
+                                    <button type="button" wire:click="$set('edit_entry_mode', 'bulk')" class="px-3 py-2 text-sm font-medium rounded-md {{ $edit_entry_mode === 'bulk' ? 'bg-primary-blue text-white' : 'text-slate-700 hover:bg-soft-blue' }}">
                                         {{ __('Bulk') }}
                                     </button>
                                 </div>
