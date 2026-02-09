@@ -12,11 +12,14 @@ use App\Models\StockInItem;
 use App\Models\StockInReceipt;
 use App\Models\StockMovement;
 use App\Support\ActivityLogger;
+use App\Exports\ProductsTemplateExport;
+use App\Imports\ProductsImport;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Livewire\Component;
+use Maatwebsite\Excel\Facades\Excel;
 
 class ProductsIndex extends Component
 {
@@ -48,6 +51,8 @@ class ProductsIndex extends Component
     public bool $isSuperAdmin = false;
 
     public int $auth_user_id = 0;
+
+    public $excel_file = null;
 
     protected function rules(): array
     {
@@ -367,6 +372,23 @@ class ProductsIndex extends Component
         if ($id > 0) {
             $this->delete($id);
         }
+    }
+
+    public function downloadTemplate(): \Symfony\Component\HttpFoundation\BinaryFileResponse
+    {
+        return Excel::download(new ProductsTemplateExport, 'products_template.xlsx');
+    }
+
+    public function importExcel(): void
+    {
+        $this->validate([
+            'excel_file' => 'required|mimes:xlsx,xls',
+        ]);
+
+        Excel::import(new ProductsImport, $this->excel_file);
+
+        session()->flash('status', 'Products imported successfully.');
+        $this->excel_file = null;
     }
 
     private function resetForm(): void

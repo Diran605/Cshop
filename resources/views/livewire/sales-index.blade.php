@@ -3,6 +3,20 @@
         <div class="mb-6">
             <h2 class="ui-page-title">{{ __('Sales') }}</h2>
             <div class="ui-page-subtitle">{{ __('Record sales and manage existing receipts.') }}</div>
+            <div class="mt-4 flex items-center gap-3">
+                <a href="{{ route('sales.download-template') }}" class="ui-btn-secondary">
+                    {{ __('Download Template') }}
+                </a>
+                <label class="ui-btn-secondary cursor-pointer">
+                    {{ __('Import Excel') }}
+                    <input type="file" wire:model="excel_file" accept=".xlsx,.xls" class="hidden" />
+                </label>
+                @if ($excel_file)
+                    <button type="button" wire:click="importExcel" class="ui-btn-primary">
+                        {{ __('Upload') }}
+                    </button>
+                @endif
+            </div>
         </div>
 
         @if (session('status'))

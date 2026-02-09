@@ -9,11 +9,14 @@ use App\Models\StockInItem;
 use App\Models\StockInReceipt;
 use App\Models\StockMovement;
 use App\Support\ActivityLogger;
+use App\Exports\StockInTemplateExport;
+use App\Imports\StockInImport;
 use Carbon\Carbon;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Livewire\Component;
+use Maatwebsite\Excel\Facades\Excel;
 
 class StockInIndex extends Component
 {
@@ -81,6 +84,8 @@ class StockInIndex extends Component
 
     public int $pending_void_receipt_id = 0;
     public ?string $void_reason = null;
+
+    public $excel_file = null;
 
     protected function rules(): array
     {
@@ -1294,8 +1299,7 @@ class StockInIndex extends Component
         $q = StockInReceipt::query()
             ->whereBetween('received_at', [$from, $to])
             ->when(! $this->isSuperAdmin, fn ($qq) => $qq->where('branch_id', (int) (auth()->user()?->branch_id ?? 0)))
-            ->when($this->isSuperAdmin && $this->branch_id > 0, fn ($qq) => $qq->where('branch_id', $this->branch_id))
-            ->when($this->isSuperAdmin && $this->branch_id <= 0, fn ($qq) => $qq->whereRaw('1 = 0'));
+            ->when($this->isSuperAdmin && $this->branch_id > 0, fn ($qq) => $qq->where('branch_id', $this->branch_id));
 
         if ($this->receipt_status === 'active') {
             $q->whereNull('voided_at');
@@ -1314,6 +1318,23 @@ class StockInIndex extends Component
         }
 
         $this->selected_receipts = $q->orderByDesc('received_at')->pluck('id')->map(fn ($v) => (int) $v)->all();
+    }
+
+    public function downloadTemplate(): \Symfony\Component\HttpFoundation\BinaryFileResponse
+    {
+        return Excel::download(new StockInTemplateExport, 'stock_in_template.xlsx');
+    }
+
+    public function importExcel(): void
+    {
+        $this->validate([
+            'excel_file' => 'required|mimes:xlsx,xls',
+        ]);
+
+        Excel::import(new StockInImport, $this->excel_file);
+
+        session()->flash('status', 'Stock in imported successfully.');
+        $this->excel_file = null;
     }
 
     public function render()

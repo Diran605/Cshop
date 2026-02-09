@@ -10,11 +10,14 @@ use App\Models\SalesReceipt;
 use App\Models\StockInItem;
 use App\Models\StockMovement;
 use App\Support\ActivityLogger;
+use App\Exports\SalesTemplateExport;
+use App\Imports\SalesImport;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Livewire\Component;
+use Maatwebsite\Excel\Facades\Excel;
 
 class SalesIndex extends Component
 {
@@ -79,6 +82,8 @@ class SalesIndex extends Component
 
     public int $pending_void_sale_id = 0;
     public ?string $void_reason = null;
+
+    public $excel_file = null;
 
     protected function rules(): array
     {
@@ -1410,6 +1415,23 @@ class SalesIndex extends Component
         }
 
         $this->selected_sales = $q->orderByDesc('sold_at')->pluck('id')->map(fn ($v) => (int) $v)->all();
+    }
+
+    public function downloadTemplate(): \Symfony\Component\HttpFoundation\BinaryFileResponse
+    {
+        return Excel::download(new SalesTemplateExport, 'sales_template.xlsx');
+    }
+
+    public function importExcel(): void
+    {
+        $this->validate([
+            'excel_file' => 'required|mimes:xlsx,xls',
+        ]);
+
+        Excel::import(new SalesImport, $this->excel_file);
+
+        session()->flash('status', 'Sales imported successfully.');
+        $this->excel_file = null;
     }
 
     public function render()

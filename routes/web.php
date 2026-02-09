@@ -139,10 +139,12 @@ Route::middleware('auth')->group(function () {
     Route::get('/products/{mode?}', ProductsIndex::class)
         ->where('mode', 'add|manage|expired')
         ->name('products.index');
+    Route::get('/products/download-template', [ProductsIndex::class, 'downloadTemplate'])->name('products.download-template');
 
     Route::get('/stock-in/{mode?}', StockInIndex::class)
         ->where('mode', 'add|manage')
         ->name('stock_in.index');
+    Route::get('/stock-in/download-template', [StockInIndex::class, 'downloadTemplate'])->name('stock_in.download-template');
 
     Route::get('/sales/add', SalesIndex::class)
         ->defaults('mode', 'add')
@@ -155,6 +157,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/sales/{mode?}', SalesIndex::class)
         ->where('mode', 'add|manage')
         ->name('sales.index');
+    Route::get('/sales/download-template', [SalesIndex::class, 'downloadTemplate'])->name('sales.download-template');
     Route::get('/sales/print', SalesReceiptsBatchPrintController::class)->name('sales.print_batch');
     Route::get('/sales/{sale}/print', SalesReceiptPrintController::class)->name('sales.print');
 
