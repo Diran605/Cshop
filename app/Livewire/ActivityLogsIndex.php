@@ -22,6 +22,9 @@ class ActivityLogsIndex extends Component
     public bool $isSuperAdmin = false;
     public int $auth_user_id = 0;
 
+    public bool $show_detail_modal = false;
+    public $selected_log = null;
+
     public function mount(): void
     {
         $user = auth()->user();
@@ -64,6 +67,18 @@ class ActivityLogsIndex extends Component
         if (! $this->isSuperAdmin) {
             $this->branch_id = (int) ($user?->branch_id ?? 0);
         }
+    }
+
+    public function openDetailModal(int $logId): void
+    {
+        $this->selected_log = ActivityLog::with(['branch', 'user'])->find($logId);
+        $this->show_detail_modal = true;
+    }
+
+    public function closeDetailModal(): void
+    {
+        $this->show_detail_modal = false;
+        $this->selected_log = null;
     }
 
     public function render()

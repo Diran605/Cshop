@@ -31,6 +31,8 @@ class RolesIndex extends Component
 
     public array $expanded_permission_groups = [];
 
+    public $permissions = [];
+
     public function toggleRolePermissions(int $roleId): void
     {
         if ($this->expanded_role_id === $roleId) {
@@ -223,7 +225,7 @@ class RolesIndex extends Component
 
         $branches = Branch::query()->where('is_active', true)->orderBy('name')->get();
 
-        $permissions = Permission::query()->orderBy('name')->get();
+        $this->permissions = Permission::query()->orderBy('name')->get();
 
         $branchId = (int) $this->branch_id;
         setPermissionsTeamId($branchId);
@@ -238,7 +240,7 @@ class RolesIndex extends Component
         return view('livewire.setup.roles-index', [
             'branches' => $branches,
             'roles' => $roles,
-            'permissions' => $permissions,
+            'permissions' => $this->permissions,
         ]);
     }
 }

@@ -1,3 +1,4 @@
+<div>
 <div class="ui-page">
     <div class="ui-page-container">
         <div class="mb-6">
@@ -79,12 +80,17 @@
                                         </td>
                                         <td>{{ $log->description ?? '-' }}</td>
                                         <td>{{ $log->user?->name ?? '-' }}</td>
+                                        <td>
+                                            <button wire:click="openDetailModal({{ $log->id }})" class="ui-btn-link">
+                                                {{ __('View') }}
+                                            </button>
+                                        </td>
                                     </tr>
                                 @endforeach
 
                                 @if ($logs->isEmpty())
                                     <tr>
-                                        <td colspan="6" class="ui-table-empty">{{ __('No activity found.') }}</td>
+                                        <td colspan="7" class="ui-table-empty">{{ __('No activity found.') }}</td>
                                     </tr>
                                 @endif
                             </tbody>
@@ -94,4 +100,93 @@
             </div>
         </div>
     </div>
+</div>
+
+<!-- Audit Detail Modal -->
+<div x-data="{ show: @entangle('show_detail_modal') }" x-show="show" x-cloak style="display: none;">
+    <div class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <div class="flex min-h-screen items-center justify-center p-4 text-center sm:p-0">
+            <div class="relative transform overflow-hidden rounded-xl bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-2xl">
+                <div class="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
+                    <div class="sm:flex sm:items-start">
+                        <div class="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left w-full">
+                            <h3 class="text-lg font-semibold leading-6 text-slate-900" id="modal-title">
+                                {{ __('Activity Details') }}
+                            </h3>
+                            <div class="mt-4 space-y-4">
+                                @if ($selected_log)
+                                    <div class="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label class="text-sm font-medium text-slate-500">{{ __('Date & Time') }}</label>
+                                            <div class="mt-1 text-sm text-slate-900">
+                                                {{ optional($selected_log->created_at)->format('Y-m-d H:i:s') }}
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label class="text-sm font-medium text-slate-500">{{ __('Branch') }}</label>
+                                            <div class="mt-1 text-sm text-slate-900">
+                                                {{ $selected_log->branch?->name ?? '-' }}
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label class="text-sm font-medium text-slate-500">{{ __('User') }}</label>
+                                            <div class="mt-1 text-sm text-slate-900">
+                                                {{ $selected_log->user?->name ?? '-' }}
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label class="text-sm font-medium text-slate-500">{{ __('IP Address') }}</label>
+                                            <div class="mt-1 text-sm text-slate-900">
+                                                {{ $selected_log->ip_address ?? '-' }}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label class="text-sm font-medium text-slate-500">{{ __('Action') }}</label>
+                                        <div class="mt-1 p-2 bg-slate-50 rounded text-sm text-slate-900 font-mono">
+                                            {{ $selected_log->action }}
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label class="text-sm font-medium text-slate-500">{{ __('Subject') }}</label>
+                                        <div class="mt-1 text-sm text-slate-900">
+                                            @php
+                                                $st = $selected_log->subject_type ? class_basename($selected_log->subject_type) : null;
+                                                $sid = $selected_log->subject_id ? ('#' . $selected_log->subject_id) : null;
+                                            @endphp
+                                            {{ $st ? ($st . ' ' . ($sid ?? '')) : '-' }}
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label class="text-sm font-medium text-slate-500">{{ __('Description') }}</label>
+                                        <div class="mt-1 text-sm text-slate-900">
+                                            {{ $selected_log->description ?? '-' }}
+                                        </div>
+                                    </div>
+
+                                    @if ($selected_log->meta && is_array($selected_log->meta) && count($selected_log->meta) > 0)
+                                        <div>
+                                            <label class="text-sm font-medium text-slate-500">{{ __('Additional Details') }}</label>
+                                            <div class="mt-1 p-3 bg-slate-50 rounded text-sm text-slate-900">
+                                                <pre class="whitespace-pre-wrap font-mono text-xs">{{ json_encode($selected_log->meta, JSON_PRETTY_PRINT) }}</pre>
+                                            </div>
+                                        </div>
+                                    @endif
+                                @endif
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-slate-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
+                    <button type="button" wire:click="closeDetailModal" class="ui-btn-primary">
+                        {{ __('Close') }}
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 </div>

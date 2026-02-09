@@ -5,9 +5,9 @@
                 {{ __('Retail Dashboard') }}
             </h2>
             <div class="ui-page-subtitle">
-                @if (auth()->user() && auth()->user()->role === 'branch_admin')
+                @if (auth()->user() && auth()->user()->branch)
                     {{ __('Branch:') }}
-                    <span class="font-medium">{{ auth()->user()->branch?->name ?? '-' }}</span>
+                    <span class="font-medium">{{ auth()->user()->branch->name }}</span>
                 @elseif (auth()->user() && auth()->user()->role === 'super_admin')
                     <span class="font-medium">{{ __('Super Admin') }}</span>
                 @endif

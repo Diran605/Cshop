@@ -22,6 +22,9 @@ class StockMovementsIndex extends Component
 
     public int $auth_user_id = 0;
 
+    public bool $show_detail_modal = false;
+    public $selected_movement = null;
+
     public function mount(): void
     {
         $user = auth()->user();
@@ -69,6 +72,18 @@ class StockMovementsIndex extends Component
         if (! $this->isSuperAdmin) {
             $this->branch_id = (int) ($user?->branch_id ?? 0);
         }
+    }
+
+    public function openDetailModal(int $movementId): void
+    {
+        $this->selected_movement = StockMovement::with(['branch', 'product', 'user', 'stockInReceipt', 'salesReceipt'])->find($movementId);
+        $this->show_detail_modal = true;
+    }
+
+    public function closeDetailModal(): void
+    {
+        $this->show_detail_modal = false;
+        $this->selected_movement = null;
     }
 
     public function render()
