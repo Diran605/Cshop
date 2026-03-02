@@ -113,7 +113,7 @@
                             </table>
                             </div>
 
-                            @if ($movements->hasPages())
+                            @if (method_exists($movements, 'hasPages') && $movements->hasPages())
                                 <div class="mt-4 flex items-center justify-between">
                                     <div class="text-sm text-slate-600">
                                         {{ __('Showing') }} {{ $movements->firstItem() }} {{ __('to') }} {{ $movements->lastItem() }} {{ __('of') }} {{ $movements->total() }} {{ __('results') }}

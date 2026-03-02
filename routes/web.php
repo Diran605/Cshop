@@ -24,6 +24,7 @@ use App\Livewire\Setup\BulkUnitsIndex;
 use App\Livewire\Setup\CategoriesIndex;
 use App\Livewire\Setup\RolesIndex;
 use App\Livewire\Setup\UserRolesIndex;
+use App\Support\Alerts\AlertGenerator;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
@@ -38,6 +39,11 @@ Route::get('/', function () {
 
 Route::get('/dashboard', function () {
     $user = auth()->user();
+
+    if ($user) {
+        AlertGenerator::generateExpiryAlertsForUser($user);
+    }
+
     $isSuperAdmin = (bool) ($user?->role === 'super_admin');
 
     $from = Carbon::today()->startOfMonth();

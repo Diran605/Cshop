@@ -424,7 +424,7 @@
                             </table>
                             </div>
 
-                            @if ($receipts->hasPages())
+                            @if (method_exists($receipts, 'hasPages') && $receipts->hasPages())
                                 <div class="mt-4 flex items-center justify-between">
                                     <div class="text-sm text-slate-600">
                                         {{ __('Showing') }} {{ $receipts->firstItem() }} {{ __('to') }} {{ $receipts->lastItem() }} {{ __('of') }} {{ $receipts->total() }} {{ __('results') }}

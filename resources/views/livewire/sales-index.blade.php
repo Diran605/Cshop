@@ -396,7 +396,7 @@
                             </table>
                             </div>
 
-                            @if ($sales->hasPages())
+                            @if (method_exists($sales, 'hasPages') && $sales->hasPages())
                                 <div class="mt-4 flex items-center justify-between">
                                     <div class="text-sm text-slate-600">
                                         {{ __('Showing') }} {{ $sales->firstItem() }} {{ __('to') }} {{ $sales->lastItem() }} {{ __('of') }} {{ $sales->total() }} {{ __('results') }}
