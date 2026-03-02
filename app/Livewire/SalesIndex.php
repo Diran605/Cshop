@@ -1524,8 +1524,7 @@ class SalesIndex extends Component
             ->when($this->sales_status === 'active', fn ($q) => $q->whereNull('voided_at'))
             ->when($this->sales_status === 'voided', fn ($q) => $q->whereNotNull('voided_at'))
             ->orderByDesc('sold_at')
-            ->limit(300)
-            ->get();
+            ->paginate(20);
 
         $selectedSale = null;
         if ($this->selected_sale_id > 0) {

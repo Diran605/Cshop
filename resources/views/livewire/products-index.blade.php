@@ -1,5 +1,11 @@
 <div class="ui-page">
     <div class="ui-page-container">
+        @if (session()->has('status'))
+            <div class="mb-4 ui-alert ui-alert-success">
+                {{ session('status') }}
+            </div>
+        @endif
+
         <div class="mb-6">
             <h2 class="ui-page-title">{{ __('Products') }}</h2>
             <div class="ui-page-subtitle">{{ __('Manage your catalog and product settings.') }}</div>
@@ -180,6 +186,7 @@
                                             <th>{{ __('Branch') }}</th>
                                         @endif
                                         <th>{{ __('Name') }}</th>
+                                        <th>{{ __('Stock') }}</th>
                                         @if ($mode === 'expired')
                                             <th>{{ __('Expired Qty') }}</th>
                                         @endif
@@ -205,6 +212,9 @@
                                                 @if ($product->description)
                                                     <div class="text-xs text-slate-500">{{ $product->description }}</div>
                                                 @endif
+                                            </td>
+                                            <td>
+                                                {{ $product->current_stock ?? 0 }}
                                             </td>
 
                                             @if ($mode === 'expired')
@@ -249,12 +259,21 @@
 
                                     @if ($products->isEmpty())
                                         <tr>
-                                            <td colspan="{{ ($isSuperAdmin ? 9 : 8) + ($mode === 'expired' ? 1 : 0) }}" class="ui-table-empty">{{ __('No products found.') }}</td>
+                                            <td colspan="{{ ($isSuperAdmin ? 10 : 9) + ($mode === 'expired' ? 1 : 0) }}" class="ui-table-empty">{{ __('No products found.') }}</td>
                                         </tr>
                                     @endif
                                 </tbody>
                             </table>
                             </div>
+
+                            @if ($products->hasPages())
+                                <div class="mt-4 flex items-center justify-between">
+                                    <div class="text-sm text-slate-600">
+                                        {{ __('Showing') }} {{ $products->firstItem() }} {{ __('to') }} {{ $products->lastItem() }} {{ __('of') }} {{ $products->total() }} {{ __('results') }}
+                                    </div>
+                                    {{ $products->links('pagination::tailwind') }}
+                                </div>
+                            @endif
                         </div>
                     </div>
                 </div>
@@ -263,10 +282,10 @@
     </div>
 
     @if ($show_edit_modal)
-        <div class="fixed inset-0 z-50 flex items-center justify-center" data-modal-root>
-            <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" wire:click="closeEditModal" data-modal-overlay></div>
-            <div class="relative w-full max-w-3xl mx-4 ui-card">
-                <div class="p-4 border-b border-slate-200 flex items-center justify-between">
+        <div class="fixed inset-0 z-50 flex items-start justify-center p-4 pt-12 overflow-y-auto" data-modal-root>
+            <div class="fixed inset-0 bg-black/50 backdrop-blur-sm" wire:click="closeEditModal" data-modal-overlay></div>
+            <div class="relative w-full max-w-3xl ui-card flex flex-col mb-4 z-10">
+                <div class="p-4 border-b border-slate-200 flex items-center justify-between shrink-0">
                     <div>
                         <div class="text-sm text-slate-500">{{ __('Edit Product') }}</div>
                         <div class="mt-1 font-semibold text-slate-900">{{ $name ?: '-' }}</div>
@@ -274,7 +293,7 @@
                     <button type="button" wire:click="closeEditModal" class="ui-btn-secondary" data-modal-close>{{ __('Close') }}</button>
                 </div>
 
-                <div class="p-4">
+                <div class="p-4 overflow-y-auto flex-1 min-h-0">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div class="md:col-span-2">
                             <label class="ui-label">{{ __('Branch') }}</label>
@@ -359,16 +378,42 @@
                             <textarea wire:model.defer="description" rows="3" class="mt-1 ui-input"></textarea>
                             @error('description') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
                         </div>
-                    </div>
 
-                    <div class="mt-4 flex items-center justify-end gap-3">
-                        <button type="button" wire:click="closeEditModal" class="ui-btn-secondary" data-modal-close>
-                            {{ __('Cancel') }}
-                        </button>
-                        <button type="button" wire:click="save" class="ui-btn-primary">
-                            {{ __('Save') }}
-                        </button>
+                        <div class="md:col-span-2">
+                            <div class="ui-muted-panel">
+                                <div class="text-sm font-semibold text-slate-700">{{ __('Opening Stock (optional)') }}</div>
+                                <div class="mt-3 grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div>
+                                        <label class="ui-label">{{ __('Opening Quantity') }}</label>
+                                        <input type="number" min="0" wire:model.defer="opening_quantity" class="mt-1 ui-input" />
+                                        @error('opening_quantity') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                                    </div>
+                                    <div>
+                                        <label class="ui-label">{{ __('Opening Cost Price (optional)') }}</label>
+                                        <input type="number" min="0" step="0.01" wire:model.defer="opening_cost_price" class="mt-1 ui-input" />
+                                        @error('opening_cost_price') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                                    </div>
+                                    <div>
+                                        <label class="ui-label">{{ __('Opening Expiry Date (optional)') }}</label>
+                                        <input type="date" wire:model.defer="opening_expiry_date" class="mt-1 ui-input" />
+                                        @error('opening_expiry_date') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                                    </div>
+                                </div>
+                                <div class="mt-2 text-xs text-slate-500">
+                                    {{ __('If you enter an opening quantity, the system will post an Opening Stock receipt so expiry tracking and FEFO sales work correctly.') }}
+                                </div>
+                            </div>
+                        </div>
                     </div>
+                </div>
+
+                <div class="p-4 border-t border-slate-200 flex items-center justify-end gap-3 shrink-0">
+                    <button type="button" wire:click="closeEditModal" class="ui-btn-secondary" data-modal-close>
+                        {{ __('Cancel') }}
+                    </button>
+                    <button type="button" wire:click="save" class="ui-btn-primary">
+                        {{ __('Save') }}
+                    </button>
                 </div>
             </div>
         </div>

@@ -423,6 +423,15 @@
                                 </tbody>
                             </table>
                             </div>
+
+                            @if ($receipts->hasPages())
+                                <div class="mt-4 flex items-center justify-between">
+                                    <div class="text-sm text-slate-600">
+                                        {{ __('Showing') }} {{ $receipts->firstItem() }} {{ __('to') }} {{ $receipts->lastItem() }} {{ __('of') }} {{ $receipts->total() }} {{ __('results') }}
+                                    </div>
+                                    {{ $receipts->links('pagination::tailwind') }}
+                                </div>
+                            @endif
                         </div>
                     </div>
                 </div>

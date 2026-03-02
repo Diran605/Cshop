@@ -1402,8 +1402,7 @@ class StockInIndex extends Component
             ->when($this->receipt_status === 'active', fn ($q) => $q->whereNull('voided_at'))
             ->when($this->receipt_status === 'voided', fn ($q) => $q->whereNotNull('voided_at'))
             ->orderByDesc('received_at')
-            ->limit(300)
-            ->get();
+            ->paginate(20);
 
         $selectedReceipt = null;
         if ($this->selected_receipt_id > 0) {

@@ -127,9 +127,97 @@ class ProductsIndex extends Component
 
         if ($this->editingId) {
             $before = Product::query()->find($this->editingId);
-            Product::query()->whereKey($this->editingId)->update($productData);
+            
+            \Log::info('Before update', [
+                'editingId' => $this->editingId,
+                'before' => $before->toArray(),
+                'form_data' => $data,
+                'productData' => $productData
+            ]);
+            
+            DB::transaction(function () use ($productData, $data, $before) {
+                Product::query()->whereKey($this->editingId)->update($productData);
+
+                // Handle opening stock updates if provided
+                if (isset($data['opening_quantity']) && $data['opening_quantity'] > 0) {
+                    $openingQty = max(0, (int) $data['opening_quantity']);
+                    $openingCost = ($data['opening_cost_price'] !== null && $data['opening_cost_price'] !== '')
+                        ? number_format((float) $data['opening_cost_price'], 2, '.', '')
+                        : null;
+                    $openingExpiry = ($data['opening_expiry_date'] ?? null) ?: null;
+
+                    $this->ensureProductStockForBranch((int) $this->editingId, (int) $this->branch_id);
+
+                    // Get current stock
+                    $currentStock = ProductStock::query()
+                        ->where('product_id', (int) $this->editingId)
+                        ->where('branch_id', (int) $this->branch_id)
+                        ->first();
+
+                    $currentQty = $currentStock ? (int) $currentStock->current_stock : 0;
+                    $adjustment = $openingQty - $currentQty;
+
+                    if ($adjustment !== 0) {
+                        // Create stock adjustment receipt
+                        $receipt = StockInReceipt::query()->create([
+                            'receipt_no' => 'SA-' . strtoupper(Str::random(10)),
+                            'branch_id' => (int) $this->branch_id,
+                            'user_id' => auth()->id(),
+                            'received_at' => now(),
+                            'notes' => 'Stock adjustment for product: ' . $before->name . ' (from ' . $currentQty . ' to ' . $openingQty . ')',
+                            'total_quantity' => abs($adjustment),
+                            'total_cost' => $openingCost !== null ? number_format(((float) $openingCost) * abs($adjustment), 2, '.', '') : null,
+                        ]);
+
+                        StockInItem::query()->create([
+                            'stock_in_receipt_id' => (int) $receipt->id,
+                            'product_id' => (int) $this->editingId,
+                            'entry_mode' => 'unit',
+                            'bulk_quantity' => null,
+                            'units_per_bulk' => null,
+                            'bulk_type_id' => null,
+                            'expiry_date' => $openingExpiry,
+                            'quantity' => abs($adjustment),
+                            'remaining_quantity' => abs($adjustment),
+                            'cost_price' => $openingCost,
+                            'notes' => $adjustment > 0 ? 'Stock increase' : 'Stock decrease',
+                        ]);
+
+                        // Update the product stock
+                        if ($currentStock) {
+                            $currentStock->current_stock = $openingQty;
+                            if ($openingCost !== null) {
+                                $currentStock->cost_price = $openingCost;
+                            }
+                            $currentStock->save();
+                        }
+
+                        ActivityLogger::log(
+                            'stock_in.created',
+                            $receipt,
+                            'Stock adjustment created',
+                            [
+                                'receipt_no' => $receipt->receipt_no,
+                                'product_id' => (int) $this->editingId,
+                                'previous_quantity' => $currentQty,
+                                'new_quantity' => $openingQty,
+                                'adjustment' => $adjustment,
+                                'cost_price' => $openingCost,
+                                'expiry_date' => $openingExpiry,
+                            ],
+                            (int) $this->branch_id
+                        );
+                    }
+                }
+            });
 
             $after = Product::query()->find($this->editingId);
+            
+            \Log::info('After update', [
+                'after' => $after->toArray(),
+                'changes' => array_diff_assoc($after->toArray(), $before->toArray())
+            ]);
+            
             ActivityLogger::log(
                 'product.updated',
                 $after,
@@ -140,6 +228,9 @@ class ProductsIndex extends Component
                 ],
                 $after?->branch_id ? (int) $after->branch_id : null
             );
+
+            $this->show_edit_modal = false;
+            session()->flash('status', 'Product updated successfully.');
         } else {
             $openingQty = max(0, (int) ($data['opening_quantity'] ?? 0));
             $openingCost = ($data['opening_cost_price'] !== null && $data['opening_cost_price'] !== '')
@@ -261,6 +352,16 @@ class ProductsIndex extends Component
         $this->bulk_enabled = (bool) $product->bulk_enabled;
         $this->bulk_type_id = $product->bulk_type_id ? (int) $product->bulk_type_id : null;
         $this->status = $product->status ?? 'active';
+        
+        // Load current stock values for editing
+        $currentStock = ProductStock::query()
+            ->where('product_id', $product->id)
+            ->where('branch_id', $this->branch_id)
+            ->first();
+            
+        $this->opening_quantity = $currentStock ? (int) $currentStock->current_stock : 0;
+        $this->opening_cost_price = $currentStock && $currentStock->cost_price !== null ? (string) $currentStock->cost_price : null;
+        $this->opening_expiry_date = null; // We don't track expiry in ProductStock, so leave empty for manual entry
     }
 
     public function openEditModal(int $id): void
@@ -498,7 +599,7 @@ class ProductsIndex extends Component
             }
 
             $products = Product::query()
-                ->with(['category', 'bulkType', 'branch'])
+                ->with(['category', 'bulkType', 'branch', 'stocks'])
                 ->when($this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
                 ->when($this->mode === 'expired', fn ($q) => $q->whereIn('id', $expiredProductIds))
                 ->when(trim($this->search) !== '', function ($q) {
@@ -509,7 +610,12 @@ class ProductsIndex extends Component
                     });
                 })
                 ->orderBy('name')
-                ->get();
+                ->paginate(20);
+
+        $products->getCollection()->transform(function ($product) {
+            $product->current_stock = $product->stocks->sum('current_stock');
+            return $product;
+        });
         }
 
         return view('livewire.products-index', [

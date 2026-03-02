@@ -111,6 +111,16 @@
                                     @endif
                                 </tbody>
                             </table>
+                            </div>
+
+                            @if ($movements->hasPages())
+                                <div class="mt-4 flex items-center justify-between">
+                                    <div class="text-sm text-slate-600">
+                                        {{ __('Showing') }} {{ $movements->firstItem() }} {{ __('to') }} {{ $movements->lastItem() }} {{ __('of') }} {{ $movements->total() }} {{ __('results') }}
+                                    </div>
+                                    {{ $movements->links('pagination::tailwind') }}
+                                </div>
+                            @endif
                         </div>
                     </div>
                 </div>

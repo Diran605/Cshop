@@ -130,8 +130,7 @@ class StockMovementsIndex extends Component
                 });
             })
             ->orderByDesc('moved_at')
-            ->limit(300)
-            ->get();
+            ->paginate(20);
 
         return view('livewire.stock-movements-index', [
             'branches' => $branches,
