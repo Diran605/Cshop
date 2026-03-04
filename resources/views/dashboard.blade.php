@@ -17,14 +17,15 @@
 
      <div class="ui-page">
         <div class="ui-page-container">
-            <div class="mb-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {{-- KPI Cards --}}
+            <div class="mb-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div class="ui-kpi-card">
                     <div>
                         <div class="ui-kpi-title">
-                            {{ $isSuperAdmin ? __('Total Sales (This Month)') : __('Total Sales (This Month)') }}
+                            {{ __('Total Sales (This Month)') }}
                         </div>
                         <div class="ui-kpi-value">
-                            {{ number_format((float) $salesTotal, 2) }}
+                            XAF {{ number_format((float) $salesTotal, 0, ',', ' ') }}
                         </div>
                     </div>
                 </div>
@@ -35,28 +36,41 @@
                             {{ __('Inventory Value') }}
                         </div>
                         <div class="ui-kpi-value">
-                            {{ number_format((float) $inventoryValue, 2) }}
+                            XAF {{ number_format((float) $inventoryValue, 0, ',', ' ') }}
                         </div>
                     </div>
                 </div>
 
-                <div class="ui-kpi-card">
+                <div class="ui-kpi-card bg-red-50 border-red-200">
                     <div>
-                        <div class="ui-kpi-title">
-                            {{ __('Low Stock Value') }}
+                        <div class="ui-kpi-title text-red-600">
+                            {{ __('Low Stock Items') }}
                         </div>
-                        <div class="ui-kpi-value">
-                            {{ number_format((float) $lowStockValue, 2) }}
+                        <div class="ui-kpi-value text-red-700">
+                            {{ $lowStockCount ?? 0 }}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="ui-kpi-card bg-amber-50 border-amber-200">
+                    <div>
+                        <div class="ui-kpi-title text-amber-600">
+                            {{ __('Expiring Soon') }}
+                        </div>
+                        <div class="ui-kpi-value text-amber-700">
+                            {{ $expiringCount ?? 0 }}
                         </div>
                     </div>
                 </div>
             </div>
 
-            @canany(['alerts.stock_adjustment', 'alerts.expired_stock', 'alerts.expiry_warning', 'alerts.low_stock'])
-                <div class="mb-6">
-                    <livewire:dashboard-alerts />
-                </div>
-            @endcanany
+            @if (! $isSuperAdmin)
+                @canany(['alerts.stock_adjustment', 'alerts.expired_stock', 'alerts.expiry_warning', 'alerts.low_stock'])
+                    <div class="mb-6">
+                        <livewire:dashboard-alerts />
+                    </div>
+                @endcanany
+            @endif
 
             @if (! $isSuperAdmin)
                 <div class="mb-6 ui-card">
@@ -75,7 +89,7 @@
                                     @foreach ($inventoryByCategory as $row)
                                         <tr>
                                             <td>{{ $row->category_name }}</td>
-                                            <td class="text-right">{{ number_format((float) $row->inventory_value, 2) }}</td>
+                                            <td class="text-right">XAF {{ number_format((float) $row->inventory_value, 0, ',', ' ') }}</td>
                                         </tr>
                                     @endforeach
                                     @if (count($inventoryByCategory) === 0)
@@ -106,7 +120,7 @@
                                     @foreach ($topBranchesBySales as $row)
                                         <tr>
                                             <td>{{ $row->branch_name }}</td>
-                                            <td class="text-right">{{ number_format((float) $row->sales_total, 2) }}</td>
+                                            <td class="text-right">XAF {{ number_format((float) $row->sales_total, 0, ',', ' ') }}</td>
                                         </tr>
                                     @endforeach
                                     @if (count($topBranchesBySales) === 0)

@@ -24,6 +24,8 @@ use App\Livewire\Setup\BulkUnitsIndex;
 use App\Livewire\Setup\CategoriesIndex;
 use App\Livewire\Setup\RolesIndex;
 use App\Livewire\Setup\UnitTypesIndex;
+use App\Livewire\BranchDashboard;
+use App\Livewire\NotificationsIndex;
 use App\Livewire\Setup\UserRolesIndex;
 use App\Support\Alerts\AlertGenerator;
 use Carbon\Carbon;
@@ -47,6 +49,12 @@ Route::get('/dashboard', function () {
 
     $isSuperAdmin = (bool) ($user?->role === 'super_admin');
 
+    // Branch users get the new BranchDashboard Livewire component
+    if (! $isSuperAdmin) {
+        return view('dashboard-branch');
+    }
+
+    // Super admin keeps the original dashboard
     $from = Carbon::today()->startOfMonth();
     $to = Carbon::now();
 
@@ -55,6 +63,8 @@ Route::get('/dashboard', function () {
     $salesTotal = 0.0;
     $inventoryValue = 0.0;
     $lowStockValue = 0.0;
+    $lowStockCount = 0;
+    $expiringCount = 0;
     $inventoryByCategory = collect();
     $topBranchesBySales = collect();
 
@@ -69,10 +79,20 @@ Route::get('/dashboard', function () {
             ->where('branch_id', $branchId)
             ->sum(DB::raw('COALESCE(current_stock, 0) * COALESCE(cost_price, 0)')) ?? 0);
 
-        $lowStockValue = (float) (DB::table('product_stocks')
+        $lowStockCount = (int) DB::table('product_stocks')
             ->where('branch_id', $branchId)
             ->whereColumn('current_stock', '<=', 'minimum_stock')
-            ->sum(DB::raw('COALESCE(current_stock, 0) * COALESCE(cost_price, 0)')) ?? 0);
+            ->where('current_stock', '>', 0)
+            ->count();
+
+        $expiringCount = (int) DB::table('stock_in_items')
+            ->join('stock_in_receipts', 'stock_in_receipts.id', '=', 'stock_in_items.stock_in_receipt_id')
+            ->where('stock_in_receipts.branch_id', $branchId)
+            ->whereNull('stock_in_receipts.voided_at')
+            ->where('stock_in_items.remaining_quantity', '>', 0)
+            ->whereNotNull('stock_in_items.expiry_date')
+            ->where('stock_in_items.expiry_date', '<=', Carbon::today()->addDays(7))
+            ->count();
 
         $inventoryByCategory = DB::table('product_stocks')
             ->join('products', 'products.id', '=', 'product_stocks.product_id')
@@ -93,9 +113,18 @@ Route::get('/dashboard', function () {
         $inventoryValue = (float) (DB::table('product_stocks')
             ->sum(DB::raw('COALESCE(current_stock, 0) * COALESCE(cost_price, 0)')) ?? 0);
 
-        $lowStockValue = (float) (DB::table('product_stocks')
+        $lowStockCount = (int) DB::table('product_stocks')
             ->whereColumn('current_stock', '<=', 'minimum_stock')
-            ->sum(DB::raw('COALESCE(current_stock, 0) * COALESCE(cost_price, 0)')) ?? 0);
+            ->where('current_stock', '>', 0)
+            ->count();
+
+        $expiringCount = (int) DB::table('stock_in_items')
+            ->join('stock_in_receipts', 'stock_in_receipts.id', '=', 'stock_in_items.stock_in_receipt_id')
+            ->whereNull('stock_in_receipts.voided_at')
+            ->where('stock_in_items.remaining_quantity', '>', 0)
+            ->whereNotNull('stock_in_items.expiry_date')
+            ->where('stock_in_items.expiry_date', '<=', Carbon::today()->addDays(7))
+            ->count();
 
         $topBranchesBySales = DB::table('sales_receipts')
             ->join('branches', 'branches.id', '=', 'sales_receipts.branch_id')
@@ -118,6 +147,8 @@ Route::get('/dashboard', function () {
         'salesTotal' => $salesTotal,
         'inventoryValue' => $inventoryValue,
         'lowStockValue' => $lowStockValue,
+        'lowStockCount' => $lowStockCount,
+        'expiringCount' => $expiringCount,
         'inventoryByCategory' => $inventoryByCategory,
         'topBranchesBySales' => $topBranchesBySales,
     ]);
@@ -165,6 +196,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/sales/{mode?}', SalesIndex::class)
         ->where('mode', 'add|manage')
         ->name('sales.index');
+
+    Route::get('/notifications', NotificationsIndex::class)->name('notifications.index');
     Route::get('/sales/download-template', [SalesIndex::class, 'downloadTemplate'])->name('sales.download-template');
     Route::get('/sales/print', SalesReceiptsBatchPrintController::class)->name('sales.print_batch');
     Route::get('/sales/{sale}/print', SalesReceiptPrintController::class)->name('sales.print');
