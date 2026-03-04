@@ -16,10 +16,13 @@ use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Livewire\Component;
+use Livewire\WithPagination;
 use Maatwebsite\Excel\Facades\Excel;
 
 class StockInIndex extends Component
 {
+    use WithPagination;
+
     public string $mode = 'manage';
 
     public int $branch_id = 0;
@@ -49,6 +52,8 @@ class StockInIndex extends Component
     public ?string $batch_ref_no = null;
 
     public ?string $expiry_date = null;
+
+    public string $received_at_date = '';
 
     public bool $isSuperAdmin = false;
 
@@ -100,6 +105,7 @@ class StockInIndex extends Component
             'batch_ref_no' => ['nullable', 'string', 'max:100'],
             'expiry_date' => ['nullable', 'date'],
             'notes' => ['nullable', 'string', 'max:1000'],
+            'received_at_date' => ['required', 'date'],
         ];
     }
 
@@ -128,6 +134,8 @@ class StockInIndex extends Component
         $this->expiry_date = null;
         $this->notes = null;
         $this->selected_receipt_id = 0;
+
+        $this->received_at_date = Carbon::today()->toDateString();
 
         $this->draft_lines = [];
         $this->draft_seq = 0;
@@ -177,6 +185,7 @@ class StockInIndex extends Component
             $this->supplier_name = null;
             $this->batch_ref_no = null;
             $this->expiry_date = null;
+            $this->received_at_date = Carbon::today()->toDateString();
             $this->product_search = '';
             $this->stock_search = '';
             $this->receipt_search = '';
@@ -328,6 +337,7 @@ class StockInIndex extends Component
             'key' => (int) $key,
             'product_id' => (int) $product->id,
             'name' => (string) $product->name,
+            'unit_type_name' => $product->unitType?->name,
             'supplier_name' => ($data['supplier_name'] ?? null) ?: null,
             'batch_ref_no' => ($data['batch_ref_no'] ?? null) ?: null,
             'entry_mode' => $mode,
@@ -550,7 +560,7 @@ class StockInIndex extends Component
                 'receipt_no' => 'SI-' . strtoupper(Str::random(10)),
                 'branch_id' => (int) $this->branch_id,
                 'user_id' => auth()->id(),
-                'received_at' => now(),
+                'received_at' => Carbon::parse($this->received_at_date)->startOfDay(),
                 'notes' => $this->notes,
                 'total_quantity' => (int) $totalQty,
                 'total_cost' => $totalCost > 0 ? number_format($totalCost, 2, '.', '') : null,
@@ -1351,24 +1361,30 @@ class StockInIndex extends Component
             $branches = Branch::query()->where('is_active', true)->orderBy('name')->get();
         }
         $products = Product::query()
+            ->where('status', 'active')
             ->when($this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
             ->when(trim($this->product_search) !== '', function ($q) {
                 $term = '%' . trim($this->product_search) . '%';
-                $q->where('name', 'like', $term);
+                $q->where(function ($qq) use ($term) {
+                    $qq->where('name', 'like', $term)
+                        ->orWhere('description', 'like', $term)
+                        ->orWhereHas('category', fn ($qc) => $qc->where('name', 'like', $term));
+                });
             })
+            ->with('category')
             ->orderBy('name')
             ->get();
 
         $selectedProduct = null;
         if ($this->product_id > 0) {
             $selectedProduct = Product::query()
-                ->with(['bulkType.bulkUnit'])
+                ->with(['bulkType.bulkUnit', 'unitType'])
                 ->when($this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
                 ->find($this->product_id);
         }
 
         $stocks = ProductStock::query()
-            ->with(['product'])
+            ->with(['product.unitType'])
             ->when($this->branch_id > 0, fn ($q) => $q->where('product_stocks.branch_id', $this->branch_id))
             ->when($this->isSuperAdmin && $this->branch_id <= 0, fn ($q) => $q->whereRaw('1 = 0'))
             ->join('products', 'products.id', '=', 'product_stocks.product_id')
@@ -1416,7 +1432,7 @@ class StockInIndex extends Component
         $editProducts = collect();
         if ($this->show_edit_modal && $this->edit_branch_id > 0) {
             $editProducts = Product::query()
-                ->with(['bulkType.bulkUnit'])
+                ->with(['bulkType.bulkUnit', 'unitType'])
                 ->where('branch_id', (int) $this->edit_branch_id)
                 ->orderBy('name')
                 ->get();

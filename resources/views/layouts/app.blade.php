@@ -56,6 +56,13 @@
                                 </a>
                             @endcan
 
+                            @can('setup.unit_types.manage')
+                                <a href="{{ route('setup.unit_types') }}"
+                                    class="ui-nav-link {{ request()->routeIs('setup.unit_types') ? 'ui-nav-link-active' : '' }}">
+                                    {{ __('Unit Types') }}
+                                </a>
+                            @endcan
+
                             @can('setup.bulk.manage')
                                 <details class="ui-nav-group" {{ request()->routeIs('setup.bulk_units') || request()->routeIs('setup.bulk_types') ? 'open' : '' }}>
                                     <summary class="ui-nav-group-summary {{ request()->routeIs('setup.bulk_units') || request()->routeIs('setup.bulk_types') ? 'ui-nav-link-active' : '' }}">

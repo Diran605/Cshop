@@ -62,8 +62,8 @@
                             @error('branch_id') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
                         </div>
 
-                        <div class="flex items-center justify-end gap-3">
-                            <button type="button" wire:click="save" class="ui-btn-primary">
+                        <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3">
+                            <button type="button" wire:click="save" class="ui-btn-primary w-full sm:w-auto">
                                 {{ __('Save') }}
                             </button>
                         </div>
@@ -74,9 +74,9 @@
 
             <div class="ui-card">
                 <div class="ui-card-body">
-                    <div class="flex items-center justify-between">
+                    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                         <h3 class="ui-card-title">{{ __('All Branch Admins') }}</h3>
-                        <div class="w-64">
+                        <div class="w-full sm:w-64">
                             <input type="text" wire:model.debounce.300ms="search" placeholder="{{ __('Search...') }}" class="ui-input" />
                         </div>
                     </div>
@@ -118,15 +118,24 @@
                         </table>
                         </div>
                     </div>
+
+                    @if ($users->hasPages())
+                        <div class="mt-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+                            <div class="text-sm text-slate-600">
+                                {{ __('Showing') }} {{ $users->firstItem() }} {{ __('to') }} {{ $users->lastItem() }} {{ __('of') }} {{ $users->total() }} {{ __('results') }}
+                            </div>
+                            {{ $users->links('pagination::tailwind') }}
+                        </div>
+                    @endif
                 </div>
             </div>
         </div>
     </div>
 
     @if ($show_delete_modal)
-        <div class="fixed inset-0 z-50 flex items-center justify-center" data-modal-root>
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-4" data-modal-root>
             <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" wire:click="closeDeleteModal" data-modal-overlay></div>
-            <div class="relative w-full max-w-lg mx-4 ui-card">
+            <div class="relative w-full max-w-lg ui-card">
                 <div class="p-4 border-b border-slate-200">
                     <div class="text-sm text-slate-500">{{ __('Confirm Delete') }}</div>
                     <div class="mt-1 font-semibold text-slate-900">{{ __('Delete User') }}</div>
@@ -138,9 +147,9 @@
                         <span class="font-semibold">{{ $pending_delete_name ?: '-' }}</span>
                     </div>
 
-                    <div class="mt-4 flex items-center justify-end gap-3">
-                        <button type="button" wire:click="closeDeleteModal" class="ui-btn-secondary" data-modal-close>{{ __('Cancel') }}</button>
-                        <button type="button" wire:click="confirmDelete" class="ui-btn-danger">{{ __('Delete') }}</button>
+                    <div class="mt-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3">
+                        <button type="button" wire:click="closeDeleteModal" class="ui-btn-secondary w-full sm:w-auto" data-modal-close>{{ __('Cancel') }}</button>
+                        <button type="button" wire:click="confirmDelete" class="ui-btn-danger w-full sm:w-auto">{{ __('Delete') }}</button>
                     </div>
                 </div>
             </div>
@@ -148,9 +157,9 @@
     @endif
 
     @if ($show_edit_modal)
-        <div class="fixed inset-0 z-50 flex items-center justify-center" data-modal-root>
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-4" data-modal-root>
             <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" wire:click="closeEditModal" data-modal-overlay></div>
-            <div class="relative w-full max-w-lg mx-4 ui-card">
+            <div class="relative w-full max-w-lg ui-card">
                 <div class="p-4 border-b border-slate-200 flex items-center justify-between">
                     <div>
                         <div class="text-sm text-slate-500">{{ __('Edit Branch Admin') }}</div>
@@ -198,9 +207,9 @@
                         </div>
                     </div>
 
-                    <div class="mt-4 flex items-center justify-end gap-3">
-                        <button type="button" wire:click="closeEditModal" class="ui-btn-secondary" data-modal-close>{{ __('Cancel') }}</button>
-                        <button type="button" wire:click="save" class="ui-btn-primary">{{ __('Update') }}</button>
+                    <div class="mt-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3">
+                        <button type="button" wire:click="closeEditModal" class="ui-btn-secondary w-full sm:w-auto" data-modal-close>{{ __('Cancel') }}</button>
+                        <button type="button" wire:click="save" class="ui-btn-primary w-full sm:w-auto">{{ __('Update') }}</button>
                     </div>
                 </div>
             </div>

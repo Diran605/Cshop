@@ -38,6 +38,11 @@ class RbacSeeder extends Seeder
             'setup.categories.edit',
             'setup.categories.delete',
 
+            'setup.unit_types.view',
+            'setup.unit_types.create',
+            'setup.unit_types.edit',
+            'setup.unit_types.delete',
+
             'setup.bulk.view',
             'setup.bulk.create',
             'setup.bulk.edit',

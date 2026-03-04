@@ -9,16 +9,16 @@
         <div class="mb-6">
             <h2 class="ui-page-title">{{ __('Products') }}</h2>
             <div class="ui-page-subtitle">{{ __('Manage your catalog and product settings.') }}</div>
-            <div class="mt-4 flex items-center gap-3">
-                <a href="{{ route('products.download-template') }}" class="ui-btn-secondary">
+            <div class="mt-4 flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                <a href="{{ route('products.download-template') }}" class="ui-btn-secondary w-full sm:w-auto text-center">
                     {{ __('Download Template') }}
                 </a>
-                <label class="ui-btn-secondary cursor-pointer">
+                <label class="ui-btn-secondary cursor-pointer w-full sm:w-auto text-center">
                     {{ __('Import Excel') }}
                     <input type="file" wire:model="excel_file" accept=".xlsx,.xls" class="hidden" />
                 </label>
                 @if ($excel_file)
-                    <button type="button" wire:click="importExcel" class="ui-btn-primary">
+                    <button type="button" wire:click="importExcel" class="ui-btn-primary w-full sm:w-auto">
                         {{ __('Upload') }}
                     </button>
                 @endif
@@ -55,6 +55,12 @@
                         </div>
 
                         <div>
+                            <label class="ui-label">{{ __('Product Date') }}</label>
+                            <input type="date" wire:model.defer="product_date" class="mt-1 ui-input" />
+                            @error('product_date') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                        </div>
+
+                        <div>
                             <label class="ui-label">{{ __('Name') }}</label>
                             <input type="text" wire:model.defer="name" class="mt-1 ui-input" />
                             @error('name') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
@@ -69,6 +75,17 @@
                                 @endforeach
                             </select>
                             @error('category_id') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                        </div>
+
+                        <div>
+                            <label class="ui-label">{{ __('Unit Type') }}</label>
+                            <select wire:model.defer="unit_type_id" class="mt-1 ui-select">
+                                <option value="">{{ __('None') }}</option>
+                                @foreach ($unitTypes as $unitType)
+                                    <option value="{{ $unitType->id }}">{{ $unitType->name }}</option>
+                                @endforeach
+                            </select>
+                            @error('unit_type_id') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
                         </div>
 
                         <div>
@@ -151,14 +168,14 @@
                             </div>
                         @endif
 
-                        <div class="md:col-span-2 flex items-center justify-end gap-3">
+                        <div class="md:col-span-2 flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3">
                             @if ($editingId)
-                                <button type="button" wire:click="cancelEdit" class="ui-btn-secondary">
+                                <button type="button" wire:click="cancelEdit" class="ui-btn-secondary w-full sm:w-auto">
                                     {{ __('Cancel') }}
                                 </button>
                             @endif
 
-                            <button type="button" wire:click="save" class="ui-btn-primary">
+                            <button type="button" wire:click="save" class="ui-btn-primary w-full sm:w-auto">
                                 {{ $editingId ? __('Save') : __('Create') }}
                             </button>
                         </div>
@@ -170,8 +187,8 @@
             @if ($mode === 'manage' || $mode === 'expired')
                 <div class="ui-card">
                     <div class="ui-card-body">
-                        <div class="flex items-center justify-between gap-4">
-                            <div class="w-full max-w-md">
+                        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                            <div class="w-full sm:max-w-md">
                                 <label class="ui-label">{{ __('Search') }}</label>
                                 <input type="text" wire:model.live.debounce.300ms="search" class="mt-1 ui-input" placeholder="Search products..." />
                             </div>
@@ -282,7 +299,7 @@
     </div>
 
     @if ($show_edit_modal)
-        <div class="fixed inset-0 z-50 flex items-start justify-center p-4 pt-12 overflow-y-auto" data-modal-root>
+        <div class="fixed inset-0 z-50 flex items-start justify-center p-4 pt-8 sm:pt-12 overflow-y-auto" data-modal-root>
             <div class="fixed inset-0 bg-black/50 backdrop-blur-sm" wire:click="closeEditModal" data-modal-overlay></div>
             <div class="relative w-full max-w-3xl ui-card flex flex-col mb-4 z-10">
                 <div class="p-4 border-b border-slate-200 flex items-center justify-between shrink-0">
@@ -325,6 +342,17 @@
                                 @endforeach
                             </select>
                             @error('category_id') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                        </div>
+
+                        <div>
+                            <label class="ui-label">{{ __('Unit Type') }}</label>
+                            <select wire:model.defer="unit_type_id" class="mt-1 ui-select">
+                                <option value="">{{ __('None') }}</option>
+                                @foreach ($unitTypes as $unitType)
+                                    <option value="{{ $unitType->id }}">{{ $unitType->name }}</option>
+                                @endforeach
+                            </select>
+                            @error('unit_type_id') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
                         </div>
 
                         <div>
@@ -407,7 +435,7 @@
                     </div>
                 </div>
 
-                <div class="p-4 border-t border-slate-200 flex items-center justify-end gap-3 shrink-0">
+                <div class="p-4 border-t border-slate-200 flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3 shrink-0">
                     <button type="button" wire:click="closeEditModal" class="ui-btn-secondary" data-modal-close>
                         {{ __('Cancel') }}
                     </button>
@@ -420,9 +448,9 @@
     @endif
 
     @if ($show_delete_modal)
-        <div class="fixed inset-0 z-50 flex items-center justify-center" data-modal-root>
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-4" data-modal-root>
             <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" wire:click="closeDeleteModal" data-modal-overlay></div>
-            <div class="relative w-full max-w-lg mx-4 ui-card">
+            <div class="relative w-full max-w-lg ui-card">
                 <div class="p-4 border-b border-slate-200">
                     <div class="text-sm text-slate-500">{{ __('Confirm Delete') }}</div>
                     <div class="mt-1 font-semibold text-slate-900">{{ __('Delete Product') }}</div>
@@ -434,7 +462,7 @@
                         <span class="font-semibold">{{ $pending_delete_name ?: '-' }}</span>
                     </div>
 
-                    <div class="mt-4 flex items-center justify-end gap-3">
+                    <div class="mt-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3">
                         <button type="button" wire:click="closeDeleteModal" class="ui-btn-secondary" data-modal-close>{{ __('Cancel') }}</button>
                         <button type="button" wire:click="confirmDelete" class="ui-btn-danger">{{ __('Delete') }}</button>
                     </div>

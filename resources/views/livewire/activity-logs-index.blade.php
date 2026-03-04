@@ -96,6 +96,15 @@
                             </tbody>
                         </table>
                     </div>
+
+                    @if ($logs->hasPages())
+                        <div class="mt-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+                            <div class="text-sm text-slate-600">
+                                {{ __('Showing') }} {{ $logs->firstItem() }} {{ __('to') }} {{ $logs->lastItem() }} {{ __('of') }} {{ $logs->total() }} {{ __('results') }}
+                            </div>
+                            {{ $logs->links('pagination::tailwind') }}
+                        </div>
+                    @endif
                 </div>
             </div>
         </div>

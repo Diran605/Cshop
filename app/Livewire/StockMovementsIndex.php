@@ -7,9 +7,12 @@ use App\Models\Product;
 use App\Models\StockMovement;
 use Carbon\Carbon;
 use Livewire\Component;
+use Livewire\WithPagination;
 
 class StockMovementsIndex extends Component
 {
+    use WithPagination;
+
     public int $branch_id = 0;
     public int $product_id = 0;
     public string $movement_type = 'all';

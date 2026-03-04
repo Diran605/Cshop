@@ -77,6 +77,7 @@ class ReportsStockIndex extends Component
         }
 
         $products = Product::query()
+            ->with(['unitType'])
             ->when($this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
             ->orderBy('name')
             ->get();
@@ -109,7 +110,7 @@ class ReportsStockIndex extends Component
             ]);
 
         $inventoryQuery = ProductStock::query()
-            ->with(['product'])
+            ->with(['product.unitType'])
             ->when($this->branch_id > 0, fn ($q) => $q->where('product_stocks.branch_id', $this->branch_id))
             ->join('products', 'products.id', '=', 'product_stocks.product_id')
             ->when(trim($this->search) !== '', function ($q) {
@@ -156,6 +157,7 @@ class ReportsStockIndex extends Component
             $pid = (int) $row->product_id;
             $movementRows[] = [
                 'product_name' => (string) ($row->product?->name ?? '-'),
+                'unit_type_name' => $row->product?->unitType?->name,
                 'current_stock' => (int) ($row->current_stock ?? 0),
                 'minimum_stock' => (int) ($row->minimum_stock ?? 0),
                 'stock_in_qty' => (int) ($stockInQtyByProduct[$pid]->stock_in_qty ?? 0),

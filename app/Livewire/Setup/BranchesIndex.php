@@ -4,9 +4,12 @@ namespace App\Livewire\Setup;
 
 use App\Models\Branch;
 use Livewire\Component;
+use Livewire\WithPagination;
 
 class BranchesIndex extends Component
 {
+    use WithPagination;
+
     public int $editingId = 0;
     public string $name = '';
     public ?string $code = null;
@@ -138,7 +141,7 @@ class BranchesIndex extends Component
                     });
                 })
                 ->orderBy('name')
-                ->get(),
+                ->paginate(20),
         ]);
     }
 }

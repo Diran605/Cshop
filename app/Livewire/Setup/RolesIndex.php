@@ -33,6 +33,82 @@ class RolesIndex extends Component
 
     public $permissions = [];
 
+    public string $permission_search = '';
+
+    public function grantAllPermissions(): void
+    {
+        $this->selected_permissions = collect($this->permissions)
+            ->pluck('name')
+            ->map(fn ($n) => (string) $n)
+            ->values()
+            ->all();
+    }
+
+    public function revokeAllPermissions(): void
+    {
+        $this->selected_permissions = [];
+    }
+
+    public function toggleAllForModule(string $groupKey): void
+    {
+        $groups = $this->grouped_permissions;
+        $group = $groups[$groupKey] ?? null;
+        if (! $group || empty($group['permissions'])) {
+            return;
+        }
+
+        $modulePermNames = collect($group['permissions'])->pluck('name')->map(fn ($n) => (string) $n)->values()->all();
+        $selected = collect($this->selected_permissions);
+
+        $allSelected = collect($modulePermNames)->every(fn ($p) => $selected->contains($p));
+
+        if ($allSelected) {
+            // Remove all permissions for this module
+            $this->selected_permissions = $selected->filter(fn ($p) => ! in_array($p, $modulePermNames))->values()->all();
+        } else {
+            // Add all permissions for this module
+            $this->selected_permissions = $selected->merge($modulePermNames)->unique()->values()->all();
+        }
+    }
+
+    public function addPermission(string $permission): void
+    {
+        if (! in_array($permission, $this->selected_permissions)) {
+            $this->selected_permissions[] = $permission;
+        }
+    }
+
+    public function removePermission(string $permission): void
+    {
+        $this->selected_permissions = collect($this->selected_permissions)
+            ->filter(fn ($p) => $p !== $permission)
+            ->values()
+            ->all();
+    }
+
+    public function togglePermission(string $permission): void
+    {
+        if (in_array($permission, $this->selected_permissions)) {
+            $this->selected_permissions = collect($this->selected_permissions)
+                ->filter(fn ($p) => $p !== $permission)
+                ->values()
+                ->all();
+        } else {
+            $this->selected_permissions[] = $permission;
+        }
+    }
+
+    public function getPermissionStatsProperty(): array
+    {
+        $total = count($this->permissions);
+        $selected = count($this->selected_permissions);
+        return [
+            'total' => $total,
+            'selected' => $selected,
+            'percentage' => $total > 0 ? round(($selected / $total) * 100) : 0,
+        ];
+    }
+
     public function toggleRolePermissions(int $roleId): void
     {
         if ($this->expanded_role_id === $roleId) {
@@ -82,6 +158,56 @@ class RolesIndex extends Component
                 }
 
                 $groups[$groupKey]['permissions'][] = $perm;
+            }
+        }
+
+        return $groups;
+    }
+
+    public function getGroupedPermissionsWithStatsProperty(): array
+    {
+        $groups = $this->grouped_permissions;
+        $selected = collect($this->selected_permissions);
+
+        foreach ($groups as $key => &$group) {
+            $permCount = count($group['permissions']);
+            $selectedCount = collect($group['permissions'])
+                ->filter(fn ($p) => $selected->contains((string) $p->name))
+                ->count();
+
+            $group['total'] = $permCount;
+            $group['selected'] = $selectedCount;
+            $group['percentage'] = $permCount > 0 ? round(($selectedCount / $permCount) * 100) : 0;
+            $group['all_selected'] = $permCount > 0 && $selectedCount === $permCount;
+        }
+
+        return $groups;
+    }
+
+    public function getFilteredPermissionsProperty(): array
+    {
+        $search = trim(strtolower($this->permission_search));
+        
+        if ($search === '') {
+            return $this->grouped_permissions_with_stats;
+        }
+
+        $groups = [];
+        foreach ($this->grouped_permissions_with_stats as $groupKey => $group) {
+            $filteredPerms = collect($group['permissions'])
+                ->filter(fn ($p) => str_contains(strtolower($p->name), $search))
+                ->values();
+
+            if ($filteredPerms->count() > 0) {
+                $groups[$groupKey] = $group;
+                $groups[$groupKey]['permissions'] = $filteredPerms->all();
+                // Recalculate stats for filtered set
+                $selected = collect($this->selected_permissions);
+                $selectedCount = $filteredPerms->filter(fn ($p) => $selected->contains((string) $p->name))->count();
+                $groups[$groupKey]['total'] = $filteredPerms->count();
+                $groups[$groupKey]['selected'] = $selectedCount;
+                $groups[$groupKey]['percentage'] = $filteredPerms->count() > 0 ? round(($selectedCount / $filteredPerms->count()) * 100) : 0;
+                $groups[$groupKey]['all_selected'] = $filteredPerms->count() > 0 && $selectedCount === $filteredPerms->count();
             }
         }
 
@@ -241,6 +367,7 @@ class RolesIndex extends Component
             'branches' => $branches,
             'roles' => $roles,
             'permissions' => $this->permissions,
+            'permission_stats' => $this->permission_stats,
         ]);
     }
 }

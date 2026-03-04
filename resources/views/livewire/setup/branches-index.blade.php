@@ -111,6 +111,15 @@
                             </tbody>
                         </table>
                     </div>
+
+                    @if ($branches->hasPages())
+                        <div class="mt-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+                            <div class="text-sm text-slate-600">
+                                {{ __('Showing') }} {{ $branches->firstItem() }} {{ __('to') }} {{ $branches->lastItem() }} {{ __('of') }} {{ $branches->total() }} {{ __('results') }}
+                            </div>
+                            {{ $branches->links('pagination::tailwind') }}
+                        </div>
+                    @endif
                 </div>
             </div>
         </div>

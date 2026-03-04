@@ -5,9 +5,12 @@ namespace App\Livewire\Setup;
 use App\Models\Branch;
 use App\Models\BulkUnit;
 use Livewire\Component;
+use Livewire\WithPagination;
 
 class BulkUnitsIndex extends Component
 {
+    use WithPagination;
+
     public int $branch_id = 0;
     public string $search = '';
     public string $name = '';
@@ -193,7 +196,7 @@ class BulkUnitsIndex extends Component
                 });
             })
             ->orderBy('name')
-            ->get();
+            ->paginate(20);
 
         return view('livewire.setup.bulk-units-index', [
             'bulkUnits' => $bulkUnits,

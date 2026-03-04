@@ -3,16 +3,16 @@
         <div class="mb-6">
             <h2 class="ui-page-title">{{ __('Sales') }}</h2>
             <div class="ui-page-subtitle">{{ __('Record sales and manage existing receipts.') }}</div>
-            <div class="mt-4 flex items-center gap-3">
-                <a href="{{ route('sales.download-template') }}" class="ui-btn-secondary">
+            <div class="mt-4 flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                <a href="{{ route('sales.download-template') }}" class="ui-btn-secondary w-full sm:w-auto text-center">
                     {{ __('Download Template') }}
                 </a>
-                <label class="ui-btn-secondary cursor-pointer">
+                <label class="ui-btn-secondary cursor-pointer w-full sm:w-auto text-center">
                     {{ __('Import Excel') }}
                     <input type="file" wire:model="excel_file" accept=".xlsx,.xls" class="hidden" />
                 </label>
                 @if ($excel_file)
-                    <button type="button" wire:click="importExcel" class="ui-btn-primary">
+                    <button type="button" wire:click="importExcel" class="ui-btn-primary w-full sm:w-auto">
                         {{ __('Upload') }}
                     </button>
                 @endif
@@ -41,7 +41,7 @@
             @if ($mode === 'add')
                 <div class="ui-card">
                     <div class="ui-card-body">
-                        <div class="flex items-center justify-between gap-4">
+                        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                             <h3 class="ui-card-title">{{ __('Record Sale') }}</h3>
 
                             <div class="ui-tabs" role="tablist">
@@ -81,13 +81,19 @@
                         </div>
 
                         <div>
+                            <label class="ui-label">{{ __('Sale Date') }}</label>
+                            <input type="date" wire:model.defer="sold_at_date" class="mt-1 ui-input" />
+                            @error('sold_at_date') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                        </div>
+
+                        <div>
                             <label class="ui-label">{{ __('Product') }}</label>
                             <div class="mt-1 space-y-2">
                                 <input type="text" wire:model.live.debounce.300ms="product_search" class="ui-input" placeholder="Search product..." />
-                                <select wire:model="product_id" class="ui-select">
+                                <select wire:key="products-{{ $branch_id }}-{{ md5($product_search) }}" wire:model="product_id" class="ui-select">
                                     <option value="0">{{ __('Select...') }}</option>
                                     @foreach ($products as $product)
-                                        <option value="{{ $product->id }}">{{ $product->name }}</option>
+                                        <option value="{{ $product->id }}">{{ $product->name }}@if($product->category) ({{ $product->category->name }})@endif</option>
                                     @endforeach
                                 </select>
                             </div>
@@ -189,11 +195,11 @@
                                 </div>
                             </div>
 
-                            <div class="mt-4 flex items-center justify-end gap-3">
-                                <button type="button" wire:click="clearCart" class="ui-btn-secondary">
+                            <div class="mt-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3">
+                                <button type="button" wire:click="clearCart" class="ui-btn-secondary w-full sm:w-auto">
                                     {{ __('Clear Items') }}
                                 </button>
-                                <button type="button" wire:click="finalizeSale" class="ui-btn-primary">
+                                <button type="button" wire:click="finalizeSale" class="ui-btn-primary w-full sm:w-auto">
                                     {{ __('Post Sale') }}
                                 </button>
                             </div>
@@ -208,7 +214,7 @@
 
                 <div class="ui-card">
                     <div class="ui-card-body">
-                        <div class="flex items-center justify-between">
+                        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
                             <h3 class="ui-card-title">{{ __('Sale Items') }}</h3>
                             <div class="text-sm text-slate-500">
                                 {{ __('Branch:') }}
@@ -244,6 +250,9 @@
                                                     <button type="button" wire:click="decrementItem({{ $item['product_id'] }})" class="ui-stepper-btn">-</button>
                                                     <input type="number" min="1" class="w-20 ui-input-compact" value="{{ (string) ($item['entry_mode'] ?? 'unit') === 'bulk' ? (int) ($item['bulk_quantity'] ?? 0) : (int) $item['quantity'] }}" wire:change="setQuantity({{ $item['product_id'] }}, $event.target.value)" />
                                                     <button type="button" wire:click="incrementItem({{ $item['product_id'] }})" class="ui-stepper-btn">+</button>
+                                                    @if (!empty($item['unit_type_name'] ?? null))
+                                                        <span class="text-xs text-slate-500">{{ $item['unit_type_name'] }}</span>
+                                                    @endif
                                                 </div>
                                                 @if ((string) ($item['entry_mode'] ?? 'unit') === 'bulk')
                                                     <div class="mt-1 text-xs text-slate-500">{{ __('Units:') }} {{ (int) $item['quantity'] }}</div>
@@ -411,9 +420,9 @@
         </div>
 
         @if ($show_sale_modal && $selectedSale)
-            <div class="fixed inset-0 z-50 flex items-center justify-center" data-modal-root>
+            <div class="fixed inset-0 z-50 flex items-center justify-center p-4" data-modal-root>
                 <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" wire:click="closeSaleModal" data-modal-overlay></div>
-                <div class="relative w-full max-w-3xl mx-4 ui-card">
+                <div class="relative w-full max-w-3xl ui-card">
                     <div class="p-4 border-b border-slate-200 flex items-center justify-between">
                         <div>
                             <div class="text-sm text-slate-500">{{ __('Sale Details') }}</div>
@@ -436,12 +445,12 @@
                     </div>
 
                     <div class="p-4">
-                        <div class="flex items-center justify-between">
+                        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
                             <div class="text-sm text-slate-700">
                                 {{ __('Payment:') }}
                                 <span class="font-medium">{{ strtoupper($selectedSale->payment_method) }}</span>
                             </div>
-                            <a href="{{ route('sales.print', $selectedSale->id) }}" target="_blank" class="ui-btn-secondary">
+                            <a href="{{ route('sales.print', $selectedSale->id) }}" target="_blank" class="ui-btn-secondary w-full sm:w-auto text-center">
                                 {{ __('Print Receipt') }}
                             </a>
                         </div>
@@ -516,9 +525,9 @@
         @endif
 
         @if ($show_edit_modal)
-            <div class="fixed inset-0 z-50 flex items-center justify-center" data-modal-root>
+            <div class="fixed inset-0 z-50 flex items-center justify-center p-4" data-modal-root>
                 <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" wire:click="closeEditModal" data-modal-overlay></div>
-                <div class="relative w-full max-w-5xl mx-4 ui-card">
+                <div class="relative w-full max-w-5xl ui-card">
                     <div class="p-4 border-b border-slate-200 flex items-center justify-between">
                         <div>
                             <div class="text-sm text-slate-500">{{ __('Edit Sale') }}</div>
@@ -563,7 +572,7 @@
                         </div>
 
                         <div class="flex items-center justify-end">
-                            <button type="button" wire:click="addEditProduct" class="ui-btn-primary">{{ __('Add') }}</button>
+                            <button type="button" wire:click="addEditProduct" class="ui-btn-primary w-full sm:w-auto">{{ __('Add') }}</button>
                         </div>
 
                         @error('edit_cart')
@@ -667,9 +676,9 @@
                             </div>
                         </div>
 
-                        <div class="flex items-center justify-end gap-3">
-                            <button type="button" wire:click="closeEditModal" class="ui-btn-secondary">{{ __('Cancel') }}</button>
-                            <button type="button" wire:click="saveEdit" class="ui-btn-primary">{{ __('Save Changes') }}</button>
+                        <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3">
+                            <button type="button" wire:click="closeEditModal" class="ui-btn-secondary w-full sm:w-auto">{{ __('Cancel') }}</button>
+                            <button type="button" wire:click="saveEdit" class="ui-btn-primary w-full sm:w-auto">{{ __('Save Changes') }}</button>
                         </div>
                     </div>
                 </div>
@@ -677,9 +686,9 @@
         @endif
 
         @if ($show_void_modal)
-            <div class="fixed inset-0 z-50 flex items-center justify-center" data-modal-root>
+            <div class="fixed inset-0 z-50 flex items-center justify-center p-4" data-modal-root>
                 <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" wire:click="closeVoidModal" data-modal-overlay></div>
-                <div class="relative w-full max-w-lg mx-4 ui-card">
+                <div class="relative w-full max-w-lg ui-card">
                     <div class="p-4 border-b border-slate-200 flex items-center justify-between">
                         <div>
                             <div class="text-sm text-slate-500">{{ __('Void Sale') }}</div>
@@ -695,9 +704,9 @@
                             <label class="ui-label">{{ __('Reason (optional)') }}</label>
                             <textarea wire:model.defer="void_reason" rows="2" class="mt-1 ui-input"></textarea>
                         </div>
-                        <div class="flex items-center justify-end gap-3">
-                            <button type="button" wire:click="closeVoidModal" class="ui-btn-secondary">{{ __('Cancel') }}</button>
-                            <button type="button" wire:click="confirmVoidSale" class="ui-btn-danger">{{ __('Void') }}</button>
+                        <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3">
+                            <button type="button" wire:click="closeVoidModal" class="ui-btn-secondary w-full sm:w-auto">{{ __('Cancel') }}</button>
+                            <button type="button" wire:click="confirmVoidSale" class="ui-btn-danger w-full sm:w-auto">{{ __('Void') }}</button>
                         </div>
                     </div>
                 </div>

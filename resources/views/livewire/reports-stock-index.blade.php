@@ -109,7 +109,12 @@
                                 @foreach ($movementRows as $row)
                                     <tr>
                                         <td class="font-medium text-slate-900">{{ $row['product_name'] }}</td>
-                                        <td class="text-right {{ (int) $row['current_stock'] <= (int) $row['minimum_stock'] ? 'text-red-700 font-semibold' : '' }}">{{ number_format((int) $row['current_stock']) }}</td>
+                                        <td class="text-right {{ (int) $row['current_stock'] <= (int) $row['minimum_stock'] ? 'text-red-700 font-semibold' : '' }}">
+                                            {{ number_format((int) $row['current_stock']) }}
+                                            @if (!empty($row['unit_type_name']))
+                                                <span class="text-xs text-slate-500 ml-1">{{ $row['unit_type_name'] }}</span>
+                                            @endif
+                                        </td>
                                         <td class="text-right">{{ number_format((int) $row['minimum_stock']) }}</td>
                                         <td class="text-right">{{ number_format((int) $row['stock_in_qty']) }}</td>
                                         <td class="text-right">{{ number_format((int) $row['sold_qty']) }}</td>

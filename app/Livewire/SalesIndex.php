@@ -17,10 +17,13 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Livewire\Component;
+use Livewire\WithPagination;
 use Maatwebsite\Excel\Facades\Excel;
 
 class SalesIndex extends Component
 {
+    use WithPagination;
+
     public string $mode = 'add';
 
     public string $sale_entry_type = 'group';
@@ -58,6 +61,8 @@ class SalesIndex extends Component
     public ?string $customer_name = null;
     public ?string $notes = null;
 
+    public string $sold_at_date = '';
+
     public int $selected_sale_id = 0;
 
     public bool $show_sale_modal = false;
@@ -93,6 +98,7 @@ class SalesIndex extends Component
             'amount_paid' => ['required', 'numeric', 'min:0'],
             'customer_name' => ['nullable', 'string', 'max:255'],
             'notes' => ['nullable', 'string', 'max:1000'],
+            'sold_at_date' => ['required', 'date'],
         ];
     }
 
@@ -140,6 +146,8 @@ class SalesIndex extends Component
         $this->notes = null;
         $this->selected_sale_id = 0;
 
+        $this->sold_at_date = Carbon::today()->toDateString();
+
         $this->product_search = '';
         $this->sales_search = '';
 
@@ -180,6 +188,7 @@ class SalesIndex extends Component
             $this->amount_paid = null;
             $this->customer_name = null;
             $this->notes = null;
+            $this->sold_at_date = Carbon::today()->toDateString();
             $this->entry_mode = 'unit';
             $this->entry_quantity = 1;
             $this->bulk_quantity = 1;
@@ -330,6 +339,7 @@ class SalesIndex extends Component
         $this->cart[$product->id] = [
             'product_id' => (int) $product->id,
             'name' => (string) $product->name,
+            'unit_type_name' => $product->unitType?->name,
             'unit_price' => (string) $product->selling_price,
             'quantity' => $unitsQty,
             'entry_mode' => $this->entry_mode,
@@ -515,7 +525,7 @@ class SalesIndex extends Component
                     'receipt_no' => 'SL-' . strtoupper(Str::random(10)),
                     'branch_id' => (int) $data['branch_id'],
                     'user_id' => auth()->id(),
-                    'sold_at' => now(),
+                    'sold_at' => Carbon::parse($this->sold_at_date)->startOfDay(),
                     'payment_method' => $data['payment_method'],
                     'customer_name' => ($data['customer_name'] ?? null) ?: null,
                     'sub_total' => (string) $subTotal,
@@ -857,6 +867,7 @@ class SalesIndex extends Component
         $this->edit_cart[$product->id] = [
             'product_id' => (int) $product->id,
             'name' => (string) $product->name,
+            'unit_type_name' => $product->unitType?->name,
             'unit_price' => (string) $product->selling_price,
             'quantity' => $unitsQty,
             'entry_mode' => $this->edit_entry_mode,
@@ -1453,13 +1464,18 @@ class SalesIndex extends Component
             ->when($this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
             ->when(trim($this->product_search) !== '', function ($q) {
                 $term = '%' . trim($this->product_search) . '%';
-                $q->where('name', 'like', $term);
+                $q->where(function ($qq) use ($term) {
+                    $qq->where('name', 'like', $term)
+                        ->orWhere('description', 'like', $term)
+                        ->orWhereHas('category', fn ($qc) => $qc->where('name', 'like', $term));
+                });
             })
+            ->with('category')
             ->orderBy('name')
             ->get();
 
         $editProducts = Product::query()
-            ->with(['bulkType.bulkUnit'])
+            ->with(['bulkType.bulkUnit', 'unitType'])
             ->where('status', 'active')
             ->when(($this->edit_branch_id > 0), fn ($q) => $q->where('branch_id', $this->edit_branch_id))
             ->orderBy('name')
@@ -1468,7 +1484,7 @@ class SalesIndex extends Component
         $selectedProduct = null;
         if ($this->product_id > 0) {
             $selectedProduct = Product::query()
-                ->with(['bulkType.bulkUnit'])
+                ->with(['bulkType.bulkUnit', 'unitType'])
                 ->when($this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
                 ->find($this->product_id);
         }

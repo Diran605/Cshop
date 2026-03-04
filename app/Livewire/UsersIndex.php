@@ -10,9 +10,12 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules;
 use Livewire\Component;
+use Livewire\WithPagination;
 
 class UsersIndex extends Component
 {
+    use WithPagination;
+
     public int $editingId = 0;
 
     public string $name = '';
@@ -223,7 +226,7 @@ class UsersIndex extends Component
                 });
             })
             ->orderBy('name')
-            ->get();
+            ->paginate(20);
 
         return view('livewire.users-index', [
             'branches' => $branches,

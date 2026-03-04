@@ -11,6 +11,7 @@ use App\Models\SalesItem;
 use App\Models\StockInItem;
 use App\Models\StockInReceipt;
 use App\Models\StockMovement;
+use App\Models\UnitType;
 use App\Support\ActivityLogger;
 use App\Exports\ProductsTemplateExport;
 use App\Imports\ProductsImport;
@@ -19,10 +20,13 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Livewire\Component;
+use Livewire\WithPagination;
 use Maatwebsite\Excel\Facades\Excel;
 
 class ProductsIndex extends Component
 {
+    use WithPagination;
+
     public string $mode = 'manage';
 
     public int $branch_id = 0;
@@ -35,12 +39,15 @@ class ProductsIndex extends Component
     public string $selling_price = '0.00';
     public bool $bulk_enabled = false;
     public ?int $bulk_type_id = null;
+    public ?int $unit_type_id = null;
     public string $status = 'active';
     public ?int $editingId = null;
 
     public int $opening_quantity = 0;
     public ?string $opening_cost_price = null;
     public ?string $opening_expiry_date = null;
+
+    public string $product_date = '';
 
     public bool $show_edit_modal = false;
 
@@ -61,6 +68,7 @@ class ProductsIndex extends Component
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'category_id' => ['nullable', 'integer', 'min:1', Rule::exists('categories', 'id')->where('branch_id', $this->branch_id)],
+            'unit_type_id' => ['nullable', 'integer', 'min:1', Rule::exists('unit_types', 'id')->where('branch_id', $this->branch_id)],
             'cost_price' => ['nullable', 'numeric', 'min:0'],
             'min_selling_price' => ['nullable', 'numeric', 'min:0', 'lte:selling_price'],
             'selling_price' => ['required', 'numeric', 'min:0'],
@@ -70,6 +78,7 @@ class ProductsIndex extends Component
             'opening_quantity' => ['nullable', 'integer', 'min:0'],
             'opening_cost_price' => ['nullable', 'numeric', 'min:0'],
             'opening_expiry_date' => ['nullable', 'date'],
+            'product_date' => ['required', 'date'],
         ];
     }
 
@@ -83,10 +92,12 @@ class ProductsIndex extends Component
         $this->auth_user_id = (int) ($user?->id ?? 0);
 
         if (! $this->isSuperAdmin) {
-            $this->branch_id = (int) ($user?->branch_id ?? 0);
+            $this->branch_id = (int) ($user->branch_id ?? 0);
         } else {
             $this->branch_id = (int) (Branch::query()->where('is_active', true)->orderBy('name')->value('id') ?? 0);
         }
+
+        $this->product_date = Carbon::today()->toDateString();
     }
 
     protected function syncAuthContext(): void
@@ -118,7 +129,11 @@ class ProductsIndex extends Component
         $data['branch_id'] = (int) $this->branch_id;
 
         $productData = $data;
-        unset($productData['opening_quantity'], $productData['opening_cost_price'], $productData['opening_expiry_date']);
+        unset($productData['opening_quantity'], $productData['opening_cost_price'], $productData['opening_expiry_date'], $productData['product_date']);
+
+        // Set created_at from product_date
+        $productData['created_at'] = Carbon::parse($this->product_date)->startOfDay();
+        $productData['updated_at'] = now();
 
         if (! $data['bulk_enabled']) {
             $data['bulk_type_id'] = null;
@@ -223,8 +238,8 @@ class ProductsIndex extends Component
                 $after,
                 'Product updated',
                 [
-                    'before' => $before ? $before->only(['name', 'category_id', 'cost_price', 'min_selling_price', 'selling_price', 'bulk_enabled', 'bulk_type_id', 'status', 'branch_id']) : null,
-                    'after' => $after ? $after->only(['name', 'category_id', 'cost_price', 'min_selling_price', 'selling_price', 'bulk_enabled', 'bulk_type_id', 'status', 'branch_id']) : null,
+                    'before' => $before ? $before->only(['name', 'category_id', 'unit_type_id', 'cost_price', 'min_selling_price', 'selling_price', 'bulk_enabled', 'bulk_type_id', 'status', 'branch_id']) : null,
+                    'after' => $after ? $after->only(['name', 'category_id', 'unit_type_id', 'cost_price', 'min_selling_price', 'selling_price', 'bulk_enabled', 'bulk_type_id', 'status', 'branch_id']) : null,
                 ],
                 $after?->branch_id ? (int) $after->branch_id : null
             );
@@ -248,6 +263,7 @@ class ProductsIndex extends Component
                     [
                         'name' => $product->name,
                         'branch_id' => $product->branch_id,
+                        'unit_type_id' => $product->unit_type_id,
                         'selling_price' => $product->selling_price,
                         'cost_price' => $product->cost_price,
                         'min_selling_price' => $product->min_selling_price,
@@ -284,7 +300,7 @@ class ProductsIndex extends Component
                         'receipt_no' => 'OS-' . strtoupper(Str::random(10)),
                         'branch_id' => (int) $product->branch_id,
                         'user_id' => auth()->id(),
-                        'received_at' => now(),
+                        'received_at' => Carbon::parse($this->product_date)->startOfDay(),
                         'notes' => 'OPENING STOCK',
                         'total_quantity' => $openingQty,
                         'total_cost' => $openingCost !== null ? number_format(((float) $openingCost) * $openingQty, 2, '.', '') : null,
@@ -346,6 +362,7 @@ class ProductsIndex extends Component
         $this->name = $product->name;
         $this->description = $product->description;
         $this->category_id = $product->category_id ? (int) $product->category_id : null;
+        $this->unit_type_id = $product->unit_type_id ? (int) $product->unit_type_id : null;
         $this->cost_price = $product->cost_price !== null ? (string) $product->cost_price : null;
         $this->min_selling_price = $product->min_selling_price !== null ? (string) $product->min_selling_price : null;
         $this->selling_price = (string) $product->selling_price;
@@ -501,6 +518,7 @@ class ProductsIndex extends Component
             'name',
             'description',
             'category_id',
+            'unit_type_id',
             'cost_price',
             'min_selling_price',
             'selling_price',
@@ -564,6 +582,12 @@ class ProductsIndex extends Component
             ->orderBy('name')
             ->get();
 
+        $unitTypes = UnitType::query()
+            ->when($this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
+
         $products = collect();
         if ($this->mode !== 'add') {
             $expiredQtyMap = [];
@@ -622,6 +646,7 @@ class ProductsIndex extends Component
             'products' => $products,
             'categories' => $categories,
             'bulkTypes' => $bulkTypes,
+            'unitTypes' => $unitTypes,
             'branches' => $branches,
             'isSuperAdmin' => $this->isSuperAdmin,
             'expiredQtyMap' => $expiredQtyMap ?? [],

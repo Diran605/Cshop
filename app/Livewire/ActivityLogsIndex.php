@@ -7,9 +7,12 @@ use App\Models\Branch;
 use App\Models\User;
 use Carbon\Carbon;
 use Livewire\Component;
+use Livewire\WithPagination;
 
 class ActivityLogsIndex extends Component
 {
+    use WithPagination;
+
     public int $branch_id = 0;
     public int $user_id = 0;
     public string $action = '';
@@ -119,8 +122,7 @@ class ActivityLogsIndex extends Component
                 });
             })
             ->orderByDesc('created_at')
-            ->limit(300)
-            ->get();
+            ->paginate(20);
 
         return view('livewire.activity-logs-index', [
             'branches' => $branches,

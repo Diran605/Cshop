@@ -52,8 +52,8 @@
                     </div>
                 </div>
 
-                <div class="mt-4 flex items-center justify-end gap-3">
-                    <button type="button" wire:click="save" class="ui-btn-primary">
+                <div class="mt-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3">
+                    <button type="button" wire:click="save" class="ui-btn-primary w-full sm:w-auto">
                         {{ __('Save') }}
                     </button>
                 </div>
@@ -234,9 +234,9 @@
                         </div>
                     </div>
                 </div>
-                <div class="mt-6 flex items-center justify-end gap-3">
-                    <button type="button" wire:click="closeEditModal" class="ui-btn-secondary" data-modal-close>{{ __('Cancel') }}</button>
-                    <button type="button" wire:click="saveEdit" class="ui-btn-primary">{{ __('Save') }}</button>
+                <div class="mt-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3">
+                    <button type="button" wire:click="closeEditModal" class="ui-btn-secondary w-full sm:w-auto" data-modal-close>{{ __('Cancel') }}</button>
+                    <button type="button" wire:click="saveEdit" class="ui-btn-primary w-full sm:w-auto">{{ __('Save') }}</button>
                 </div>
             </div>
         </div>
@@ -245,9 +245,9 @@
 
 <!-- Delete Modal -->
 @if ($show_delete_modal)
-    <div class="fixed inset-0 z-50 flex items-center justify-center" data-modal-root>
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-4" data-modal-root>
         <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" wire:click="closeDeleteModal" data-modal-overlay></div>
-        <div class="relative w-full max-w-lg mx-4 ui-card">
+        <div class="relative w-full max-w-lg ui-card">
             <div class="p-4 border-b border-slate-200">
                 <div class="text-sm text-slate-500">{{ __('Confirm Delete') }}</div>
                 <div class="mt-1 font-semibold text-slate-900">{{ __('Remove All Roles') }}</div>
@@ -257,9 +257,9 @@
                     {{ __('Are you sure you want to remove all roles from this user?') }}
                     <span class="font-semibold">{{ $this->deleteUser?->name ?? '-' }}</span>
                 </div>
-                <div class="mt-4 flex items-center justify-end gap-3">
-                    <button type="button" wire:click="closeDeleteModal" class="ui-btn-secondary" data-modal-close>{{ __('Cancel') }}</button>
-                    <button type="button" wire:click="confirmDelete" class="ui-btn-danger">{{ __('Remove Roles') }}</button>
+                <div class="mt-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3">
+                    <button type="button" wire:click="closeDeleteModal" class="ui-btn-secondary w-full sm:w-auto" data-modal-close>{{ __('Cancel') }}</button>
+                    <button type="button" wire:click="confirmDelete" class="ui-btn-danger w-full sm:w-auto">{{ __('Remove Roles') }}</button>
                 </div>
             </div>
         </div>

@@ -5,9 +5,12 @@ namespace App\Livewire\Setup;
 use App\Models\Branch;
 use App\Models\Category;
 use Livewire\Component;
+use Livewire\WithPagination;
 
 class CategoriesIndex extends Component
 {
+    use WithPagination;
+
     public int $branch_id = 0;
     public string $search = '';
     public string $name = '';
@@ -193,7 +196,7 @@ class CategoriesIndex extends Component
                 });
             })
             ->orderBy('name')
-            ->get();
+            ->paginate(20);
 
         return view('livewire.setup.categories-index', [
             'categories' => $categories,

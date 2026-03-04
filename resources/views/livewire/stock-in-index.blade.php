@@ -3,16 +3,16 @@
         <div class="mb-6">
             <h2 class="ui-page-title">{{ __('Stock In') }}</h2>
             <div class="ui-page-subtitle">{{ __('Receive inventory and review stock in records.') }}</div>
-            <div class="mt-4 flex items-center gap-3">
-                <a href="{{ route('stock_in.download-template') }}" class="ui-btn-secondary">
+            <div class="mt-4 flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                <a href="{{ route('stock_in.download-template') }}" class="ui-btn-secondary w-full sm:w-auto text-center">
                     {{ __('Download Template') }}
                 </a>
-                <label class="ui-btn-secondary cursor-pointer">
+                <label class="ui-btn-secondary cursor-pointer w-full sm:w-auto text-center">
                     {{ __('Import Excel') }}
                     <input type="file" wire:model="excel_file" accept=".xlsx,.xls" class="hidden" />
                 </label>
                 @if ($excel_file)
-                    <button type="button" wire:click="importExcel" class="ui-btn-primary">
+                    <button type="button" wire:click="importExcel" class="ui-btn-primary w-full sm:w-auto">
                         {{ __('Upload') }}
                     </button>
                 @endif
@@ -62,13 +62,19 @@
                             </div>
 
                             <div>
+                                <label class="ui-label">{{ __('Received Date') }}</label>
+                                <input type="date" wire:model.defer="received_at_date" class="mt-1 ui-input" />
+                                @error('received_at_date') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                            </div>
+
+                            <div>
                                 <label class="ui-label">{{ __('Product') }}</label>
                                 <div class="mt-1 space-y-2">
                                     <input type="text" wire:model.live.debounce.300ms="product_search" class="ui-input" placeholder="Search product..." />
-                                    <select wire:model="product_id" @disabled($isSuperAdmin && $branch_id <= 0) class="ui-select">
+                                    <select wire:key="products-{{ $branch_id }}-{{ md5($product_search) }}" wire:model="product_id" @disabled($isSuperAdmin && $branch_id <= 0) class="ui-select">
                                         <option value="0">{{ __('Select...') }}</option>
                                         @foreach ($products as $product)
-                                            <option value="{{ $product->id }}">{{ $product->name }}</option>
+                                            <option value="{{ $product->id }}">{{ $product->name }}@if($product->category) ({{ $product->category->name }})@endif</option>
                                         @endforeach
                                     </select>
                                 </div>
@@ -145,11 +151,11 @@
                                 @error('expiry_date') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
                             </div>
 
-                            <div class="flex flex-wrap items-center justify-end gap-3">
-                                <button type="button" wire:click="addDraftLine" class="ui-btn-secondary">
+                            <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3">
+                                <button type="button" wire:click="addDraftLine" class="ui-btn-secondary w-full sm:w-auto">
                                     {{ __('Add Line') }}
                                 </button>
-                                <button type="button" wire:click="save" class="ui-btn-primary">
+                                <button type="button" wire:click="save" class="ui-btn-primary w-full sm:w-auto">
                                     {{ __('Post Receipt') }}
                                 </button>
                             </div>
@@ -202,6 +208,9 @@
                                                             <button type="button" wire:click="decrementDraftLine({{ (int) $line['key'] }})" class="ui-stepper-btn">-</button>
                                                             <input type="number" min="1" class="w-24 ui-input-compact" value="{{ $displayQty }}" wire:change="setDraftLineQuantity({{ (int) $line['key'] }}, $event.target.value)" />
                                                             <button type="button" wire:click="incrementDraftLine({{ (int) $line['key'] }})" class="ui-stepper-btn">+</button>
+                                                            @if (!empty($line['unit_type_name'] ?? null))
+                                                                <span class="text-xs text-slate-500">{{ $line['unit_type_name'] }}</span>
+                                                            @endif
                                                         </div>
                                                     </td>
                                                     <td>
@@ -614,7 +623,7 @@
                         </div>
 
                         <div class="flex items-center justify-end">
-                            <button type="button" wire:click="addEditProduct" class="ui-btn-primary">{{ __('Add') }}</button>
+                            <button type="button" wire:click="addEditProduct" class="ui-btn-primary w-full sm:w-auto">{{ __('Add') }}</button>
                         </div>
 
                         @error('edit_cart')
@@ -704,9 +713,9 @@
                             </div>
                         </div>
 
-                        <div class="flex items-center justify-end gap-3">
-                            <button type="button" wire:click="closeEditModal" class="ui-btn-secondary">{{ __('Cancel') }}</button>
-                            <button type="button" wire:click="saveEdit" class="ui-btn-primary">{{ __('Save Changes') }}</button>
+                        <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3">
+                            <button type="button" wire:click="closeEditModal" class="ui-btn-secondary w-full sm:w-auto">{{ __('Cancel') }}</button>
+                            <button type="button" wire:click="saveEdit" class="ui-btn-primary w-full sm:w-auto">{{ __('Save Changes') }}</button>
                         </div>
                     </div>
                 </div>
@@ -714,9 +723,9 @@
         @endif
 
         @if ($show_void_modal)
-            <div class="fixed inset-0 z-50 flex items-center justify-center" data-modal-root>
+            <div class="fixed inset-0 z-50 flex items-center justify-center p-4" data-modal-root>
                 <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" wire:click="closeVoidModal" data-modal-overlay></div>
-                <div class="relative w-full max-w-lg mx-4 ui-card">
+                <div class="relative w-full max-w-lg ui-card">
                     <div class="p-4 border-b border-slate-200 flex items-center justify-between">
                         <div>
                             <div class="text-sm text-slate-500">{{ __('Void Stock In Receipt') }}</div>
@@ -736,9 +745,9 @@
                             @error('void_reason') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
                         </div>
 
-                        <div class="flex items-center justify-end gap-3">
-                            <button type="button" wire:click="closeVoidModal" class="ui-btn-secondary">{{ __('Cancel') }}</button>
-                            <button type="button" wire:click="confirmVoidReceipt" class="ui-btn-danger">{{ __('Void') }}</button>
+                        <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3">
+                            <button type="button" wire:click="closeVoidModal" class="ui-btn-secondary w-full sm:w-auto">{{ __('Cancel') }}</button>
+                            <button type="button" wire:click="confirmVoidReceipt" class="ui-btn-danger w-full sm:w-auto">{{ __('Void') }}</button>
                         </div>
                     </div>
                 </div>

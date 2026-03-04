@@ -7,9 +7,12 @@ use App\Models\BulkType;
 use App\Models\BulkUnit;
 use Illuminate\Validation\Rule;
 use Livewire\Component;
+use Livewire\WithPagination;
 
 class BulkTypesIndex extends Component
 {
+    use WithPagination;
+
     public int $branch_id = 0;
     public string $search = '';
     public string $name = '';
@@ -229,7 +232,7 @@ class BulkTypesIndex extends Component
                 });
             })
             ->orderBy('name')
-            ->get();
+            ->paginate(20);
 
         return view('livewire.setup.bulk-types-index', [
             'branches' => $branches,

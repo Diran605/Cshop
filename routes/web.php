@@ -23,6 +23,7 @@ use App\Livewire\Setup\BulkTypesIndex;
 use App\Livewire\Setup\BulkUnitsIndex;
 use App\Livewire\Setup\CategoriesIndex;
 use App\Livewire\Setup\RolesIndex;
+use App\Livewire\Setup\UnitTypesIndex;
 use App\Livewire\Setup\UserRolesIndex;
 use App\Support\Alerts\AlertGenerator;
 use Carbon\Carbon;
@@ -139,6 +140,7 @@ Route::middleware('auth')->group(function () {
     });
 
     Route::get('/setup/categories', CategoriesIndex::class)->name('setup.categories');
+    Route::get('/setup/unit-types', UnitTypesIndex::class)->name('setup.unit_types');
     Route::get('/setup/bulk-units', BulkUnitsIndex::class)->name('setup.bulk_units');
     Route::get('/setup/bulk-types', BulkTypesIndex::class)->name('setup.bulk_types');
 
