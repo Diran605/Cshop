@@ -27,6 +27,9 @@ use App\Livewire\Setup\UnitTypesIndex;
 use App\Livewire\BranchDashboard;
 use App\Livewire\NotificationsIndex;
 use App\Livewire\Setup\UserRolesIndex;
+use App\Livewire\Clearance\ClearanceManager;
+use App\Livewire\Clearance\ClearanceDiscountRules;
+use App\Livewire\Clearance\ClearanceReports;
 use App\Support\Alerts\AlertGenerator;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -198,6 +201,12 @@ Route::middleware('auth')->group(function () {
         ->name('sales.index');
 
     Route::get('/notifications', NotificationsIndex::class)->name('notifications.index');
+
+    // Clearance Module
+    Route::get('/clearance', ClearanceManager::class)->middleware('can:clearance.view')->name('clearance.index');
+    Route::get('/clearance/rules', ClearanceDiscountRules::class)->middleware('can:clearance.rules.view')->name('clearance.rules');
+    Route::get('/clearance/reports', ClearanceReports::class)->middleware('can:clearance.reports')->name('clearance.reports');
+
     Route::get('/sales/download-template', [SalesIndex::class, 'downloadTemplate'])->name('sales.download-template');
     Route::get('/sales/print', SalesReceiptsBatchPrintController::class)->name('sales.print_batch');
     Route::get('/sales/{sale}/print', SalesReceiptPrintController::class)->name('sales.print');

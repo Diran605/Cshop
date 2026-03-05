@@ -3,6 +3,7 @@
 namespace App\Livewire;
 
 use App\Models\Branch;
+use App\Models\ClearanceItem;
 use App\Models\Product;
 use App\Models\ProductStock;
 use App\Models\SalesItem;
@@ -347,7 +348,26 @@ class SalesIndex extends Component
             'units_per_bulk' => $unitsPerBulk,
             'bulk_type_id' => $bulkTypeId,
             'min_selling_price' => $product->min_selling_price !== null ? (string) $product->min_selling_price : null,
+            'is_clearance' => false,
+            'clearance_price' => null,
+            'original_price' => null,
         ];
+
+        // Check for active clearance item and apply clearance price
+        $clearanceItem = ClearanceItem::where('branch_id', $this->branch_id)
+            ->where('product_id', $product->id)
+            ->where('status', ClearanceItem::STATUS_ACTIONED)
+            ->where('action_type', ClearanceItem::ACTION_DISCOUNT)
+            ->where('quantity', '>', 0)
+            ->first();
+
+        if ($clearanceItem && $clearanceItem->clearance_price) {
+            $this->cart[$product->id]['is_clearance'] = true;
+            $this->cart[$product->id]['clearance_price'] = (string) $clearanceItem->clearance_price;
+            $this->cart[$product->id]['original_price'] = (string) $clearanceItem->original_price;
+            $this->cart[$product->id]['unit_price'] = (string) $clearanceItem->clearance_price;
+            $this->cart[$product->id]['clearance_item_id'] = $clearanceItem->id;
+        }
 
         $this->enforceSingleMode();
     }
@@ -659,6 +679,35 @@ class SalesIndex extends Component
                         'is_low_profit' => (bool) $isLowProfit,
                         'is_loss' => (bool) $isLoss,
                     ]);
+
+                    // Track clearance sale if applicable
+                    if (!empty($item['is_clearance']) && !empty($item['clearance_item_id'])) {
+                        \App\Models\ClearanceSale::create([
+                            'branch_id' => (int) $data['branch_id'],
+                            'sales_item_id' => $salesItem->id,
+                            'clearance_item_id' => $item['clearance_item_id'],
+                            'original_price' => (float) $item['original_price'],
+                            'clearance_price' => (float) $item['clearance_price'],
+                            'discount_amount' => (float) $item['original_price'] - (float) $item['clearance_price'],
+                            'quantity' => (int) $item['quantity'],
+                        ]);
+
+                        // Decrease clearance item quantity
+                        ClearanceItem::where('id', $item['clearance_item_id'])
+                            ->decrement('quantity', (int) $item['quantity']);
+
+                        // Create clearance action record
+                        \App\Models\ClearanceAction::create([
+                            'branch_id' => (int) $data['branch_id'],
+                            'clearance_item_id' => $item['clearance_item_id'],
+                            'user_id' => auth()->id(),
+                            'action_type' => 'sold',
+                            'quantity' => (int) $item['quantity'],
+                            'original_value' => (float) $item['original_price'] * (int) $item['quantity'],
+                            'recovered_value' => (float) $item['clearance_price'] * (int) $item['quantity'],
+                            'loss_value' => ((float) $item['original_price'] - (float) $item['clearance_price']) * (int) $item['quantity'],
+                        ]);
+                    }
 
                     foreach ($allocations as $alloc) {
                         DB::table('sales_item_allocations')->insert([

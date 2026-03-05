@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use App\Models\ClearanceItem;
 use App\Models\Branch;
 use App\Models\Product;
 use App\Models\ProductStock;
@@ -18,6 +19,20 @@ class BranchDashboard extends Component
     public function mount(): void
     {
         $this->branchId = (int) (auth()->user()?->branch_id ?? 0);
+    }
+
+    // ========== CLEARANCE ==========
+
+    public function getClearanceCountProperty(): int
+    {
+        return ClearanceItem::where('branch_id', $this->branchId)
+            ->where('status', '!=', 'actioned')
+            ->count();
+    }
+
+    public function getHasClearancePermissionProperty(): bool
+    {
+        return auth()->user()?->can('clearance.view') ?? false;
     }
 
     // ========== TODAY'S KEY METRICS ==========

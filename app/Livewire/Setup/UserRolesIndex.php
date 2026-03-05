@@ -4,6 +4,7 @@ namespace App\Livewire\Setup;
 
 use App\Models\Branch;
 use App\Models\User;
+use App\Support\ActivityLogger;
 use Illuminate\Validation\Rule;
 use Livewire\Component;
 use Spatie\Permission\Models\Role;
@@ -94,6 +95,14 @@ class UserRolesIndex extends Component
 
         $user->syncRoles($validRoles);
 
+        ActivityLogger::log(
+            'user_roles_assigned',
+            $user,
+            "Assigned roles to {$user->name}: " . implode(', ', $validRoles),
+            ['roles' => $validRoles],
+            $branchId
+        );
+
         setPermissionsTeamId(null);
 
         session()->flash('status', 'User roles updated successfully.');
@@ -102,7 +111,13 @@ class UserRolesIndex extends Component
     public function openViewModal(int $userId): void
     {
         $this->view_user_id = $userId;
-        $this->viewUser = User::with(['branch', 'roles'])->find($userId);
+        $user = User::query()->find($userId);
+        if ($user) {
+            $branchId = (int) ($user->branch_id ?? 0);
+            setPermissionsTeamId($branchId);
+            $this->viewUser = User::with(['branch', 'roles'])->find($userId);
+            setPermissionsTeamId(null);
+        }
         $this->show_view_modal = true;
     }
 
@@ -123,6 +138,7 @@ class UserRolesIndex extends Component
         setPermissionsTeamId($branchId);
         $this->editUser = $user;
         $this->editRoles = Role::query()->where('branch_id', $branchId)->orderBy('name')->get();
+        $this->edit_selected_roles = $user->roles()->pluck('name')->values()->all();
         setPermissionsTeamId(null);
 
         $this->show_edit_modal = true;
@@ -155,6 +171,15 @@ class UserRolesIndex extends Component
             ->all();
 
         $user->syncRoles($validRoles);
+
+        ActivityLogger::log(
+            'user_roles_updated',
+            $user,
+            "Updated roles for {$user->name}: " . implode(', ', $validRoles),
+            ['roles' => $validRoles],
+            $branchId
+        );
+
         setPermissionsTeamId(null);
 
         session()->flash('status', 'Roles updated successfully.');
@@ -186,7 +211,18 @@ class UserRolesIndex extends Component
         $user = User::query()->findOrFail($this->delete_user_id);
         $branchId = (int) ($user->branch_id ?? 0);
         setPermissionsTeamId($branchId);
-        $user->roles()->detach();
+
+        $oldRoles = $user->roles()->pluck('name')->toArray();
+        $user->syncRoles([]);
+
+        ActivityLogger::log(
+            'user_roles_removed',
+            $user,
+            "Removed all roles from {$user->name}",
+            ['removed_roles' => $oldRoles],
+            $branchId
+        );
+
         setPermissionsTeamId(null);
 
         session()->flash('status', 'Roles removed successfully.');
@@ -277,6 +313,11 @@ class UserRolesIndex extends Component
 
             foreach ($branchUsers as $user) {
                 $userRoles = $user->roles->pluck('name')->toArray();
+
+                // Skip users with no roles
+                if (empty($userRoles)) {
+                    continue;
+                }
 
                 if ($this->filter_role !== '' && !in_array($this->filter_role, $userRoles)) {
                     continue;

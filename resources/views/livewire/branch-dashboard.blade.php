@@ -163,7 +163,34 @@
         </div>
 
         {{-- ALERTS & NOTIFICATIONS --}}
-        <div class="mb-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="mb-6 grid grid-cols-1 {{ $this->hasClearancePermission ? 'lg:grid-cols-4' : 'lg:grid-cols-3' }} gap-6">
+            @if ($this->hasClearancePermission)
+                {{-- Clearance Alerts --}}
+                <div class="ui-card bg-orange-50 border-orange-200">
+                    <div class="ui-card-body">
+                        <div class="flex items-center gap-2 mb-3">
+                            <div class="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
+                                <svg class="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                                </svg>
+                            </div>
+                            <h3 class="text-sm font-semibold text-orange-900">{{ __('Clearance Items') }}</h3>
+                        </div>
+                        @if ($this->clearanceCount > 0)
+                            <div class="text-center py-2">
+                                <div class="text-2xl font-bold text-orange-700">{{ $this->clearanceCount }}</div>
+                                <div class="text-xs text-orange-600">{{ __('items need action') }}</div>
+                            </div>
+                            <a href="{{ route('clearance.index') }}" class="mt-2 block text-center text-xs font-medium text-orange-700 hover:text-orange-800">
+                                {{ __('View Clearance Manager') }} →
+                            </a>
+                        @else
+                            <div class="text-sm text-orange-600 text-center py-2">{{ __('No clearance items pending') }}</div>
+                        @endif
+                    </div>
+                </div>
+            @endif
+
             {{-- Low Stock Alerts --}}
             <div class="ui-card">
                 <div class="ui-card-body">
@@ -257,7 +284,11 @@
                     <div class="mt-4">
                         <div class="flex items-end justify-between h-40 gap-2">
                             @foreach ($this->sales_trend['labels'] as $i => $label)
-                                @php $value = $this->sales_trend['data'][$i]; $max = max($this->sales_trend['data']) ?: 1; $height = $max > 0 ? ($value / $max) * 100 : 0; @endphp
+                                @php
+                                    $value = $this->sales_trend['data'][$i];
+                                    $max = max($this->sales_trend['data']) ?: 1;
+                                    $height = $max > 0 ? ($value / $max) * 100 : 0;
+                                @endphp
                                 <div class="flex-1 flex flex-col items-center gap-1">
                                     <div class="text-xs text-slate-500">XAF {{ number_format($value, 0, ',', ' ') }}</div>
                                     <div class="w-full bg-primary-blue/20 rounded-t relative" style="height: {{ max($height, 4) }}%">

@@ -1,0 +1,1 @@
+role-<?php echo e($role->id); ?><?php /**PATH C:\xampp\htdocs\Cshop\storage\framework\views/08d56b8d7ccbdf681c2b16787d2a3a49.blade.php ENDPATH**/ ?>

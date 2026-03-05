@@ -29,7 +29,12 @@
                 <nav class="ui-nav">
                     <a href="{{ route('dashboard') }}"
                         class="ui-nav-link {{ request()->routeIs('dashboard') ? 'ui-nav-link-active' : '' }}">
-                        {{ __('Dashboard') }}
+                        <span class="flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                            </svg>
+                            {{ __('Dashboard') }}
+                        </span>
                     </a>
 
                     <div class="pt-2">
@@ -38,35 +43,60 @@
                             @can('branches.manage')
                                 <a href="{{ route('setup.branches') }}"
                                     class="ui-nav-link {{ request()->routeIs('setup.branches') ? 'ui-nav-link-active' : '' }}">
-                                    {{ __('Branches') }}
+                                    <span class="flex items-center gap-2">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                        </svg>
+                                        {{ __('Branches') }}
+                                    </span>
                                 </a>
                             @endcan
 
                             @can('users.manage')
                                 <a href="{{ route('users.index') }}"
                                     class="ui-nav-link {{ request()->routeIs('users.*') ? 'ui-nav-link-active' : '' }}">
-                                    {{ __('Users') }}
+                                    <span class="flex items-center gap-2">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                                        </svg>
+                                        {{ __('Users') }}
+                                    </span>
                                 </a>
                             @endcan
 
                             @can('setup.categories.manage')
                                 <a href="{{ route('setup.categories') }}"
                                     class="ui-nav-link {{ request()->routeIs('setup.categories') ? 'ui-nav-link-active' : '' }}">
-                                    {{ __('Categories') }}
+                                    <span class="flex items-center gap-2">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                                        </svg>
+                                        {{ __('Categories') }}
+                                    </span>
                                 </a>
                             @endcan
 
                             @can('setup.unit_types.manage')
                                 <a href="{{ route('setup.unit_types') }}"
                                     class="ui-nav-link {{ request()->routeIs('setup.unit_types') ? 'ui-nav-link-active' : '' }}">
-                                    {{ __('Unit Types') }}
+                                    <span class="flex items-center gap-2">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9m6-9l-3 9m3-9l3 1m-3-1l3-9a5.002 5.002 0 00-6.001 0M18 7l3 9a5.002 5.002 0 01-6.001 0M3 6l3 1m0 0l3 9m6-9l-3 9m6-9l3 1" />
+                                        </svg>
+                                        {{ __('Unit Types') }}
+                                    </span>
                                 </a>
                             @endcan
 
                             @can('setup.bulk.manage')
                                 <details class="ui-nav-group" {{ request()->routeIs('setup.bulk_units') || request()->routeIs('setup.bulk_types') ? 'open' : '' }}>
                                     <summary class="ui-nav-group-summary {{ request()->routeIs('setup.bulk_units') || request()->routeIs('setup.bulk_types') ? 'ui-nav-link-active' : '' }}">
-                                        <span>{{ __('Bulk Units & Types') }}</span>
+                                        <span class="flex items-center gap-2">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                                            </svg>
+                                            {{ __('Bulk Units & Types') }}
+                                        </span>
                                         <svg class="ui-nav-caret" width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                                             <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
                                         </svg>
@@ -87,7 +117,12 @@
                             @can('products.manage')
                                 <details class="ui-nav-group" {{ request()->routeIs('products.index') ? 'open' : '' }}>
                                     <summary class="ui-nav-group-summary {{ request()->routeIs('products.index') ? 'ui-nav-link-active' : '' }}">
-                                        <span>{{ __('Products') }}</span>
+                                        <span class="flex items-center gap-2">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                                            </svg>
+                                            {{ __('Products') }}
+                                        </span>
                                         <svg class="ui-nav-caret" width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                                             <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
                                         </svg>
@@ -118,7 +153,12 @@
                             @can('stock_in.manage')
                                 <details class="ui-nav-group" {{ request()->routeIs('stock_in.index') ? 'open' : '' }}>
                                     <summary class="ui-nav-group-summary {{ request()->routeIs('stock_in.index') ? 'ui-nav-link-active' : '' }}">
-                                        <span>{{ __('Stock In') }}</span>
+                                        <span class="flex items-center gap-2">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                                            </svg>
+                                            {{ __('Stock In') }}
+                                        </span>
                                         <svg class="ui-nav-caret" width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                                             <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
                                         </svg>
@@ -139,7 +179,12 @@
                             @can('sales.manage')
                                 <details class="ui-nav-group" {{ request()->routeIs('sales.*') ? 'open' : '' }}>
                                     <summary class="ui-nav-group-summary {{ request()->routeIs('sales.*') ? 'ui-nav-link-active' : '' }}">
-                                        <span>{{ __('Sales') }}</span>
+                                        <span class="flex items-center gap-2">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            </svg>
+                                            {{ __('Sales') }}
+                                        </span>
                                         <svg class="ui-nav-caret" width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                                             <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
                                         </svg>
@@ -160,7 +205,12 @@
                             @can('expenses.manage')
                                 <details class="ui-nav-group" {{ request()->routeIs('expenses.index') ? 'open' : '' }}>
                                     <summary class="ui-nav-group-summary {{ request()->routeIs('expenses.index') ? 'ui-nav-link-active' : '' }}">
-                                        <span>{{ __('Expenses') }}</span>
+                                        <span class="flex items-center gap-2">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                                            </svg>
+                                            {{ __('Expenses') }}
+                                        </span>
                                         <svg class="ui-nav-caret" width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                                             <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
                                         </svg>
@@ -186,7 +236,12 @@
                             <div class="mt-2 space-y-1">
                                 <details class="ui-nav-group" {{ request()->routeIs('reports.*') ? 'open' : '' }}>
                                     <summary class="ui-nav-group-summary {{ request()->routeIs('reports.*') ? 'ui-nav-link-active' : '' }}">
-                                        <span>{{ __('Reports') }}</span>
+                                        <span class="flex items-center gap-2">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                                            </svg>
+                                            {{ __('Reports') }}
+                                        </span>
                                         <svg class="ui-nav-caret" width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                                             <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
                                         </svg>
@@ -224,7 +279,13 @@
                             <div class="mt-2 space-y-1">
                                 <details class="ui-nav-group" {{ (request()->routeIs('setup.roles') || request()->routeIs('setup.user_roles')) ? 'open' : '' }}>
                                     <summary class="ui-nav-group-summary {{ (request()->routeIs('setup.roles') || request()->routeIs('setup.user_roles')) ? 'ui-nav-link-active' : '' }}">
-                                        <span>{{ __('Settings') }}</span>
+                                        <span class="flex items-center gap-2">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            </svg>
+                                            {{ __('Settings') }}
+                                        </span>
                                         <svg class="ui-nav-caret" width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                                             <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
                                         </svg>
@@ -250,7 +311,12 @@
                             <div class="mt-2 space-y-1">
                                 <details class="ui-nav-group" {{ (request()->routeIs('stock_movements.index') || request()->routeIs('activity_logs.index')) ? 'open' : '' }}>
                                     <summary class="ui-nav-group-summary {{ (request()->routeIs('stock_movements.index') || request()->routeIs('activity_logs.index')) ? 'ui-nav-link-active' : '' }}">
-                                        <span>{{ __('Audit Trails') }}</span>
+                                        <span class="flex items-center gap-2">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                                            </svg>
+                                            {{ __('Audit Trails') }}
+                                        </span>
                                         <svg class="ui-nav-caret" width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                                             <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
                                         </svg>
@@ -288,6 +354,49 @@
                                         {{ __('Notifications') }}
                                     </span>
                                 </a>
+                            </div>
+                        </div>
+                    @endcanany
+
+                    {{-- Clearance Module --}}
+                    @canany(['clearance.view', 'clearance.discount', 'clearance.donate', 'clearance.dispose', 'clearance.rules.view', 'clearance.reports'])
+                        <div class="pt-4">
+                            <div class="ui-nav-section-title">{{ __('Clearance') }}</div>
+                            <div class="mt-2 space-y-1">
+                                @can('clearance.view')
+                                    <a href="{{ route('clearance.index') }}"
+                                        class="ui-nav-link {{ request()->routeIs('clearance.index') ? 'ui-nav-link-active' : '' }}">
+                                        <span class="flex items-center gap-2">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                                            </svg>
+                                            {{ __('Clearance Manager') }}
+                                        </span>
+                                    </a>
+                                @endcan
+                                @can('clearance.rules.view')
+                                    <a href="{{ route('clearance.rules') }}"
+                                        class="ui-nav-link {{ request()->routeIs('clearance.rules') ? 'ui-nav-link-active' : '' }}">
+                                        <span class="flex items-center gap-2">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            </svg>
+                                            {{ __('Discount Rules') }}
+                                        </span>
+                                    </a>
+                                @endcan
+                                @can('clearance.reports')
+                                    <a href="{{ route('clearance.reports') }}"
+                                        class="ui-nav-link {{ request()->routeIs('clearance.reports') ? 'ui-nav-link-active' : '' }}">
+                                        <span class="flex items-center gap-2">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                                            </svg>
+                                            {{ __('Reports') }}
+                                        </span>
+                                    </a>
+                                @endcan
                             </div>
                         </div>
                     @endcanany

@@ -3,6 +3,7 @@
 namespace App\Livewire\Setup;
 
 use App\Models\Branch;
+use App\Support\ActivityLogger;
 use Illuminate\Validation\Rule;
 use Livewire\Component;
 use Spatie\Permission\Models\Permission;
@@ -248,11 +249,13 @@ class RolesIndex extends Component
         setPermissionsTeamId($branchId);
 
         $role = null;
+        $isNew = false;
         if ($this->editing_role_id > 0) {
             $role = Role::query()->whereKey($this->editing_role_id)->where('branch_id', $branchId)->firstOrFail();
             $role->name = $data['name'];
             $role->save();
         } else {
+            $isNew = true;
             $role = Role::query()->create([
                 'name' => $data['name'],
                 'guard_name' => 'web',
@@ -268,6 +271,14 @@ class RolesIndex extends Component
             ->all();
 
         $role->syncPermissions($perms);
+
+        ActivityLogger::log(
+            $isNew ? 'role_created' : 'role_updated',
+            $role,
+            $isNew ? "Created role: {$role->name}" : "Updated role: {$role->name}",
+            ['permissions' => $perms],
+            $branchId
+        );
 
         setPermissionsTeamId(null);
 
@@ -336,6 +347,14 @@ class RolesIndex extends Component
 
         $role = Role::query()->whereKey($id)->where('branch_id', $branchId)->first();
         if ($role) {
+            $roleName = $role->name;
+            ActivityLogger::log(
+                'role_deleted',
+                null,
+                "Deleted role: {$roleName}",
+                [],
+                $branchId
+            );
             $role->delete();
         }
 

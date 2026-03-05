@@ -16,6 +16,20 @@ class RbacSeeder extends Seeder
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         $permissions = [
+            // Aggregate permissions for sidebar navigation
+            'branches.manage',
+            'users.manage',
+            'rbac.manage',
+            'setup.categories.manage',
+            'setup.unit_types.manage',
+            'setup.bulk.manage',
+            'products.manage',
+            'stock_in.manage',
+            'sales.manage',
+            'expenses.manage',
+            'reports.view',
+
+            // Granular permissions
             'branches.view',
             'branches.create',
             'branches.edit',
@@ -81,6 +95,16 @@ class RbacSeeder extends Seeder
             'alerts.expired_stock',
             'alerts.expiry_warning',
             'alerts.low_stock',
+
+            'clearance.view',
+            'clearance.discount',
+            'clearance.donate',
+            'clearance.dispose',
+            'clearance.rules.view',
+            'clearance.rules.create',
+            'clearance.rules.edit',
+            'clearance.rules.delete',
+            'clearance.reports',
         ];
 
         foreach ($permissions as $name) {

@@ -1,8 +1,21 @@
 <div class="ui-page">
     <div class="ui-page-container">
-        <div class="mb-6">
-            <h2 class="ui-page-title">{{ __('Notifications & Alerts') }}</h2>
-            <div class="ui-page-subtitle">{{ __('View low stock alerts, expiry warnings, and system notifications.') }}</div>
+        <div class="flex items-center justify-between mb-6">
+            <div>
+                <h2 class="ui-page-title">{{ __('Notifications & Alerts') }}</h2>
+                <div class="ui-page-subtitle">{{ __('View low stock alerts, expiry warnings, and system notifications.') }}</div>
+            </div>
+            @if ($this->isSuperAdmin)
+                <div class="flex items-center gap-2">
+                    <label class="text-sm text-slate-600">{{ __('Branch:') }}</label>
+                    <select wire:model.live="filter_branch_id" class="ui-input w-48">
+                        <option value="0">{{ __('All Branches') }}</option>
+                        @foreach ($this->branches as $branch)
+                            <option value="{{ $branch->id }}">{{ $branch->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+            @endif
         </div>
 
         {{-- Stats Cards --}}

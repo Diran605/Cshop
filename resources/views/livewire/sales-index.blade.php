@@ -240,7 +240,20 @@
                                         @php($available = $stockMap[$item['product_id']] ?? 0)
                                         <tr wire:key="cart-{{ $item['product_id'] }}">
                                             <td>
-                                                <div class="font-medium">{{ $item['name'] }}</div>
+                                                <div class="font-medium">
+                                                    {{ $item['name'] }}
+                                                    @if (!empty($item['is_clearance']))
+                                                        <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800">
+                                                            {{ __('Clearance') }}
+                                                        </span>
+                                                    @endif
+                                                </div>
+                                                @if (!empty($item['is_clearance']) && !empty($item['original_price']))
+                                                    <div class="text-xs text-slate-500 mt-0.5">
+                                                        <span class="line-through">XAF {{ number_format((float) $item['original_price'], 0, ',', ' ') }}</span>
+                                                        <span class="ml-1 text-green-600 font-medium">→ XAF {{ number_format((float) $item['clearance_price'], 0, ',', ' ') }}</span>
+                                                    </div>
+                                                @endif
                                             </td>
                                             <td class="{{ $available < $item['quantity'] ? 'text-red-700' : '' }}">
                                                 {{ $available }}
