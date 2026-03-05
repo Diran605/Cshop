@@ -232,7 +232,7 @@
                                 </details>
                             @endcan
 
-                            @can('expenses.manage')
+                            @can('expenses.view')
                                 <details class="ui-nav-group" {{ request()->routeIs('expenses.index') ? 'open' : '' }}>
                                     <summary class="ui-nav-group-summary {{ request()->routeIs('expenses.index') ? 'ui-nav-link-active' : '' }}">
                                         <span class="flex items-center gap-2">

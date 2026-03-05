@@ -38,8 +38,7 @@
         @endif
 
         <div class="space-y-6">
-            @if ($mode === 'add')
-                <div class="ui-card">
+            <div class="ui-card">
                     <div class="ui-card-body">
                         <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                             <h3 class="ui-card-title">{{ __('Record Sale') }}</h3>
@@ -300,7 +299,6 @@
                         </div>
                     </div>
                 </div>
-            @endif
         </div>
 
         @if ($show_sale_modal && $selectedSale)

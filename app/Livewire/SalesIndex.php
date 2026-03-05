@@ -120,8 +120,7 @@ class SalesIndex extends Component
 
     public function mount(string $mode = 'add'): void
     {
-        $mode = strtolower(trim($mode));
-        $this->mode = in_array($mode, ['add', 'manage'], true) ? $mode : 'add';
+        $this->mode = 'add';
 
         $user = auth()->user();
         $this->isSuperAdmin = (bool) ($user?->role === 'super_admin');

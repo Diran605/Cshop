@@ -194,17 +194,11 @@ Route::middleware('auth')->group(function () {
     Route::get('/stock-levels', StockLevelsIndex::class)->name('stock_levels.index');
     Route::get('/opening-stock', OpeningStockIndex::class)->name('opening_stock.index');
 
-    Route::get('/sales/add', SalesIndex::class)
-        ->defaults('mode', 'add')
-        ->name('sales.add');
+    Route::get('/sales/add', SalesIndex::class)->name('sales.add');
 
     Route::get('/sales-records', SalesRecordsIndex::class)->middleware('can:sales_records.view')->name('sales_records.index');
 
     Route::get('/daily-summary', DailySalesSummary::class)->middleware('can:daily_summary.view')->name('daily_summary.index');
-
-    Route::get('/sales/{mode?}', SalesIndex::class)
-        ->where('mode', 'add')
-        ->name('sales.index');
 
     Route::get('/notifications', NotificationsIndex::class)->name('notifications.index');
 
