@@ -25,6 +25,8 @@ class RbacSeeder extends Seeder
             'setup.bulk.manage',
             'products.manage',
             'stock_in.manage',
+            'stock_levels.view',
+            'opening_stock.manage',
             'sales.manage',
             'expenses.manage',
             'reports.view',
@@ -72,10 +74,20 @@ class RbacSeeder extends Seeder
             'stock_in.edit',
             'stock_in.delete',
 
+            'stock_levels.view',
+            'opening_stock.view',
+            'opening_stock.edit',
+
             'sales.view',
             'sales.post',
-            'sales.edit',
-            'sales.delete',
+
+            'sales_records.view',
+            'sales_records.edit',
+            'sales_records.void',
+            'sales_records.print',
+            'sales_records.batch_print',
+
+            'daily_summary.view',
 
             'expenses.view',
             'expenses.create',

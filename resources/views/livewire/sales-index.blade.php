@@ -301,139 +301,10 @@
                     </div>
                 </div>
             @endif
-
-            @if ($mode === 'manage')
-                <div class="ui-card">
-                    <div class="ui-card-body">
-                        <div class="flex items-center justify-between gap-4">
-                            <h3 class="ui-card-title">{{ __('Manage Sales') }}</h3>
-                            <div class="text-sm text-slate-500">
-                                {{ __('Selected:') }}
-                                <span class="font-medium">{{ count($selected_sales) }}</span>
-                            </div>
-                        </div>
-
-                        <div class="mt-4 grid grid-cols-1 md:grid-cols-5 gap-4">
-                            <div>
-                                <label class="ui-label">{{ __('From') }}</label>
-                                <input type="date" wire:model.live="sales_date_from" class="mt-1 ui-input" />
-                            </div>
-                            <div>
-                                <label class="ui-label">{{ __('To') }}</label>
-                                <input type="date" wire:model.live="sales_date_to" class="mt-1 ui-input" />
-                            </div>
-                            <div>
-                                <label class="ui-label">{{ __('Status') }}</label>
-                                <select wire:model.live="sales_status" class="mt-1 ui-select">
-                                    <option value="active">{{ __('Active') }}</option>
-                                    <option value="voided">{{ __('Voided') }}</option>
-                                    <option value="all">{{ __('All') }}</option>
-                                </select>
-                            </div>
-                            <div class="md:col-span-2">
-                                <label class="ui-label">{{ __('Search') }}</label>
-                                <input type="text" wire:model.live.debounce.300ms="sales_search" placeholder="{{ __('Receipt / Branch / User') }}" class="mt-1 ui-input" />
-                            </div>
-                        </div>
-
-                        <div class="mt-4 flex flex-wrap items-center justify-between gap-3">
-                            <div class="flex items-center gap-3">
-                                <button type="button" wire:click="selectAllSalesForDay('{{ $sales_date_from }}')" class="ui-btn-secondary">
-                                    {{ __('Select All For Day') }}
-                                </button>
-                                @if (count($selected_sales) > 0)
-                                    <button type="button" wire:click="clearSelectedSales" class="ui-btn-secondary">
-                                        {{ __('Clear Selection') }}
-                                    </button>
-                                @endif
-                            </div>
-
-                            <div class="flex items-center gap-3">
-                                @if (count($selected_sales) > 0)
-                                    <a href="{{ route('sales.print_batch', ['ids' => implode(',', $selected_sales)]) }}" target="_blank" class="ui-btn-primary">
-                                        {{ __('Print Selected') }}
-                                    </a>
-                                @else
-                                    <button type="button" class="ui-btn-secondary" disabled>
-                                        {{ __('Print Selected') }}
-                                    </button>
-                                @endif
-                            </div>
-                        </div>
-
-                        <div class="mt-4 overflow-x-auto">
-                            <div class="ui-table-wrap">
-                            <table class="ui-table">
-                                <thead>
-                                    <tr>
-                                        <th></th>
-                                        <th>{{ __('Receipt') }}</th>
-                                        <th>{{ __('Branch') }}</th>
-                                        <th>{{ __('Total') }}</th>
-                                        <th>{{ __('Status') }}</th>
-                                        <th></th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach ($sales as $sale)
-                                        <tr wire:key="sale-{{ $sale->id }}">
-                                            <td>
-                                                <input type="checkbox" value="{{ $sale->id }}" wire:model.live="selected_sales" class="ui-checkbox" />
-                                            </td>
-                                            <td>
-                                                <div class="font-medium">{{ $sale->receipt_no }}</div>
-                                                <div class="text-xs text-slate-500">{{ $sale->sold_at?->format('Y-m-d H:i') }}</div>
-                                            </td>
-                                            <td>
-                                                {{ $sale->branch?->name ?? '-' }}
-                                            </td>
-                                            <td>
-                                                {{ number_format((float) $sale->grand_total, 2) }}
-                                            </td>
-                                            <td>
-                                                @if ($sale->voided_at)
-                                                    <span class="ui-badge-warning">{{ __('Voided') }}</span>
-                                                @else
-                                                    <span class="ui-badge-success">{{ __('Active') }}</span>
-                                                @endif
-                                            </td>
-                                            <td class="text-right">
-                                                <div class="inline-flex items-center gap-3">
-                                                    <button type="button" wire:click="openSaleModal({{ $sale->id }})" class="ui-btn-link">{{ __('View') }}</button>
-                                                    @if (! $sale->voided_at)
-                                                        <button type="button" wire:click="openEditModal({{ $sale->id }})" class="ui-btn-link">{{ __('Edit') }}</button>
-                                                        <button type="button" wire:click="openVoidModal({{ $sale->id }})" class="ui-btn-link-danger">{{ __('Void') }}</button>
-                                                    @endif
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    @endforeach
-
-                                    @if ($sales->isEmpty())
-                                        <tr>
-                                            <td colspan="6" class="ui-table-empty">{{ __('No sales found.') }}</td>
-                                        </tr>
-                                    @endif
-                                </tbody>
-                            </table>
-                            </div>
-
-                            @if (method_exists($sales, 'hasPages') && $sales->hasPages())
-                                <div class="mt-4 flex items-center justify-between">
-                                    <div class="text-sm text-slate-600">
-                                        {{ __('Showing') }} {{ $sales->firstItem() }} {{ __('to') }} {{ $sales->lastItem() }} {{ __('of') }} {{ $sales->total() }} {{ __('results') }}
-                                    </div>
-                                    {{ $sales->links('pagination::tailwind') }}
-                                </div>
-                            @endif
-                        </div>
-                    </div>
-                </div>
-            @endif
         </div>
 
         @if ($show_sale_modal && $selectedSale)
-            <div class="fixed inset-0 z-50 flex items-center justify-center p-4" data-modal-root>
+            <div wire:key="sale-modal-{{ $selectedSale->id }}" class="fixed inset-0 z-50 flex items-center justify-center p-4" data-modal-root>
                 <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" wire:click="closeSaleModal" data-modal-overlay></div>
                 <div class="relative w-full max-w-3xl ui-card">
                     <div class="p-4 border-b border-slate-200 flex items-center justify-between">
@@ -538,7 +409,7 @@
         @endif
 
         @if ($show_edit_modal)
-            <div class="fixed inset-0 z-50 flex items-center justify-center p-4" data-modal-root>
+            <div wire:key="edit-modal-{{ $editing_sale_id }}" class="fixed inset-0 z-50 flex items-center justify-center p-4" data-modal-root>
                 <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" wire:click="closeEditModal" data-modal-overlay></div>
                 <div class="relative w-full max-w-5xl ui-card">
                     <div class="p-4 border-b border-slate-200 flex items-center justify-between">
@@ -699,7 +570,7 @@
         @endif
 
         @if ($show_void_modal)
-            <div class="fixed inset-0 z-50 flex items-center justify-center p-4" data-modal-root>
+            <div wire:key="void-modal-{{ $pending_void_sale_id }}" class="fixed inset-0 z-50 flex items-center justify-center p-4" data-modal-root>
                 <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" wire:click="closeVoidModal" data-modal-overlay></div>
                 <div class="relative w-full max-w-lg ui-card">
                     <div class="p-4 border-b border-slate-200 flex items-center justify-between">

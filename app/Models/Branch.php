@@ -27,4 +27,9 @@ class Branch extends Model
     {
         return $this->hasMany(ProductStock::class);
     }
+
+    public function salesReceipts(): HasMany
+    {
+        return $this->hasMany(SalesReceipt::class);
+    }
 }

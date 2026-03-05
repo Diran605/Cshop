@@ -176,9 +176,31 @@
                                 </details>
                             @endcan
 
-                            @can('sales.manage')
-                                <details class="ui-nav-group" {{ request()->routeIs('sales.*') ? 'open' : '' }}>
-                                    <summary class="ui-nav-group-summary {{ request()->routeIs('sales.*') ? 'ui-nav-link-active' : '' }}">
+                            @can('stock_levels.view')
+                                <a href="{{ route('stock_levels.index') }}" class="ui-nav-link {{ request()->routeIs('stock_levels.index') ? 'ui-nav-link-active' : '' }}">
+                                    <span class="flex items-center gap-2">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                                        </svg>
+                                        {{ __('Stock Levels') }}
+                                    </span>
+                                </a>
+                            @endcan
+
+                            @can('opening_stock.manage')
+                                <a href="{{ route('opening_stock.index') }}" class="ui-nav-link {{ request()->routeIs('opening_stock.index') ? 'ui-nav-link-active' : '' }}">
+                                    <span class="flex items-center gap-2">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                                        </svg>
+                                        {{ __('Opening Stock') }}
+                                    </span>
+                                </a>
+                            @endcan
+
+                            @can('sales.view')
+                                <details class="ui-nav-group" {{ request()->routeIs('sales.*') || request()->routeIs('sales_records.*') || request()->routeIs('daily_summary.*') ? 'open' : '' }}>
+                                    <summary class="ui-nav-group-summary {{ request()->routeIs('sales.*') || request()->routeIs('sales_records.*') || request()->routeIs('daily_summary.*') ? 'ui-nav-link-active' : '' }}">
                                         <span class="flex items-center gap-2">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -194,10 +216,18 @@
                                             class="ui-nav-sublink {{ request()->routeIs('sales.add') ? 'ui-nav-sublink-active' : '' }}">
                                             {{ __('Add Sales') }}
                                         </a>
-                                        <a href="{{ route('sales.manage') }}"
-                                            class="ui-nav-sublink {{ request()->routeIs('sales.manage') ? 'ui-nav-sublink-active' : '' }}">
-                                            {{ __('Manage Sales') }}
-                                        </a>
+                                        @can('sales_records.view')
+                                            <a href="{{ route('sales_records.index') }}"
+                                                class="ui-nav-sublink {{ request()->routeIs('sales_records.index') ? 'ui-nav-sublink-active' : '' }}">
+                                                {{ __('Sales Records') }}
+                                            </a>
+                                        @endcan
+                                        @can('daily_summary.view')
+                                            <a href="{{ route('daily_summary.index') }}"
+                                                class="ui-nav-sublink {{ request()->routeIs('daily_summary.index') ? 'ui-nav-sublink-active' : '' }}">
+                                                {{ __('Daily Summary') }}
+                                            </a>
+                                        @endcan
                                     </div>
                                 </details>
                             @endcan

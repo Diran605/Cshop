@@ -14,9 +14,13 @@ use App\Livewire\ReportsStockIndex;
 use App\Livewire\ReportsExpensesIndex;
 use App\Livewire\ReportsExpiryIndex;
 use App\Livewire\SalesIndex;
+use App\Livewire\SalesRecordsIndex;
+use App\Livewire\DailySalesSummary;
 use App\Livewire\ExpensesIndex;
 use App\Livewire\StockMovementsIndex;
 use App\Livewire\StockInIndex;
+use App\Livewire\StockLevelsIndex;
+use App\Livewire\OpeningStockIndex;
 use App\Livewire\UsersIndex;
 use App\Livewire\Setup\BranchesIndex;
 use App\Livewire\Setup\BulkTypesIndex;
@@ -187,17 +191,19 @@ Route::middleware('auth')->group(function () {
         ->where('mode', 'add|manage')
         ->name('stock_in.index');
     Route::get('/stock-in/download-template', [StockInIndex::class, 'downloadTemplate'])->name('stock_in.download-template');
+    Route::get('/stock-levels', StockLevelsIndex::class)->name('stock_levels.index');
+    Route::get('/opening-stock', OpeningStockIndex::class)->name('opening_stock.index');
 
     Route::get('/sales/add', SalesIndex::class)
         ->defaults('mode', 'add')
         ->name('sales.add');
 
-    Route::get('/sales/manage', SalesIndex::class)
-        ->defaults('mode', 'manage')
-        ->name('sales.manage');
+    Route::get('/sales-records', SalesRecordsIndex::class)->middleware('can:sales_records.view')->name('sales_records.index');
+
+    Route::get('/daily-summary', DailySalesSummary::class)->middleware('can:daily_summary.view')->name('daily_summary.index');
 
     Route::get('/sales/{mode?}', SalesIndex::class)
-        ->where('mode', 'add|manage')
+        ->where('mode', 'add')
         ->name('sales.index');
 
     Route::get('/notifications', NotificationsIndex::class)->name('notifications.index');

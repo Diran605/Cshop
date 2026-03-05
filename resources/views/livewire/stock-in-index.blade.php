@@ -262,62 +262,6 @@
             @if ($mode === 'manage')
                 <div class="space-y-6">
                     <div class="ui-card">
-                        <div class="ui-card-body">
-                            <div class="flex items-center justify-between">
-                                <h3 class="ui-card-title">{{ __('Current Stock') }}</h3>
-                                <div class="text-sm text-slate-500">
-                                    {{ __('Branch:') }}
-                                    <span class="font-medium">{{ $branches->firstWhere('id', $branch_id)?->name ?? '-' }}</span>
-                                </div>
-                            </div>
-
-                            <div class="mt-3 max-w-md">
-                                <label class="ui-label">{{ __('Search') }}</label>
-                                <input type="text" wire:model.live.debounce.300ms="stock_search" class="mt-1 ui-input" placeholder="Search stock..." />
-                            </div>
-
-                            <div class="mt-4 overflow-x-auto">
-                                <div class="ui-table-wrap">
-                                <table class="ui-table">
-                                    <thead>
-                                        <tr>
-                                            <th>{{ __('Product') }}</th>
-                                            <th>{{ __('Current') }}</th>
-                                            <th>{{ __('Min') }}</th>
-                                            <th>{{ __('Cost') }}</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @foreach ($stocks as $stock)
-                                            <tr wire:key="stock-{{ $stock->id }}">
-                                                <td>
-                                                    {{ $stock->product?->name ?? '-' }}
-                                                </td>
-                                                <td>
-                                                    {{ $stock->current_stock }}
-                                                </td>
-                                                <td>
-                                                    {{ $stock->minimum_stock }}
-                                                </td>
-                                                <td>
-                                                    {{ $stock->cost_price !== null ? number_format((float) $stock->cost_price, 2) : '-' }}
-                                                </td>
-                                            </tr>
-                                        @endforeach
-
-                                        @if ($stocks->isEmpty())
-                                            <tr>
-                                                <td colspan="4" class="ui-table-empty">{{ __('No stock rows found for this branch.') }}</td>
-                                            </tr>
-                                        @endif
-                                    </tbody>
-                                </table>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="ui-card">
                     <div class="ui-card-body">
                         <div class="flex items-center justify-between gap-4">
                             <h3 class="ui-card-title">{{ __('Manage Stock In') }}</h3>
@@ -376,48 +320,42 @@
                         </div>
 
                         <div class="mt-4 overflow-x-auto">
-                            <div class="ui-table-wrap">
-                            <table class="ui-table">
+                            <table class="ui-table text-sm">
                                 <thead>
                                     <tr>
-                                        <th></th>
-                                        <th>{{ __('Receipt') }}</th>
+                                        <th class="w-8"></th>
+                                        <th class="whitespace-nowrap">{{ __('Receipt') }}</th>
                                         <th>{{ __('Branch') }}</th>
-                                        <th>{{ __('Qty') }}</th>
-                                        <th>{{ __('Status') }}</th>
-                                        <th></th>
+                                        <th class="text-center">{{ __('Qty') }}</th>
+                                        <th class="text-center">{{ __('Status') }}</th>
+                                        <th class="text-center">{{ __('Actions') }}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     @foreach ($receipts as $receipt)
                                         <tr wire:key="receipt-{{ $receipt->id }}">
-                                            <td>
+                                            <td class="text-center">
                                                 <input type="checkbox" value="{{ $receipt->id }}" wire:model.live="selected_receipts" class="ui-checkbox" />
                                             </td>
                                             <td>
-                                                <div class="font-medium">{{ $receipt->receipt_no }}</div>
-                                                <div class="text-xs text-slate-500">{{ $receipt->received_at?->format('Y-m-d H:i') }}</div>
+                                                <div class="font-mono whitespace-nowrap">{{ $receipt->receipt_no }}</div>
+                                                <div class="text-xs text-slate-500">{{ $receipt->received_at?->format('M j, H:i') }}</div>
                                             </td>
-                                            <td>
-                                                {{ $receipt->branch?->name ?? '-' }}
-                                            </td>
-                                            <td>
-                                                {{ $receipt->total_quantity }}
-                                            </td>
-                                            <td>
+                                            <td class="whitespace-nowrap">{{ $receipt->branch?->name ?? '-' }}</td>
+                                            <td class="text-center font-mono">{{ $receipt->total_quantity }}</td>
+                                            <td class="text-center">
                                                 @if ($receipt->voided_at)
                                                     <span class="ui-badge-warning">{{ __('Voided') }}</span>
                                                 @else
                                                     <span class="ui-badge-success">{{ __('Active') }}</span>
                                                 @endif
                                             </td>
-                                            <td class="text-right">
-                                                <div class="inline-flex items-center justify-end gap-2">
-                                                    <button type="button" wire:click="openReceiptModal({{ $receipt->id }})" class="ui-btn-link">{{ __('View') }}</button>
-
+                                            <td class="text-center">
+                                                <div class="inline-flex items-center gap-1">
+                                                    <button type="button" wire:click="openReceiptModal({{ $receipt->id }})" class="ui-btn-link text-xs">{{ __('View') }}</button>
                                                     @if (! $receipt->voided_at)
-                                                        <button type="button" wire:click="openEditModal({{ $receipt->id }})" class="ui-btn-link">{{ __('Edit') }}</button>
-                                                        <button type="button" wire:click="openVoidModal({{ $receipt->id }})" class="ui-btn-link-danger">{{ __('Void') }}</button>
+                                                        <button type="button" wire:click="openEditModal({{ $receipt->id }})" class="ui-btn-link text-xs">{{ __('Edit') }}</button>
+                                                        <button type="button" wire:click="openVoidModal({{ $receipt->id }})" class="ui-btn-link-danger text-xs">{{ __('Void') }}</button>
                                                     @endif
                                                 </div>
                                             </td>
@@ -431,7 +369,6 @@
                                     @endif
                                 </tbody>
                             </table>
-                            </div>
 
                             @if (method_exists($receipts, 'hasPages') && $receipts->hasPages())
                                 <div class="mt-4 flex items-center justify-between">
@@ -449,7 +386,7 @@
         </div>
 
         @if ($show_receipt_modal && $selectedReceipt)
-            <div class="fixed inset-0 z-50 flex items-center justify-center" data-modal-root>
+            <div wire:key="receipt-modal-{{ $selectedReceipt->id }}" class="fixed inset-0 z-50 flex items-center justify-center" data-modal-root>
                 <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" wire:click="closeReceiptModal" data-modal-overlay></div>
                 <div class="relative w-full max-w-3xl mx-4 ui-card">
                     <div class="p-4 border-b border-slate-200 flex items-center justify-between">
@@ -545,7 +482,7 @@
             @php($editTotalQty = collect($editCartItems)->sum('quantity'))
             @php($editTotalCost = collect($editCartItems)->reduce(function ($carry, $row) { $cp = $row['cost_price'] ?? null; $qty = (int) ($row['quantity'] ?? 0); return $carry + (($cp !== null && $cp !== '') ? ((float) $cp * $qty) : 0); }, 0))
 
-            <div class="fixed inset-0 z-50 flex items-center justify-center" data-modal-root>
+            <div wire:key="edit-modal-{{ $editing_receipt_id }}" class="fixed inset-0 z-50 flex items-center justify-center" data-modal-root>
                 <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" wire:click="closeEditModal" data-modal-overlay></div>
                 <div class="relative w-full max-w-5xl mx-4 ui-card">
                     <div class="p-4 border-b border-slate-200 flex items-center justify-between">
@@ -723,7 +660,7 @@
         @endif
 
         @if ($show_void_modal)
-            <div class="fixed inset-0 z-50 flex items-center justify-center p-4" data-modal-root>
+            <div wire:key="void-modal-{{ $pending_void_receipt_id }}" class="fixed inset-0 z-50 flex items-center justify-center p-4" data-modal-root>
                 <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" wire:click="closeVoidModal" data-modal-overlay></div>
                 <div class="relative w-full max-w-lg ui-card">
                     <div class="p-4 border-b border-slate-200 flex items-center justify-between">

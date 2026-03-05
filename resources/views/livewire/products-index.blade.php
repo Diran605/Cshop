@@ -477,5 +477,63 @@
         </div>
     @endif
 
+    {{-- Force Delete Warning Modal --}}
+    @if ($show_delete_warning_modal)
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-4" data-modal-root>
+            <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" wire:click="closeDeleteWarningModal" data-modal-overlay></div>
+            <div class="relative w-full max-w-2xl bg-white rounded-xl shadow-2xl border-2 border-red-200">
+                <!-- Header -->
+                <div class="p-6 border-b border-red-200 bg-red-50">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
+                            <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-1.964-1.333-2.732 0L3.732 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                        </div>
+                        <div>
+                            <div class="text-lg font-bold text-red-900">{{ __('Warning: Product Has Transaction History') }}</div>
+                            <div class="text-sm text-red-700 mt-1">{{ $pending_delete_name }}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Content -->
+                <div class="p-6">
+                    <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                        <div class="flex items-start gap-3">
+                            <svg class="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <div class="text-sm text-red-800">
+                                {{ $warning_message }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                        <div class="flex items-start gap-3">
+                            <svg class="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <div class="text-sm text-amber-800">
+                                <strong>{{ __('Recommendation:') }}</strong> {{ __('Consider setting the product to "inactive" status instead of deleting it. This preserves your transaction history for reporting and audit purposes.') }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div class="p-4 border-t border-slate-200 bg-slate-50 flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3">
+                    <button type="button" wire:click="closeDeleteWarningModal" class="ui-btn-secondary" data-modal-close>
+                        {{ __('Cancel') }}
+                    </button>
+                    <button type="button" wire:click="confirmForceDelete" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium">
+                        {{ __('Delete Everything') }}
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
+
     {{-- Smile, breathe, and go slowly. - Thich Nhat Hanh --}}
 </div>

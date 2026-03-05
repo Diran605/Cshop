@@ -55,6 +55,11 @@ class ProductsIndex extends Component
     public int $pending_delete_id = 0;
     public string $pending_delete_name = '';
 
+    // Force delete warning modal
+    public bool $show_delete_warning_modal = false;
+    public string $warning_message = '';
+    public bool $has_transaction_history = false;
+
     public bool $isSuperAdmin = false;
 
     public int $auth_user_id = 0;
@@ -379,7 +384,18 @@ class ProductsIndex extends Component
             
         $this->opening_quantity = $currentStock ? (int) $currentStock->current_stock : 0;
         $this->opening_cost_price = $currentStock && $currentStock->cost_price !== null ? (string) $currentStock->cost_price : null;
-        $this->opening_expiry_date = null; // We don't track expiry in ProductStock, so leave empty for manual entry
+        
+        // Get the most recent stock in item for expiry date
+        $latestStockItem = StockInItem::query()
+            ->where('product_id', $product->id)
+            ->whereHas('receipt', function ($query) use ($product) {
+                $query->where('branch_id', $this->branch_id);
+            })
+            ->whereNotNull('expiry_date')
+            ->orderBy('created_at', 'desc')
+            ->first();
+            
+        $this->opening_expiry_date = $latestStockItem ? $latestStockItem->expiry_date->toDateString() : null;
     }
 
     public function openEditModal(int $id): void
@@ -444,23 +460,79 @@ class ProductsIndex extends Component
         $hasMovement = StockMovement::query()->where('product_id', (int) $product->id)->exists();
 
         if ($hasSales || $hasStockIn || $hasMovement) {
-            session()->flash('status', 'Cannot delete product because it has transaction history. Set it to inactive instead.');
+            // Build warning message
+            $messages = [];
+            if ($hasSales) {
+                $salesCount = SalesItem::where('product_id', (int) $product->id)->count();
+                $messages[] = "{$salesCount} sales record(s)";
+            }
+            if ($hasStockIn) {
+                $stockInCount = StockInItem::where('product_id', (int) $product->id)->count();
+                $messages[] = "{$stockInCount} stock in record(s)";
+            }
+            if ($hasMovement) {
+                $movementCount = StockMovement::where('product_id', (int) $product->id)->count();
+                $messages[] = "{$movementCount} stock movement(s)";
+            }
+
+            $items = implode(', ', $messages);
+            $this->warning_message = "This product has {$items}. Deleting it will permanently remove all related data including sales history, stock records, and financial transactions. This action cannot be undone. Are you sure you want to continue?";
+            $this->has_transaction_history = true;
+            $this->pending_delete_id = (int) $product->id;
+            $this->pending_delete_name = (string) $product->name;
+            $this->show_delete_warning_modal = true;
             return;
         }
 
+        // No transaction history - proceed with normal delete
+        $this->pending_delete_id = (int) $product->id;
+        $this->pending_delete_name = (string) $product->name;
+        $this->show_delete_modal = true;
+    }
+
+    public function confirmForceDelete(): void
+    {
+        $this->syncAuthContext();
+
+        $product = Product::query()
+            ->when(! $this->isSuperAdmin, fn ($q) => $q->where('branch_id', (int) (auth()->user()?->branch_id ?? 0)))
+            ->findOrFail($this->pending_delete_id);
+
         $snapshot = $product->only(['id', 'name', 'branch_id', 'status']);
 
-        ProductStock::query()->where('product_id', (int) $product->id)->delete();
-        $product->delete();
+        DB::transaction(function () use ($product) {
+            // Delete in correct order to avoid foreign key constraints
+            SalesItem::where('product_id', (int) $product->id)->delete();
+            StockInItem::where('product_id', (int) $product->id)->delete();
+            StockMovement::where('product_id', (int) $product->id)->delete();
+            ProductStock::where('product_id', (int) $product->id)->delete();
+            $product->delete();
+        });
 
         ActivityLogger::log(
-            'product.deleted',
-            ['type' => Product::class, 'id' => (int) $id],
-            'Product deleted',
+            'product.force_deleted',
+            null,
+            "Force deleted product: {$snapshot['name']} with all transaction history",
             ['product' => $snapshot],
             isset($snapshot['branch_id']) ? (int) $snapshot['branch_id'] : null
         );
-        $this->resetForm();
+
+        $this->show_delete_warning_modal = false;
+        $this->warning_message = '';
+        $this->has_transaction_history = false;
+        $this->pending_delete_id = 0;
+        $this->pending_delete_name = '';
+
+        session()->flash('status', 'Product and all related records deleted successfully.');
+    }
+
+    public function closeDeleteWarningModal(): void
+    {
+        $this->show_delete_warning_modal = false;
+        $this->warning_message = '';
+        $this->has_transaction_history = false;
+        $this->pending_delete_id = 0;
+        $this->pending_delete_name = '';
     }
 
     public function openDeleteModal(int $id): void

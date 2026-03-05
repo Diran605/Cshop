@@ -29,7 +29,6 @@ class StockInIndex extends Component
     public int $product_id = 0;
 
     public string $product_search = '';
-    public string $stock_search = '';
     public string $receipt_search = '';
 
     public string $receipt_date_from;
@@ -141,7 +140,6 @@ class StockInIndex extends Component
         $this->draft_seq = 0;
 
         $this->product_search = '';
-        $this->stock_search = '';
         $this->receipt_search = '';
 
         $today = Carbon::today();
@@ -187,7 +185,6 @@ class StockInIndex extends Component
             $this->expiry_date = null;
             $this->received_at_date = Carbon::today()->toDateString();
             $this->product_search = '';
-            $this->stock_search = '';
             $this->receipt_search = '';
 
             $this->draft_lines = [];
@@ -1383,19 +1380,6 @@ class StockInIndex extends Component
                 ->find($this->product_id);
         }
 
-        $stocks = ProductStock::query()
-            ->with(['product.unitType'])
-            ->when($this->branch_id > 0, fn ($q) => $q->where('product_stocks.branch_id', $this->branch_id))
-            ->when($this->isSuperAdmin && $this->branch_id <= 0, fn ($q) => $q->whereRaw('1 = 0'))
-            ->join('products', 'products.id', '=', 'product_stocks.product_id')
-            ->when(trim($this->stock_search) !== '', function ($q) {
-                $term = '%' . trim($this->stock_search) . '%';
-                $q->where('products.name', 'like', $term);
-            })
-            ->orderBy('products.name')
-            ->select('product_stocks.*')
-            ->get();
-
         $receipts = StockInReceipt::query()
             ->with(['branch', 'user'])
             ->when(! $this->isSuperAdmin, fn ($q) => $q->where('branch_id', (int) (auth()->user()?->branch_id ?? 0)))
@@ -1442,7 +1426,6 @@ class StockInIndex extends Component
             'branches' => $branches,
             'products' => $products,
             'selectedProduct' => $selectedProduct,
-            'stocks' => $stocks,
             'receipts' => $receipts,
             'selectedReceipt' => $selectedReceipt,
             'isSuperAdmin' => $this->isSuperAdmin,
