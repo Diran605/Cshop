@@ -23,6 +23,11 @@ class UnitTypesIndex extends Component
     public bool $isSuperAdmin = false;
     public int $auth_user_id = 0;
 
+    // Delete modal properties
+    public bool $show_delete_modal = false;
+    public ?int $pending_delete_id = null;
+    public string $pending_delete_name = '';
+
     protected function rules(): array
     {
         return [
@@ -135,7 +140,7 @@ class UnitTypesIndex extends Component
         $this->resetErrorBag();
     }
 
-    public function toggleActive(int $id): void
+    public function delete(int $id): void
     {
         $this->syncAuthContext();
 
@@ -143,7 +148,31 @@ class UnitTypesIndex extends Component
             ->when(! $this->isSuperAdmin, fn ($q) => $q->where('branch_id', (int) (auth()->user()?->branch_id ?? 0)))
             ->findOrFail($id);
 
-        $unitType->update(['is_active' => ! $unitType->is_active]);
+        $this->pending_delete_id = $unitType->id;
+        $this->pending_delete_name = $unitType->name;
+        $this->show_delete_modal = true;
+    }
+
+    public function confirmDelete(): void
+    {
+        $unitType = UnitType::query()
+            ->when(! $this->isSuperAdmin, fn ($q) => $q->where('branch_id', (int) (auth()->user()?->branch_id ?? 0)))
+            ->findOrFail($this->pending_delete_id);
+
+        $unitType->delete();
+
+        $this->show_delete_modal = false;
+        $this->pending_delete_id = null;
+        $this->pending_delete_name = '';
+
+        session()->flash('status', 'Unit type deleted successfully.');
+    }
+
+    public function closeDeleteModal(): void
+    {
+        $this->show_delete_modal = false;
+        $this->pending_delete_id = null;
+        $this->pending_delete_name = '';
     }
 
     public function render()
