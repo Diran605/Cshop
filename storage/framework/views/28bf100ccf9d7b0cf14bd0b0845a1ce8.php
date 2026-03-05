@@ -1,1 +1,0 @@
-act-<?php echo e($log->id); ?><?php /**PATH C:\xampp\htdocs\Cshop\storage\framework\views/e0e6b8567b342bf84ae08a55a8d87b69.blade.php ENDPATH**/ ?>
