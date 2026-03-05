@@ -4,6 +4,7 @@ namespace App\Livewire\Setup;
 
 use App\Models\UnitType;
 use App\Models\Branch;
+use App\Support\ActivityLogger;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Illuminate\Support\Str;
@@ -88,13 +89,31 @@ class UnitTypesIndex extends Component
                 'name' => $data['name'],
                 'is_active' => $data['is_active'],
             ]);
+            
+            ActivityLogger::log(
+                'unit_type_updated',
+                UnitType::find($this->editingId),
+                "Updated unit type: {$data['name']}",
+                ['is_active' => $data['is_active']],
+                $this->branch_id
+            );
+            
             session()->flash('status', 'Unit type updated successfully.');
         } else {
-            UnitType::query()->create([
+            $unitType = UnitType::query()->create([
                 'branch_id' => $data['branch_id'],
                 'name' => $data['name'],
                 'is_active' => $data['is_active'],
             ]);
+            
+            ActivityLogger::log(
+                'unit_type_created',
+                $unitType,
+                "Created unit type: {$data['name']}",
+                ['is_active' => $data['is_active']],
+                $data['branch_id']
+            );
+            
             session()->flash('status', 'Unit type created successfully.');
         }
 
@@ -140,6 +159,28 @@ class UnitTypesIndex extends Component
         $this->resetErrorBag();
     }
 
+    public function toggleActive(int $id): void
+    {
+        $this->syncAuthContext();
+
+        $unitType = UnitType::query()
+            ->when(! $this->isSuperAdmin, fn ($q) => $q->where('branch_id', (int) (auth()->user()?->branch_id ?? 0)))
+            ->findOrFail($id);
+
+        $oldStatus = $unitType->is_active;
+        $newStatus = !$oldStatus;
+        
+        $unitType->update(['is_active' => $newStatus]);
+        
+        ActivityLogger::log(
+            'unit_type_status_toggled',
+            $unitType,
+            ($newStatus ? 'Activated' : 'Deactivated') . " unit type: {$unitType->name}",
+            ['old_status' => $oldStatus, 'new_status' => $newStatus],
+            $unitType->branch_id
+        );
+    }
+
     public function delete(int $id): void
     {
         $this->syncAuthContext();
@@ -159,7 +200,18 @@ class UnitTypesIndex extends Component
             ->when(! $this->isSuperAdmin, fn ($q) => $q->where('branch_id', (int) (auth()->user()?->branch_id ?? 0)))
             ->findOrFail($this->pending_delete_id);
 
+        $unitTypeName = $unitType->name;
+        $branchId = $unitType->branch_id;
+        
         $unitType->delete();
+
+        ActivityLogger::log(
+            'unit_type_deleted',
+            null,
+            "Deleted unit type: {$unitTypeName}",
+            [],
+            $branchId
+        );
 
         $this->show_delete_modal = false;
         $this->pending_delete_id = null;

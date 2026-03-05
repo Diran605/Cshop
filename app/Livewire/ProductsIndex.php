@@ -369,6 +369,7 @@ class ProductsIndex extends Component
         $this->bulk_enabled = (bool) $product->bulk_enabled;
         $this->bulk_type_id = $product->bulk_type_id ? (int) $product->bulk_type_id : null;
         $this->status = $product->status ?? 'active';
+        $this->product_date = $product->created_at ? $product->created_at->toDateString() : Carbon::today()->toDateString();
         
         // Load current stock values for editing
         $currentStock = ProductStock::query()

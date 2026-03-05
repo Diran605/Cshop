@@ -407,6 +407,12 @@
                             @error('description') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
                         </div>
 
+                        <div>
+                            <label class="ui-label">{{ __('Product Date') }}</label>
+                            <input type="date" wire:model.defer="product_date" class="mt-1 ui-input" />
+                            @error('product_date') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                        </div>
+
                         <div class="md:col-span-2">
                             <div class="ui-muted-panel">
                                 <div class="text-sm font-semibold text-slate-700">{{ __('Opening Stock (optional)') }}</div>
