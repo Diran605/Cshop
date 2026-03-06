@@ -124,7 +124,7 @@
         <div class="mb-6">
             <h2 class="text-lg font-semibold text-slate-900 mb-4">{{ __('Quick Actions') }}</h2>
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <a href="{{ route('sales.index') }}" class="flex flex-col items-center gap-2 p-4 bg-white rounded-xl border border-slate-200 hover:border-primary-blue hover:shadow-md transition-all group">
+                <a href="{{ route('sales.add') }}" class="flex flex-col items-center gap-2 p-4 bg-white rounded-xl border border-slate-200 hover:border-primary-blue hover:shadow-md transition-all group">
                     <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center group-hover:bg-green-200 transition-colors">
                         <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
@@ -372,7 +372,7 @@
                 <div class="ui-card-body">
                     <div class="flex items-center justify-between mb-3">
                         <h3 class="ui-card-title mb-0">{{ __('Recent Sales') }}</h3>
-                        <a href="{{ route('sales.index') }}" class="text-sm text-primary-blue hover:underline">{{ __('View All') }}</a>
+                        <a href="{{ route('sales.add') }}" class="text-sm text-primary-blue hover:underline">{{ __('View All') }}</a>
                     </div>
                     <div class="overflow-x-auto">
                         <table class="ui-table">

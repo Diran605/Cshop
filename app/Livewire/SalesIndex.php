@@ -133,7 +133,7 @@ class SalesIndex extends Component
         }
 
         $this->product_id = (int) (Product::query()
-            ->where('status', 'active')
+            ->where('status', Product::STATUS_ACTIVE)
             ->when($this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
             ->orderBy('name')
             ->value('id') ?? 0);
@@ -248,7 +248,7 @@ class SalesIndex extends Component
         $this->selected_sale_id = 0;
 
         $this->product_id = (int) (Product::query()
-            ->where('status', 'active')
+            ->where('status', Product::STATUS_ACTIVE)
             ->when($this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
             ->orderBy('name')
             ->value('id') ?? 0);
@@ -1508,7 +1508,7 @@ class SalesIndex extends Component
         }
 
         $products = Product::query()
-            ->where('status', 'active')
+            ->where('status', Product::STATUS_ACTIVE)
             ->when($this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
             ->when(trim($this->product_search) !== '', function ($q) {
                 $term = '%' . trim($this->product_search) . '%';
@@ -1524,7 +1524,7 @@ class SalesIndex extends Component
 
         $editProducts = Product::query()
             ->with(['bulkType.bulkUnit', 'unitType'])
-            ->where('status', 'active')
+            ->where('status', Product::STATUS_ACTIVE)
             ->when(($this->edit_branch_id > 0), fn ($q) => $q->where('branch_id', $this->edit_branch_id))
             ->orderBy('name')
             ->get();

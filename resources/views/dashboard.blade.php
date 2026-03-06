@@ -173,7 +173,7 @@
                  </div>
  
                  <div class="ui-card">
-                     <a href="{{ route('sales.index') }}" class="block p-6 hover:bg-slate-50/70">
+                     <a href="{{ route('sales.add') }}" class="block p-6 hover:bg-slate-50/70">
                          <div class="text-sm text-slate-600">Operations</div>
                          <div class="mt-1 text-lg font-semibold text-slate-900">Sales</div>
                          <div class="mt-2 text-sm text-slate-600">Process transactions with stock validation.</div>

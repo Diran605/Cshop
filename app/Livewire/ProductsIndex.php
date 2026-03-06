@@ -8,6 +8,7 @@ use App\Models\Category;
 use App\Models\Product;
 use App\Models\ProductStock;
 use App\Models\SalesItem;
+use App\Models\StockAdjustment;
 use App\Models\StockInItem;
 use App\Models\StockInReceipt;
 use App\Models\StockMovement;
@@ -31,6 +32,7 @@ class ProductsIndex extends Component
 
     public int $branch_id = 0;
     public string $search = '';
+    public string $status_filter = 'active';
     public string $name = '';
     public ?string $description = null;
     public ?int $category_id = null;
@@ -59,6 +61,12 @@ class ProductsIndex extends Component
     public bool $show_delete_warning_modal = false;
     public string $warning_message = '';
     public bool $has_transaction_history = false;
+
+    // Void modal
+    public bool $show_void_modal = false;
+    public int $pending_void_id = 0;
+    public string $pending_void_name = '';
+    public ?string $void_reason = null;
 
     public bool $isSuperAdmin = false;
 
@@ -565,6 +573,127 @@ class ProductsIndex extends Component
         }
     }
 
+    public function openVoidModal(int $id): void
+    {
+        $this->syncAuthContext();
+
+        if (! auth()->user()?->can('products.void')) {
+            $this->dispatch('banner-message', message: 'You do not have permission to void products.', style: 'danger');
+            return;
+        }
+
+        $product = Product::query()
+            ->when(! $this->isSuperAdmin, fn ($q) => $q->where('branch_id', (int) (auth()->user()?->branch_id ?? 0)))
+            ->findOrFail($id);
+
+        // Check if product is already voided or void pending
+        if ($product->status === Product::STATUS_VOIDED) {
+            $this->dispatch('banner-message', message: 'This product is already voided.', style: 'warning');
+            return;
+        }
+
+        if ($product->status === Product::STATUS_VOID_PENDING) {
+            $this->dispatch('banner-message', message: 'This product already has a pending void request.', style: 'warning');
+            return;
+        }
+
+        $this->pending_void_id = (int) $product->id;
+        $this->pending_void_name = (string) $product->name;
+        $this->void_reason = null;
+        $this->resetErrorBag();
+        $this->show_void_modal = true;
+    }
+
+    public function closeVoidModal(): void
+    {
+        $this->show_void_modal = false;
+        $this->pending_void_id = 0;
+        $this->pending_void_name = '';
+        $this->void_reason = null;
+        $this->resetErrorBag();
+    }
+
+    public function confirmVoid(): void
+    {
+        $this->syncAuthContext();
+
+        if (! auth()->user()?->can('products.void')) {
+            $this->dispatch('banner-message', message: 'You do not have permission to void products.', style: 'danger');
+            return;
+        }
+
+        $this->validate([
+            'void_reason' => ['required', 'string', 'min:10', 'max:500'],
+        ]);
+
+        try {
+            DB::transaction(function () {
+                $product = Product::query()
+                    ->when(! $this->isSuperAdmin, fn ($q) => $q->where('branch_id', (int) (auth()->user()?->branch_id ?? 0)))
+                    ->lockForUpdate()
+                    ->findOrFail($this->pending_void_id);
+
+                if (! $this->isSuperAdmin) {
+                    abort_unless((int) (auth()->user()?->branch_id ?? 0) === (int) $product->branch_id, 403);
+                }
+
+                // Check if product is already voided or void pending
+                if (in_array($product->status, [Product::STATUS_VOIDED, Product::STATUS_VOID_PENDING])) {
+                    return;
+                }
+
+                // Get current stock
+                $stock = ProductStock::query()
+                    ->where('branch_id', (int) $product->branch_id)
+                    ->where('product_id', (int) $product->id)
+                    ->first();
+
+                $currentStock = $stock ? (int) $stock->current_stock : 0;
+
+                // Create pending stock adjustment to zero out stock
+                StockAdjustment::query()->create([
+                    'branch_id' => (int) $product->branch_id,
+                    'product_id' => (int) $product->id,
+                    'adjustment_type' => StockAdjustment::TYPE_VOID_PRODUCT,
+                    'current_stock' => $currentStock,
+                    'adjustment_quantity' => -$currentStock,
+                    'target_stock' => 0,
+                    'status' => StockAdjustment::STATUS_PENDING,
+                    'reason' => $this->void_reason,
+                    'requested_by' => auth()->id(),
+                    'source_type' => 'product',
+                    'source_id' => (int) $product->id,
+                ]);
+
+                // Update product status to void_pending and record void request info
+                $product->status = Product::STATUS_VOID_PENDING;
+                $product->void_requested_by = auth()->id();
+                $product->void_requested_at = now();
+                $product->void_reason = $this->void_reason;
+                $product->save();
+
+                ActivityLogger::log(
+                    'product.void_requested',
+                    $product,
+                    "Void requested for product: {$product->name}",
+                    [
+                        'product_id' => (int) $product->id,
+                        'product_name' => $product->name,
+                        'current_stock' => $currentStock,
+                        'void_reason' => $this->void_reason,
+                    ],
+                    (int) $product->branch_id
+                );
+            });
+        } catch (\Exception $e) {
+            $this->addError('void_reason', 'Failed to submit void request: ' . $e->getMessage());
+            return;
+        }
+
+        $this->closeVoidModal();
+        session()->flash('status', 'Void request submitted. Awaiting approval in Stock Adjustments.');
+    }
+
     public function downloadTemplate(): \Symfony\Component\HttpFoundation\BinaryFileResponse
     {
         return Excel::download(new ProductsTemplateExport, 'products_template.xlsx');
@@ -699,6 +828,10 @@ class ProductsIndex extends Component
                 ->with(['category', 'bulkType', 'branch', 'stocks'])
                 ->when($this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
                 ->when($this->mode === 'expired', fn ($q) => $q->whereIn('id', $expiredProductIds))
+                ->when($this->status_filter === 'active', fn ($q) => $q->where('status', Product::STATUS_ACTIVE))
+                ->when($this->status_filter === 'void_pending', fn ($q) => $q->where('status', Product::STATUS_VOID_PENDING))
+                ->when($this->status_filter === 'voided', fn ($q) => $q->where('status', Product::STATUS_VOIDED))
+                ->when($this->status_filter === 'all', fn ($q) => $q)
                 ->when(trim($this->search) !== '', function ($q) {
                     $term = '%' . trim($this->search) . '%';
                     $q->where(function ($qq) use ($term) {

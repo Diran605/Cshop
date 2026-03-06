@@ -188,9 +188,20 @@
                 <div class="ui-card">
                     <div class="ui-card-body">
                         <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                            <div class="w-full sm:max-w-md">
-                                <label class="ui-label">{{ __('Search') }}</label>
-                                <input type="text" wire:model.live.debounce.300ms="search" class="mt-1 ui-input" placeholder="Search products..." />
+                            <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                                <div class="w-full sm:max-w-md">
+                                    <label class="ui-label">{{ __('Search') }}</label>
+                                    <input type="text" wire:model.live.debounce.300ms="search" class="mt-1 ui-input" placeholder="Search products..." />
+                                </div>
+                                <div class="w-full sm:w-48">
+                                    <label class="ui-label">{{ __('Status') }}</label>
+                                    <select wire:model.live="status_filter" class="mt-1 ui-select">
+                                        <option value="active">{{ __('Active') }}</option>
+                                        <option value="void_pending">{{ __('Void Pending') }}</option>
+                                        <option value="voided">{{ __('Voided') }}</option>
+                                        <option value="all">{{ __('All') }}</option>
+                                    </select>
+                                </div>
                             </div>
                         </div>
 
@@ -261,14 +272,25 @@
                                             <td>
                                                 @if ((string) $product->status === 'active')
                                                     <span class="ui-badge-success">{{ __('Active') }}</span>
+                                                @elseif ((string) $product->status === 'void_pending')
+                                                    <span class="ui-badge-warning">{{ __('Void Pending') }}</span>
+                                                @elseif ((string) $product->status === 'voided')
+                                                    <span class="ui-badge-danger">{{ __('Voided') }}</span>
                                                 @else
-                                                    <span class="ui-badge-warning">{{ __('Inactive') }}</span>
+                                                    <span class="ui-badge-info">{{ __('Inactive') }}</span>
                                                 @endif
                                             </td>
                                             <td class="text-right">
                                                 <div class="inline-flex items-center gap-3">
-                                                    <button type="button" wire:click.stop.prevent="openEditModal({{ $product->id }})" class="ui-btn-link">{{ __('Edit') }}</button>
-                                                    <button type="button" wire:click.stop.prevent="openDeleteModal({{ $product->id }})" class="ui-btn-link-danger">{{ __('Delete') }}</button>
+                                                    @can('products.edit')
+                                                        <button type="button" wire:click.stop.prevent="openEditModal({{ $product->id }})" class="ui-btn-link">{{ __('Edit') }}</button>
+                                                    @endcan
+                                                    @can('products.void')
+                                                        <button type="button" wire:click.stop.prevent="openVoidModal({{ $product->id }})" class="text-orange-600 hover:text-orange-800 text-sm font-medium">{{ __('Void') }}</button>
+                                                    @endcan
+                                                    @can('products.delete')
+                                                        <button type="button" wire:click.stop.prevent="openDeleteModal({{ $product->id }})" class="ui-btn-link-danger">{{ __('Delete') }}</button>
+                                                    @endcan
                                                 </div>
                                             </td>
                                         </tr>
@@ -529,6 +551,55 @@
                     </button>
                     <button type="button" wire:click="confirmForceDelete" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium">
                         {{ __('Delete Everything') }}
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- Void Modal --}}
+    @if ($show_void_modal)
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-4" data-modal-root>
+            <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" wire:click="closeVoidModal" data-modal-overlay></div>
+            <div class="relative w-full max-w-md ui-card">
+                <div class="p-4 border-b border-slate-200 flex items-center justify-between">
+                    <div>
+                        <div class="text-sm text-slate-500">{{ __('Request Product Void') }}</div>
+                        <div class="mt-1 font-semibold text-slate-900">{{ $pending_void_name }}</div>
+                    </div>
+                    <button type="button" wire:click="closeVoidModal" class="ui-btn-secondary" data-modal-close>{{ __('Close') }}</button>
+                </div>
+
+                <div class="p-4">
+                    <div class="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-4">
+                        <div class="flex items-start gap-3">
+                            <svg class="w-5 h-5 text-orange-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-1.964-1.333-2.732 0L3.732 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                            <div class="text-sm text-orange-800">
+                                {{ __('This will create a pending stock adjustment to zero out the product\'s stock. The product will be locked from sales until the adjustment is approved or rejected.') }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                        <div class="text-xs text-blue-700">
+                            <strong>{{ __('Approval Flow:') }}</strong>
+                            {{ __('After submission, an authorized user must approve or reject the void request in Stock Adjustments.') }}
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="ui-label">{{ __('Reason (required, min 10 characters)') }}</label>
+                        <textarea wire:model.live="void_reason" rows="3" class="mt-1 ui-input" placeholder="e.g., Duplicate of product ID #456 - entered by error"></textarea>
+                        @error('void_reason') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                    </div>
+                </div>
+
+                <div class="p-4 border-t border-slate-200 flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3">
+                    <button type="button" wire:click="closeVoidModal" class="ui-btn-secondary" data-modal-close>{{ __('Cancel') }}</button>
+                    <button type="button" wire:click="confirmVoid" class="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 font-medium">
+                        {{ __('Submit Void Request') }}
                     </button>
                 </div>
             </div>

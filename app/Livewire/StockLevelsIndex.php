@@ -92,9 +92,9 @@ class StockLevelsIndex extends Component
             ->when($this->stock_filter === 'out', fn ($q) => $q->where('current_stock', '<=', 0))
             ->when($this->stock_filter === 'available', fn ($q) => $q->where('current_stock', '>', 0))
             ->when($this->source_filter === 'opening_stock', function ($q) {
-                // Products that have stock movements from opening stock adjustments
+                // Products that have stock movements from opening stock
                 $q->whereHas('product.stockMovements', function ($q) {
-                    $q->where('notes', 'Opening stock adjustment')
+                    $q->where('notes', 'OPENING STOCK')
                       ->where('branch_id', $this->branch_id);
                 });
             })
@@ -102,6 +102,7 @@ class StockLevelsIndex extends Component
                 // Products that have stock from stock in receipts (not opening stock)
                 $q->whereHas('product.stockMovements', function ($q) {
                     $q->whereNotNull('stock_in_receipt_id')
+                      ->where('notes', '!=', 'OPENING STOCK')
                       ->where('branch_id', $this->branch_id);
                 });
             })

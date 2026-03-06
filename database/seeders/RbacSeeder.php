@@ -66,12 +66,19 @@ class RbacSeeder extends Seeder
             'products.view',
             'products.create',
             'products.edit',
-            'products.delete',
+            'products.void',
+
+            'stock_adjustments.view',
+            'stock_adjustments.approve',
+            'stock_adjustments.reject',
 
             'stock_in.view',
-            'stock_in.post',
+            'stock_in.create',
             'stock_in.edit',
-            'stock_in.delete',
+            'stock_in.void',
+            'stock_in.void_approve',
+            'stock_in.print',
+            'stock_in.batch_print',
 
             'stock_levels.view',
             'opening_stock.view',
@@ -83,6 +90,7 @@ class RbacSeeder extends Seeder
             'sales_records.view',
             'sales_records.edit',
             'sales_records.void',
+            'sales_records.void_approve',
             'sales_records.print',
             'sales_records.batch_print',
 

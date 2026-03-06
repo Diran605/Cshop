@@ -24,7 +24,16 @@ class Product extends Model
         'bulk_enabled',
         'bulk_type_id',
         'status',
+        'void_requested_by',
+        'void_requested_at',
+        'void_reason',
     ];
+
+    // Status values
+    const STATUS_ACTIVE = 'active';
+    const STATUS_INACTIVE = 'inactive';
+    const STATUS_VOID_PENDING = 'void_pending';
+    const STATUS_VOIDED = 'voided';
 
     public function branch(): BelongsTo
     {
@@ -54,5 +63,35 @@ class Product extends Model
     public function stockMovements(): HasMany
     {
         return $this->hasMany(StockMovement::class);
+    }
+
+    public function stockAdjustments(): HasMany
+    {
+        return $this->hasMany(StockAdjustment::class);
+    }
+
+    public function voidRequester(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'void_requested_by');
+    }
+
+    public function isVoidPending(): bool
+    {
+        return $this->status === self::STATUS_VOID_PENDING;
+    }
+
+    public function isVoided(): bool
+    {
+        return $this->status === self::STATUS_VOIDED;
+    }
+
+    public function isActive(): bool
+    {
+        return $this->status === self::STATUS_ACTIVE;
+    }
+
+    public function canBeSelected(): bool
+    {
+        return $this->status === self::STATUS_ACTIVE;
     }
 }

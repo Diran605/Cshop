@@ -7,6 +7,7 @@ use App\Models\Product;
 use App\Models\ProductStock;
 use App\Models\SalesItem;
 use App\Models\SalesReceipt;
+use App\Models\StockAdjustment;
 use App\Models\StockInItem;
 use App\Models\StockMovement;
 use App\Support\ActivityLogger;
@@ -66,7 +67,7 @@ class SalesRecordsIndex extends Component
             'edit_amount_paid' => ['required', 'numeric', 'min:0'],
             'edit_customer_name' => ['nullable', 'string', 'max:255'],
             'edit_notes' => ['nullable', 'string', 'max:1000'],
-            'void_reason' => ['required', 'string', 'min:3', 'max:500'],
+            'void_reason' => ['required', 'string', 'min:10', 'max:500'],
         ];
     }
 
@@ -662,7 +663,7 @@ class SalesRecordsIndex extends Component
             return;
         }
 
-        $this->validate(['void_reason' => ['required', 'string', 'min:3', 'max:500']]);
+        $this->validate(['void_reason' => ['required', 'string', 'min:10', 'max:500']]);
 
         try {
             DB::transaction(function () {
@@ -671,7 +672,7 @@ class SalesRecordsIndex extends Component
                     ->lockForUpdate()
                     ->firstOrFail();
 
-                if ($receipt->voided_at) {
+                if ($receipt->voided_at || $receipt->void_requested_at) {
                     return;
                 }
 
@@ -681,77 +682,58 @@ class SalesRecordsIndex extends Component
 
                 $receipt->load(['items']);
 
+                // Create pending stock adjustments for each item (to restore stock)
                 foreach ($receipt->items as $item) {
-                    $allocations = DB::table('sales_item_allocations')
-                        ->where('sales_item_id', (int) $item->id)
-                        ->get();
+                    $stock = ProductStock::query()
+                        ->where('branch_id', (int) $receipt->branch_id)
+                        ->where('product_id', (int) $item->product_id)
+                        ->first();
 
-                    foreach ($allocations as $alloc) {
-                        $batch = StockInItem::query()
-                            ->whereKey((int) $alloc->stock_in_item_id)
-                            ->lockForUpdate()
-                            ->first();
+                    $currentStock = $stock ? (int) $stock->current_stock : 0;
+                    $restoreQty = (int) $item->quantity;
+                    $targetStock = $currentStock + $restoreQty;
 
-                        if ($batch) {
-                            $batch->remaining_quantity = (int) $batch->remaining_quantity + (int) $alloc->quantity;
-                            $batch->save();
-                        }
-                    }
-
-                    DB::table('sales_item_allocations')->where('sales_item_id', (int) $item->id)->delete();
-
-                    $stock = ProductStock::query()->firstOrCreate(
-                        ['branch_id' => (int) $receipt->branch_id, 'product_id' => (int) $item->product_id],
-                        ['current_stock' => 0, 'minimum_stock' => 0, 'cost_price' => null]
-                    );
-
-                    $stock = ProductStock::query()->whereKey($stock->id)->lockForUpdate()->firstOrFail();
-
-                    $beforeStock = (int) $stock->current_stock;
-                    $stock->current_stock = $beforeStock + (int) $item->quantity;
-                    $stock->save();
-
-                    StockMovement::query()->create([
+                    StockAdjustment::query()->create([
                         'branch_id' => (int) $receipt->branch_id,
                         'product_id' => (int) $item->product_id,
-                        'user_id' => auth()->id(),
-                        'movement_type' => 'IN',
-                        'quantity' => (int) $item->quantity,
-                        'before_stock' => $beforeStock,
-                        'after_stock' => (int) $stock->current_stock,
-                        'unit_cost' => $item->unit_cost !== null ? (string) $item->unit_cost : null,
-                        'unit_price' => $item->unit_price !== null ? (string) $item->unit_price : null,
-                        'stock_in_receipt_id' => null,
-                        'sales_receipt_id' => (int) $receipt->id,
-                        'moved_at' => now(),
-                        'notes' => 'SALE VOID',
+                        'adjustment_type' => StockAdjustment::TYPE_SALES_VOID,
+                        'current_stock' => $currentStock,
+                        'adjustment_quantity' => abs($restoreQty),
+                        'target_stock' => $targetStock,
+                        'status' => StockAdjustment::STATUS_PENDING,
+                        'reason' => $this->void_reason,
+                        'requested_by' => auth()->id(),
+                        'source_type' => 'sales_receipt',
+                        'source_id' => (int) $receipt->id,
                     ]);
                 }
 
-                $receipt->voided_at = now();
-                $receipt->voided_by = auth()->id();
+                // Mark receipt as void pending
+                $receipt->void_requested_at = now();
+                $receipt->void_requested_by = auth()->id();
                 $receipt->void_reason = $this->void_reason;
                 $receipt->save();
 
                 ActivityLogger::log(
-                    'sale.voided',
+                    'sale.void_requested',
                     $receipt,
-                    'Sale voided',
+                    'Sale void requested',
                     [
                         'branch_id' => (int) $receipt->branch_id,
                         'sales_receipt_id' => (int) $receipt->id,
-                        'void_reason' => $receipt->void_reason,
+                        'customer_name' => $receipt->customer_name,
+                        'void_reason' => $this->void_reason,
                     ],
                     (int) $receipt->branch_id
                 );
             });
         } catch (\Exception $e) {
-            $this->addError('void_reason', 'Failed to void sale: ' . $e->getMessage());
+            $this->addError('void_reason', 'Failed to request void: ' . $e->getMessage());
             return;
         }
 
         $this->closeVoidModal();
-        session()->flash('status', 'Sale voided successfully.');
+        session()->flash('status', 'Void request submitted. Awaiting manager approval.');
     }
 
     // ==================== RENDER ====================
@@ -764,7 +746,8 @@ class SalesRecordsIndex extends Component
             ->with(['branch', 'user'])
             ->when(! $this->isSuperAdmin, fn ($q) => $q->where('branch_id', $this->branch_id))
             ->when($this->isSuperAdmin && $this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
-            ->when($this->status_filter === 'active', fn ($q) => $q->whereNull('voided_at'))
+            ->when($this->status_filter === 'active', fn ($q) => $q->whereNull('voided_at')->whereNull('void_requested_at'))
+            ->when($this->status_filter === 'void_pending', fn ($q) => $q->whereNotNull('void_requested_at')->whereNull('voided_at'))
             ->when($this->status_filter === 'voided', fn ($q) => $q->whereNotNull('voided_at'))
             ->when($this->payment_filter !== 'all', fn ($q) => $q->where('payment_method', $this->payment_filter))
             ->when($this->date_from, fn ($q) => $q->whereDate('sold_at', '>=', $this->date_from))
