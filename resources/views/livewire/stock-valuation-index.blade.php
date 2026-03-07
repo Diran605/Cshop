@@ -61,87 +61,86 @@
 
         {{-- Table --}}
         <div class="ui-card">
-            <div class="ui-card-body">
+            <div class="ui-card-body p-0">
                 <div class="overflow-x-auto">
-                    <div class="ui-table-wrap">
-                        <table class="ui-table">
-                            <thead>
-                                <tr>
+                    <table class="ui-table min-w-full">
+                        <thead>
+                            <tr>
+                                @if ($isSuperAdmin)
+                                    <th class="whitespace-nowrap">{{ __('Branch') }}</th>
+                                @endif
+                                <th class="whitespace-nowrap">{{ __('Product') }}</th>
+                                <th class="whitespace-nowrap">{{ __('Category') }}</th>
+                                <th class="whitespace-nowrap text-center">{{ __('Qty') }}</th>
+                                <th class="whitespace-nowrap text-right">{{ __('Opening Cost') }}</th>
+                                <th class="whitespace-nowrap text-right">{{ __('Stock-In Cost') }}</th>
+                                <th class="whitespace-nowrap text-right">{{ __('Current Cost') }}</th>
+                                <th class="whitespace-nowrap text-right">{{ __('Sell Price') }}</th>
+                                <th class="whitespace-nowrap text-right">{{ __('Value') }}</th>
+                                <th class="whitespace-nowrap text-right">{{ __('Margin') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse ($products as $product)
+                                <tr wire:key="product-{{ $product->id }}">
                                     @if ($isSuperAdmin)
-                                        <th>{{ __('Branch') }}</th>
+                                        <td class="whitespace-nowrap">{{ $product->branch?->name ?? '-' }}</td>
                                     @endif
-                                    <th>{{ __('Product') }}</th>
-                                    <th>{{ __('Category') }}</th>
-                                    <th class="text-center">{{ __('Current Qty') }}</th>
-                                    <th class="text-right">{{ __('Opening Cost') }}</th>
-                                    <th class="text-right">{{ __('Stock-In Cost') }}</th>
-                                    <th class="text-right">{{ __('Current Cost') }}</th>
-                                    <th class="text-right">{{ __('Selling Price') }}</th>
-                                    <th class="text-right">{{ __('Stock Value') }}</th>
-                                    <th class="text-right">{{ __('Margin') }}</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @forelse ($products as $product)
-                                    <tr wire:key="product-{{ $product->id }}">
-                                        @if ($isSuperAdmin)
-                                            <td class="whitespace-nowrap">{{ $product->branch?->name ?? '-' }}</td>
-                                        @endif
-                                        <td class="whitespace-nowrap">
-                                            <div class="font-medium">{{ $product->name }}</div>
-                                        </td>
-                                        <td class="whitespace-nowrap">{{ $product->category?->name ?? '-' }}</td>
-                                        <td class="text-center font-mono">
-                                            <span class="{{ ($product->stock?->current_stock ?? 0) <= 0 ? 'text-red-600' : '' }}">
-                                                {{ $product->stock?->current_stock ?? 0 }}
+                                    <td class="whitespace-nowrap">
+                                        <div class="font-medium text-slate-900">{{ $product->name }}</div>
+                                    </td>
+                                    <td class="whitespace-nowrap text-slate-600">{{ $product->category?->name ?? '-' }}</td>
+                                    <td class="whitespace-nowrap text-center font-mono">
+                                        @php $qty = $product->stock?->current_stock ?? 0; @endphp
+                                        <span class="{{ $qty <= 0 ? 'text-red-600 font-bold' : 'text-slate-900' }}">
+                                            {{ number_format($qty) }}
+                                        </span>
+                                    </td>
+                                    <td class="whitespace-nowrap text-right font-mono text-slate-600">
+                                        {{ isset($product->opening_cost_price) && $product->opening_cost_price !== null ? number_format((float) $product->opening_cost_price, 2) : '-' }}
+                                    </td>
+                                    <td class="whitespace-nowrap text-right font-mono text-slate-600">
+                                        {{ isset($product->stock_in_cost_price) && $product->stock_in_cost_price !== null ? number_format((float) $product->stock_in_cost_price, 2) : '-' }}
+                                    </td>
+                                    <td class="whitespace-nowrap text-right font-mono font-semibold text-slate-900">
+                                        {{ $product->stock?->cost_price !== null ? number_format((float) $product->stock->cost_price, 2) : '-' }}
+                                    </td>
+                                    <td class="whitespace-nowrap text-right font-mono font-semibold text-green-600">
+                                        {{ number_format((float) $product->selling_price, 2) }}
+                                    </td>
+                                    <td class="whitespace-nowrap text-right font-mono font-bold text-blue-600">
+                                        @php
+                                            $stockValue = ($product->stock?->current_stock ?? 0) * (float) ($product->stock?->cost_price ?? 0);
+                                        @endphp
+                                        {{ number_format($stockValue, 2) }}
+                                    </td>
+                                    <td class="whitespace-nowrap text-right">
+                                        @php
+                                            $currentCost = (float) ($product->stock?->cost_price ?? 0);
+                                            $margin = $currentCost > 0 ? (($product->selling_price - $currentCost) / $currentCost) * 100 : null;
+                                        @endphp
+                                        @if ($margin !== null)
+                                            <span class="{{ $margin >= 0 ? 'text-green-600' : 'text-red-600' }} font-mono font-medium">
+                                                {{ $margin >= 0 ? '+' : '' }}{{ number_format($margin, 1) }}%
                                             </span>
-                                        </td>
-                                        <td class="text-right font-mono">
-                                            {{ $product->opening_cost_price !== null ? number_format((float) $product->opening_cost_price, 2) : '-' }}
-                                        </td>
-                                        <td class="text-right font-mono">
-                                            {{ $product->stock_in_cost_price !== null ? number_format((float) $product->stock_in_cost_price, 2) : '-' }}
-                                        </td>
-                                        <td class="text-right font-mono font-medium">
-                                            {{ $product->stock?->cost_price !== null ? number_format((float) $product->stock->cost_price, 2) : '-' }}
-                                        </td>
-                                        <td class="text-right font-mono font-medium text-green-600">
-                                            {{ number_format((float) $product->selling_price, 2) }}
-                                        </td>
-                                        <td class="text-right font-mono font-bold text-blue-600">
-                                            @php
-                                                $stockValue = ($product->stock?->current_stock ?? 0) * (float) ($product->stock?->cost_price ?? 0);
-                                            @endphp
-                                            {{ number_format($stockValue, 2) }}
-                                        </td>
-                                        <td class="text-right">
-                                            @php
-                                                $currentCost = (float) ($product->stock?->cost_price ?? 0);
-                                                $margin = $currentCost > 0 ? (($product->selling_price - $currentCost) / $currentCost) * 100 : null;
-                                            @endphp
-                                            @if ($margin !== null)
-                                                <span class="{{ $margin >= 0 ? 'text-green-600' : 'text-red-600' }} font-mono">
-                                                    {{ $margin >= 0 ? '+' : '' }}{{ number_format($margin, 1) }}%
-                                                </span>
-                                            @else
-                                                <span class="text-slate-400">-</span>
-                                            @endif
-                                        </td>
-                                    </tr>
-                                @empty
-                                    <tr>
-                                        <td colspan="{{ $isSuperAdmin ? 10 : 9 }}" class="ui-table-empty">
-                                            {{ __('No products found.') }}
-                                        </td>
-                                    </tr>
-                                @endforelse
-                            </tbody>
-                        </table>
-                    </div>
+                                        @else
+                                            <span class="text-slate-400">-</span>
+                                        @endif
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="{{ $isSuperAdmin ? 10 : 9 }}" class="ui-table-empty">
+                                        {{ __('No products found.') }}
+                                    </td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
                 </div>
 
                 @if ($products->hasPages())
-                    <div class="mt-4 ui-card-footer">
+                    <div class="p-4 border-t border-slate-200">
                         {{ $products->links() }}
                     </div>
                 @endif

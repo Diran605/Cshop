@@ -60,6 +60,11 @@ class Product extends Model
         return $this->hasMany(ProductStock::class);
     }
 
+    public function stock(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(ProductStock::class);
+    }
+
     public function stockMovements(): HasMany
     {
         return $this->hasMany(StockMovement::class);

@@ -52,24 +52,30 @@
                         <table class="ui-table">
                             <thead>
                                 <tr>
-                                    <th>{{ __('Days to Expiry') }}</th>
-                                    <th>{{ __('Status Label') }}</th>
-                                    <th class="text-right">{{ __('Discount %') }}</th>
-                                    <th>{{ __('Scope') }}</th>
-                                    <th>{{ __('Active') }}</th>
-                                    <th>{{ __('Actions') }}</th>
+                                    @if ($this->isSuperAdmin)
+                                        <th class="whitespace-nowrap">{{ __('Branch') }}</th>
+                                    @endif
+                                    <th class="whitespace-nowrap">{{ __('Days to Expiry') }}</th>
+                                    <th class="whitespace-nowrap">{{ __('Status Label') }}</th>
+                                    <th class="whitespace-nowrap text-right">{{ __('Discount %') }}</th>
+                                    <th class="whitespace-nowrap">{{ __('Scope') }}</th>
+                                    <th class="whitespace-nowrap text-center">{{ __('Active') }}</th>
+                                    <th class="whitespace-nowrap text-center">{{ __('Actions') }}</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @foreach ($this->discountRules as $rule)
                                     <tr class="{{ ! $rule->is_active ? 'bg-gray-50' : '' }}">
-                                        <td>
+                                        @if ($this->isSuperAdmin)
+                                            <td class="whitespace-nowrap text-slate-600">{{ $rule->branch?->name ?? __('Global') }}</td>
+                                        @endif
+                                        <td class="whitespace-nowrap">
                                             <span class="font-medium">{{ $rule->days_to_expiry_min }}</span>
                                             <span class="text-slate-400"> - </span>
                                             <span class="font-medium">{{ $rule->days_to_expiry_max }}</span>
                                             <span class="text-slate-500 text-sm">{{ __('days') }}</span>
                                         </td>
-                                        <td>
+                                        <td class="whitespace-nowrap">
                                             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
                                                 {{ $rule->status_label === 'Critical' ? 'bg-red-100 text-red-800' :
                                                    ($rule->status_label === 'Urgent' ? 'bg-orange-100 text-orange-800' :
@@ -77,34 +83,29 @@
                                                 {{ $rule->status_label }}
                                             </span>
                                         </td>
-                                        <td class="text-right">
+                                        <td class="whitespace-nowrap text-right">
                                             <span class="text-lg font-bold text-green-600">{{ $rule->discount_percentage }}%</span>
                                         </td>
-                                        <td>
+                                        <td class="whitespace-nowrap">
                                             @if ($rule->branch_id)
-                                                <span class="text-xs text-slate-500">{{ __('This Branch') }}</span>
+                                                <span class="text-xs text-slate-500">{{ __('Branch Specific') }}</span>
                                             @else
-                                                <span class="text-xs text-blue-600">{{ __('Global (All Branches)') }}</span>
+                                                <span class="text-xs text-blue-600">{{ __('Global') }}</span>
                                             @endif
                                         </td>
-                                        <td>
+                                        <td class="whitespace-nowrap text-center">
                                             <button wire:click="toggleActive({{ $rule->id }})" class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors {{ $rule->is_active ? 'bg-green-500' : 'bg-gray-300' }}">
                                                 <span class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform {{ $rule->is_active ? 'translate-x-6' : 'translate-x-1' }}"></span>
                                             </button>
                                         </td>
-                                        <td>
-                                            @if ($rule->branch_id === auth()->user()->branch_id)
-                                                <div class="flex gap-2">
-                                                    <button wire:click="openModal({{ $rule->id }})" class="ui-btn-link">
-                                                        {{ __('Edit') }}
-                                                    </button>
-                                                    <button wire:click="delete({{ $rule->id }})" class="ui-btn-link-danger" onclick="return confirm('{{ __('Are you sure?') }}')">
-                                                        {{ __('Delete') }}
-                                                    </button>
-                                                </div>
-                                            @else
-                                                <span class="text-xs text-slate-400">{{ __('Read only') }}</span>
-                                            @endif
+                                        <td class="whitespace-nowrap text-center">
+                                            <div class="flex items-center justify-center gap-2">
+                                                <button wire:click="viewRule({{ $rule->id }})" class="ui-btn-link text-xs">{{ __('View') }}</button>
+                                                @if ($this->isSuperAdmin || $rule->branch_id === auth()->user()->branch_id)
+                                                    <button wire:click="openModal({{ $rule->id }})" class="ui-btn-link text-xs">{{ __('Edit') }}</button>
+                                                    <button wire:click="confirmDelete({{ $rule->id }})" class="ui-btn-link-danger text-xs">{{ __('Delete') }}</button>
+                                                @endif
+                                            </div>
                                         </td>
                                     </tr>
                                 @endforeach
@@ -179,6 +180,71 @@
                 <div class="p-6 border-t border-slate-200 flex justify-end gap-3">
                     <button wire:click="$toggle('show_modal')" class="ui-btn-secondary">{{ __('Cancel') }}</button>
                     <button wire:click="save" class="ui-btn-primary">{{ __('Save Rule') }}</button>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- View Modal --}}
+    @if ($show_view_modal)
+        <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" wire:click.self="closeViewModal">
+            <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4">
+                <div class="p-6 border-b border-slate-200">
+                    <h3 class="text-lg font-semibold text-slate-900">{{ __('Discount Rule Details') }}</h3>
+                </div>
+                <div class="p-6 space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-500 mb-1">{{ __('Min Days') }}</label>
+                            <div class="text-lg font-semibold text-slate-900">{{ $days_to_expiry_min }}</div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-500 mb-1">{{ __('Max Days') }}</label>
+                            <div class="text-lg font-semibold text-slate-900">{{ $days_to_expiry_max }}</div>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-500 mb-1">{{ __('Status Label') }}</label>
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                            {{ $status_label === 'Critical' ? 'bg-red-100 text-red-800' :
+                               ($status_label === 'Urgent' ? 'bg-orange-100 text-orange-800' :
+                               ($status_label === 'Approaching' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800')) }}">
+                            {{ $status_label }}
+                        </span>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-500 mb-1">{{ __('Discount Percentage') }}</label>
+                        <div class="text-2xl font-bold text-green-600">{{ $discount_percentage }}%</div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-500 mb-1">{{ __('Status') }}</label>
+                        <span class="{{ $is_active ? 'text-green-600' : 'text-red-600' }} font-medium">
+                            {{ $is_active ? __('Active') : __('Inactive') }}
+                        </span>
+                    </div>
+                </div>
+                <div class="p-6 border-t border-slate-200 flex justify-end">
+                    <button wire:click="closeViewModal" class="ui-btn-secondary">{{ __('Close') }}</button>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- Delete Confirmation Modal --}}
+    @if ($show_delete_modal)
+        <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" wire:click.self="closeDeleteModal">
+            <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4">
+                <div class="p-6 border-b border-slate-200 bg-red-50">
+                    <h3 class="text-lg font-semibold text-red-900">{{ __('Confirm Delete') }}</h3>
+                </div>
+                <div class="p-6">
+                    <p class="text-slate-700">{{ __('Are you sure you want to delete this discount rule?') }}</p>
+                    <p class="mt-2 text-sm font-medium text-slate-900">{{ $deleting_rule_info }}</p>
+                    <p class="mt-2 text-xs text-slate-500">{{ __('This action cannot be undone.') }}</p>
+                </div>
+                <div class="p-6 border-t border-slate-200 flex justify-end gap-3">
+                    <button wire:click="closeDeleteModal" class="ui-btn-secondary">{{ __('Cancel') }}</button>
+                    <button wire:click="performDelete" class="ui-btn-danger">{{ __('Delete') }}</button>
                 </div>
             </div>
         </div>

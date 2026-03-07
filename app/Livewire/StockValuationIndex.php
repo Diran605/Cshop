@@ -143,14 +143,14 @@ class StockValuationIndex extends Component
     protected function calculateSummary(): array
     {
         $query = ProductStock::query()
-            ->join('products', 'product_stock.product_id', '=', 'products.id')
+            ->join('products', 'product_stocks.product_id', '=', 'products.id')
             ->where('products.status', 'active')
-            ->when(! $this->isSuperAdmin, fn ($q) => $q->where('product_stock.branch_id', $this->branch_id))
-            ->when($this->isSuperAdmin && $this->branch_id > 0, fn ($q) => $q->where('product_stock.branch_id', $this->branch_id));
+            ->when(! $this->isSuperAdmin, fn ($q) => $q->where('product_stocks.branch_id', $this->branch_id))
+            ->when($this->isSuperAdmin && $this->branch_id > 0, fn ($q) => $q->where('product_stocks.branch_id', $this->branch_id));
 
         $totalQty = (clone $query)->sum('current_stock');
         $totalValue = (clone $query)
-            ->selectRaw('SUM(current_stock * COALESCE(cost_price, 0)) as total_value')
+            ->selectRaw('SUM(product_stocks.current_stock * COALESCE(product_stocks.cost_price, 0)) as total_value')
             ->value('total_value') ?? 0;
 
         return [
