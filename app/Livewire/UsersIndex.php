@@ -26,6 +26,7 @@ class UsersIndex extends Component
     public ?string $password_confirmation = null;
 
     public string $search = '';
+    public int $filter_branch_id = 0;
 
     public bool $show_delete_modal = false;
     public int $pending_delete_id = 0;
@@ -67,7 +68,7 @@ class UsersIndex extends Component
 
     public function edit(int $id): void
     {
-        $user = User::query()->where('role', 'branch_admin')->findOrFail($id);
+        $user = User::query()->where('role', '!=', 'super_admin')->findOrFail($id);
 
         $this->editingId = (int) $user->id;
         $this->name = (string) $user->name;
@@ -100,7 +101,6 @@ class UsersIndex extends Component
                 'name' => $data['name'],
                 'email' => $data['email'],
                 'branch_id' => (int) $data['branch_id'],
-                'role' => 'branch_admin',
             ];
 
             if ($data['password'] !== null && $data['password'] !== '') {
@@ -132,7 +132,7 @@ class UsersIndex extends Component
             'name' => $data['name'],
             'email' => $data['email'],
             'branch_id' => (int) $data['branch_id'],
-            'role' => 'branch_admin',
+            'role' => 'user',
             'password' => Hash::make($tempPassword),
         ]);
 
@@ -161,7 +161,7 @@ class UsersIndex extends Component
             return;
         }
 
-        $user = User::query()->where('role', 'branch_admin')->findOrFail($id);
+        $user = User::query()->where('role', '!=', 'super_admin')->findOrFail($id);
         $snapshot = $user->only(['id', 'name', 'email', 'branch_id', 'role']);
         $user->delete();
 
@@ -187,7 +187,7 @@ class UsersIndex extends Component
             return;
         }
 
-        $user = User::query()->where('role', 'branch_admin')->findOrFail($id);
+        $user = User::query()->where('role', '!=', 'super_admin')->findOrFail($id);
 
         $this->pending_delete_id = (int) $user->id;
         $this->pending_delete_name = (string) $user->name;
@@ -217,7 +217,10 @@ class UsersIndex extends Component
 
         $users = User::query()
             ->with(['branch'])
-            ->where('role', 'branch_admin')
+            ->where('role', '!=', 'super_admin')
+            ->when($this->filter_branch_id > 0, function ($q) {
+                $q->where('branch_id', $this->filter_branch_id);
+            })
             ->when($this->search !== '', function ($q) {
                 $term = '%' . $this->search . '%';
                 $q->where(function ($qq) use ($term) {

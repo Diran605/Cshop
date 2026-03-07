@@ -20,8 +20,8 @@ class StockInSeeder extends Seeder
         foreach ($branches as $branch) {
             $branchUsers = $users->where('branch_id', $branch->id);
 
-            // Create 100 stock-in receipts per branch
-            for ($i = 0; $i < 100; $i++) {
+            // Create 20 stock-in receipts per branch
+            for ($i = 0; $i < 20; $i++) {
                 $receipt = StockInReceipt::factory()->create([
                     'branch_id' => $branch->id,
                     'user_id' => $branchUsers->random()->id,

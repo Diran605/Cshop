@@ -16,12 +16,12 @@ class ProductSeeder extends Seeder
         $unitTypes = \App\Models\UnitType::all();
         $bulkTypes = \App\Models\BulkType::all();
 
-        // Create 100 products per branch
+        // Create 20 products per branch
         foreach ($branches as $branch) {
             $branchCategories = $categories->where('branch_id', $branch->id)->push($categories->whereNull('branch_id'))->flatten();
             $branchBulkTypes = $bulkTypes->where('branch_id', $branch->id)->push($bulkTypes->whereNull('branch_id'))->flatten();
 
-            for ($i = 0; $i < 100; $i++) {
+            for ($i = 0; $i < 20; $i++) {
                 $product = Product::factory()->create([
                     'branch_id' => $branch->id,
                     'category_id' => $branchCategories->isNotEmpty() ? $branchCategories->random()->id : null,

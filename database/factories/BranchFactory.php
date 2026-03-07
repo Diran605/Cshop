@@ -11,8 +11,21 @@ class BranchFactory extends Factory
 
     public function definition(): array
     {
+        $branches = [
+            'Downtown Store',
+            'Mall Outlet',
+            'Central Branch',
+            'Westside Location',
+            'Eastside Plaza',
+            'Northgate Center',
+            'Southpark Store',
+            'Harbor View Branch',
+            'University District',
+            'Airport Terminal Store',
+        ];
+
         return [
-            'name' => fake()->company(),
+            'name' => fake()->unique()->randomElement($branches),
             'code' => strtoupper(fake()->lexify('BR-???')),
             'is_active' => true,
         ];

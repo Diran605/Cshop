@@ -21,8 +21,8 @@ class SalesSeeder extends Seeder
             $branchUsers = $users->where('branch_id', $branch->id);
             $products = Product::where('branch_id', $branch->id)->where('status', 'active')->get();
 
-            // Create 100 sales receipts per branch
-            for ($i = 0; $i < 100; $i++) {
+            // Create 20 sales receipts per branch
+            for ($i = 0; $i < 20; $i++) {
                 $receipt = SalesReceipt::factory()->create([
                     'branch_id' => $branch->id,
                     'user_id' => $branchUsers->random()->id,

@@ -19,8 +19,8 @@ class StockAdjustmentSeeder extends Seeder
             $branchUsers = $users->where('branch_id', $branch->id);
             $products = Product::where('branch_id', $branch->id)->get();
 
-            // Create 100 stock adjustments per branch
-            for ($i = 0; $i < 100; $i++) {
+            // Create 20 stock adjustments per branch
+            for ($i = 0; $i < 20; $i++) {
                 $product = $products->random();
                 $status = fake()->randomElement(['pending', 'approved', 'approved', 'approved', 'rejected']);
 

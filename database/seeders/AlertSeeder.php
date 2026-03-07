@@ -13,11 +13,11 @@ class AlertSeeder extends Seeder
         $branches = Branch::all();
         $users = \App\Models\User::all();
 
-        // Create 100 alerts per branch
+        // Create 20 alerts per branch
         foreach ($branches as $branch) {
             $branchUsers = $users->where('branch_id', $branch->id);
 
-            for ($i = 0; $i < 100; $i++) {
+            for ($i = 0; $i < 20; $i++) {
                 Alert::factory()->create([
                     'branch_id' => $branch->id,
                     'user_id' => $branchUsers->isNotEmpty() ? $branchUsers->random()->id : $users->first()->id,

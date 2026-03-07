@@ -14,11 +14,11 @@ class ExpenseSeeder extends Seeder
         $branches = Branch::all();
         $users = User::where('role', '!=', 'super_admin')->get();
 
-        // Create 100 expenses per branch
+        // Create 20 expenses per branch
         foreach ($branches as $branch) {
             $branchUsers = $users->where('branch_id', $branch->id);
 
-            for ($i = 0; $i < 100; $i++) {
+            for ($i = 0; $i < 20; $i++) {
                 Expense::factory()->create([
                     'branch_id' => $branch->id,
                     'user_id' => $branchUsers->random()->id,

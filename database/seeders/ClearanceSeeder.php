@@ -45,7 +45,7 @@ class ClearanceSeeder extends Seeder
 
             // Create clearance items
             $clearanceItems = [];
-            for ($i = 0; $i < 50; $i++) {
+            for ($i = 0; $i < 10; $i++) {
                 if ($stockInItems->isEmpty() || $products->isEmpty()) continue;
 
                 $stockItem = $stockInItems->random();

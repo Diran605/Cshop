@@ -20,8 +20,8 @@ class DisposalSeeder extends Seeder
             $branchUsers = $users->where('branch_id', $branch->id);
             $products = Product::where('branch_id', $branch->id)->get();
 
-            // Create 100 disposals per branch
-            for ($i = 0; $i < 100; $i++) {
+            // Create 20 disposals per branch
+            for ($i = 0; $i < 20; $i++) {
                 $disposal = Disposal::factory()->create([
                     'branch_id' => $branch->id,
                     'user_id' => $branchUsers->random()->id,

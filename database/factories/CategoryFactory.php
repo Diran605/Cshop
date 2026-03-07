@@ -11,8 +11,26 @@ class CategoryFactory extends Factory
 
     public function definition(): array
     {
+        $categories = [
+            'Electronics',
+            'Food & Beverages',
+            'Clothing & Apparel',
+            'Home & Garden',
+            'Sports & Outdoors',
+            'Books & Stationery',
+            'Toys & Games',
+            'Health & Wellness',
+            'Beauty & Personal Care',
+            'Automotive',
+            'Kitchen & Dining',
+            'Pet Supplies',
+            'Office Supplies',
+            'Jewelry & Accessories',
+            'Furniture',
+        ];
+
         return [
-            'name' => fake()->word(),
+            'name' => fake()->randomElement($categories),
             'description' => fake()->optional()->sentence(),
             'branch_id' => null,
         ];

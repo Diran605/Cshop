@@ -13,11 +13,22 @@ class ActivityLogFactory extends Factory
 
     public function definition(): array
     {
+        $descriptions = [
+            'created' => 'Record created successfully',
+            'updated' => 'Record updated with new information',
+            'deleted' => 'Record removed from system',
+            'voided' => 'Transaction voided and reversed',
+            'approved' => 'Request approved by manager',
+            'rejected' => 'Request rejected due to policy',
+        ];
+
+        $action = fake()->randomElement(['created', 'updated', 'deleted', 'voided', 'approved', 'rejected']);
+
         return [
-            'action' => fake()->randomElement(['created', 'updated', 'deleted', 'voided', 'approved', 'rejected']),
+            'action' => $action,
             'subject_type' => fake()->randomElement(['product', 'stock_in_receipt', 'sales_receipt', 'stock_adjustment']),
             'subject_id' => fake()->numberBetween(1, 100),
-            'description' => fake()->sentence(),
+            'description' => $descriptions[$action],
             'meta' => null,
             'ip_address' => fake()->ipv4(),
             'user_agent' => fake()->userAgent(),

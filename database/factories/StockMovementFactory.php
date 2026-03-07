@@ -19,6 +19,12 @@ class StockMovementFactory extends Factory
         $beforeStock = fake()->numberBetween(10, 200);
         $afterStock = $movementType === 'IN' ? $beforeStock + $quantity : max(0, $beforeStock - $quantity);
 
+        $notes = [
+            'IN' => 'Stock received from supplier',
+            'OUT' => 'Stock sold to customer',
+            'ADJUSTMENT' => 'Manual stock correction applied',
+        ];
+
         return [
             'movement_type' => $movementType,
             'quantity' => $quantity,
@@ -27,7 +33,7 @@ class StockMovementFactory extends Factory
             'unit_cost' => fake()->randomFloat(2, 100, 5000),
             'unit_price' => fake()->randomFloat(2, 150, 6000),
             'moved_at' => fake()->dateTimeBetween('-1 year', 'now'),
-            'notes' => fake()->optional()->sentence(),
+            'notes' => $notes[$movementType],
         ];
     }
 }

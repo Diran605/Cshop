@@ -18,14 +18,23 @@ class ClearanceActionFactory extends Factory
         $actionValue = fake()->randomFloat(2, 500, $originalValue);
         $recoveredValue = fake()->randomFloat(2, 0, $actionValue);
 
+        $notes = [
+            'discount' => 'Applied clearance discount for near-expiry items',
+            'donate' => 'Donated to local charity organization',
+            'dispose' => 'Disposed according to health regulations',
+            'sold' => 'Sold at discounted price',
+        ];
+
+        $actionType = fake()->randomElement(['discount', 'donate', 'dispose', 'sold']);
+
         return [
-            'action_type' => fake()->randomElement(['discount', 'donate', 'dispose', 'sold']),
+            'action_type' => $actionType,
             'quantity' => fake()->numberBetween(1, 50),
             'original_value' => $originalValue,
             'action_value' => $actionValue,
             'recovered_value' => $recoveredValue,
             'loss_value' => $originalValue - $recoveredValue,
-            'notes' => fake()->optional()->sentence(),
+            'notes' => $notes[$actionType],
             'metadata' => null,
         ];
     }

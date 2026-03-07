@@ -1,7 +1,7 @@
 <div class="ui-page">
     <div class="ui-page-container">
         <div class="mb-6">
-            <h2 class="ui-page-title">{{ __('Branch Admins') }}</h2>
+            <h2 class="ui-page-title">{{ __('Users') }}</h2>
             <div class="ui-page-subtitle">{{ __('Manage users and branch access.') }}</div>
         </div>
 
@@ -35,7 +35,7 @@
                 <div class="ui-card">
                     <div class="ui-card-body">
                         <h3 class="ui-card-title">
-                            {{ __('Add Branch Admin') }}
+                            {{ __('Add User') }}
                         </h3>
 
                         <div class="mt-4 space-y-4">
@@ -75,9 +75,15 @@
             <div class="ui-card">
                 <div class="ui-card-body">
                     <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                        <h3 class="ui-card-title">{{ __('All Branch Admins') }}</h3>
-                        <div class="w-full sm:w-64">
-                            <input type="text" wire:model.debounce.300ms="search" placeholder="{{ __('Search...') }}" class="ui-input" />
+                        <h3 class="ui-card-title">{{ __('All Users') }}</h3>
+                        <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
+                            <select wire:model.live="filter_branch_id" class="ui-select">
+                                <option value="0">{{ __('All Branches') }}</option>
+                                @foreach ($branches as $branch)
+                                    <option value="{{ $branch->id }}">{{ $branch->name }}</option>
+                                @endforeach
+                            </select>
+                            <input type="text" wire:model.debounce.300ms="search" placeholder="{{ __('Search...') }}" class="ui-input w-full sm:w-48" />
                         </div>
                     </div>
 
@@ -162,7 +168,7 @@
             <div class="relative w-full max-w-lg ui-card">
                 <div class="p-4 border-b border-slate-200 flex items-center justify-between">
                     <div>
-                        <div class="text-sm text-slate-500">{{ __('Edit Branch Admin') }}</div>
+                        <div class="text-sm text-slate-500">{{ __('Edit User') }}</div>
                         <div class="mt-1 font-semibold text-slate-900">{{ $name ?: '-' }}</div>
                     </div>
                     <button type="button" wire:click="closeEditModal" class="ui-btn-secondary" data-modal-close>{{ __('Close') }}</button>
