@@ -143,10 +143,10 @@
                                                 <button type="button" wire:click="viewAdjustment({{ $adjustment->id }})" class="ui-btn-link text-xs">{{ __('View') }}</button>
                                                 @if ($adjustment->isPending())
                                                     @can('stock_adjustments.approve')
-                                                        <button type="button" wire:click="openApproveModal({{ $adjustment->id }})" class="text-green-600 hover:text-green-800 text-xs font-medium">{{ __('Approve') }}</button>
+                                                        <button type="button" wire:click="openApproveModal({{ $adjustment->id }})" class="px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 font-medium">{{ __('Approve') }}</button>
                                                     @endcan
                                                     @can('stock_adjustments.reject')
-                                                        <button type="button" wire:click="openRejectModal({{ $adjustment->id }})" class="text-red-600 hover:text-red-800 text-xs font-medium">{{ __('Reject') }}</button>
+                                                        <button type="button" wire:click="openRejectModal({{ $adjustment->id }})" class="px-2 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 font-medium">{{ __('Reject') }}</button>
                                                     @endcan
                                                 @endif
                                             </div>
@@ -168,14 +168,12 @@
                             {{ $adjustments->links() }}
                         </div>
                     @endif
-                </div>
             </div>
         </div>
-    </div>
 
-    {{-- View Modal --}}
-    @if ($show_view_modal && $viewing_adjustment)
-        <div class="fixed inset-0 z-50 flex items-center justify-center p-4" data-modal-root>
+        {{-- View Modal --}}
+        @if ($show_view_modal && $viewing_adjustment)
+        <div wire:key="view-modal-{{ $viewing_adjustment->id }}" class="fixed inset-0 z-50 flex items-center justify-center p-4" data-modal-root>
             <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" wire:click="closeViewModal" data-modal-overlay></div>
             <div class="relative w-full max-w-2xl ui-card max-h-[90vh] overflow-y-auto">
                 <div class="p-4 border-b border-slate-200 sticky top-0 bg-white">
@@ -262,7 +260,7 @@
 
     {{-- Approve Modal --}}
     @if ($show_approve_modal)
-        <div class="fixed inset-0 z-50 flex items-center justify-center p-4" data-modal-root>
+        <div wire:key="approve-modal-{{ $pending_approve_id }}" class="fixed inset-0 z-50 flex items-center justify-center p-4" data-modal-root>
             <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" wire:click="closeApproveModal" data-modal-overlay></div>
             <div class="relative w-full max-w-md ui-card">
                 <div class="p-4 border-b border-slate-200">
@@ -333,7 +331,7 @@
 
     {{-- Reject Modal --}}
     @if ($show_reject_modal)
-        <div class="fixed inset-0 z-50 flex items-center justify-center p-4" data-modal-root>
+        <div wire:key="reject-modal-{{ $pending_reject_id }}" class="fixed inset-0 z-50 flex items-center justify-center p-4" data-modal-root>
             <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" wire:click="closeRejectModal" data-modal-overlay></div>
             <div class="relative w-full max-w-md ui-card">
                 <div class="p-4 border-b border-slate-200">
@@ -400,4 +398,5 @@
             </div>
         </div>
     @endif
+</div>
 </div>

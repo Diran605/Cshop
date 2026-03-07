@@ -53,14 +53,9 @@ class ProductsIndex extends Component
 
     public bool $show_edit_modal = false;
 
-    public bool $show_delete_modal = false;
-    public int $pending_delete_id = 0;
-    public string $pending_delete_name = '';
-
-    // Force delete warning modal
-    public bool $show_delete_warning_modal = false;
-    public string $warning_message = '';
-    public bool $has_transaction_history = false;
+    // View modal
+    public bool $show_view_modal = false;
+    public ?Product $viewing_product = null;
 
     // Void modal
     public bool $show_void_modal = false;
@@ -418,6 +413,26 @@ class ProductsIndex extends Component
         $this->resetForm();
     }
 
+    public function viewProduct(int $id): void
+    {
+        $this->syncAuthContext();
+
+        $product = Product::query()
+            ->with(['branch', 'category', 'bulkType', 'unitType', 'stock'])
+            ->when(! $this->isSuperAdmin, fn ($q) => $q->where('branch_id', $this->branch_id))
+            ->when($this->isSuperAdmin && $this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
+            ->findOrFail($id);
+
+        $this->viewing_product = $product;
+        $this->show_view_modal = true;
+    }
+
+    public function closeViewModal(): void
+    {
+        $this->show_view_modal = false;
+        $this->viewing_product = null;
+    }
+
     public function cancelEdit(): void
     {
         $this->resetForm();
@@ -453,124 +468,6 @@ class ProductsIndex extends Component
         $this->category_id = null;
         $this->bulk_enabled = false;
         $this->bulk_type_id = null;
-    }
-
-    public function delete(int $id): void
-    {
-        $this->syncAuthContext();
-
-        $product = Product::query()
-            ->when(! $this->isSuperAdmin, fn ($q) => $q->where('branch_id', (int) (auth()->user()?->branch_id ?? 0)))
-            ->findOrFail($id);
-
-        $hasSales = SalesItem::query()->where('product_id', (int) $product->id)->exists();
-        $hasStockIn = StockInItem::query()->where('product_id', (int) $product->id)->exists();
-        $hasMovement = StockMovement::query()->where('product_id', (int) $product->id)->exists();
-
-        if ($hasSales || $hasStockIn || $hasMovement) {
-            // Build warning message
-            $messages = [];
-            if ($hasSales) {
-                $salesCount = SalesItem::where('product_id', (int) $product->id)->count();
-                $messages[] = "{$salesCount} sales record(s)";
-            }
-            if ($hasStockIn) {
-                $stockInCount = StockInItem::where('product_id', (int) $product->id)->count();
-                $messages[] = "{$stockInCount} stock in record(s)";
-            }
-            if ($hasMovement) {
-                $movementCount = StockMovement::where('product_id', (int) $product->id)->count();
-                $messages[] = "{$movementCount} stock movement(s)";
-            }
-
-            $items = implode(', ', $messages);
-            $this->warning_message = "This product has {$items}. Deleting it will permanently remove all related data including sales history, stock records, and financial transactions. This action cannot be undone. Are you sure you want to continue?";
-            $this->has_transaction_history = true;
-            $this->pending_delete_id = (int) $product->id;
-            $this->pending_delete_name = (string) $product->name;
-            $this->show_delete_warning_modal = true;
-            return;
-        }
-
-        // No transaction history - proceed with normal delete
-        $this->pending_delete_id = (int) $product->id;
-        $this->pending_delete_name = (string) $product->name;
-        $this->show_delete_modal = true;
-    }
-
-    public function confirmForceDelete(): void
-    {
-        $this->syncAuthContext();
-
-        $product = Product::query()
-            ->when(! $this->isSuperAdmin, fn ($q) => $q->where('branch_id', (int) (auth()->user()?->branch_id ?? 0)))
-            ->findOrFail($this->pending_delete_id);
-
-        $snapshot = $product->only(['id', 'name', 'branch_id', 'status']);
-
-        DB::transaction(function () use ($product) {
-            // Delete in correct order to avoid foreign key constraints
-            SalesItem::where('product_id', (int) $product->id)->delete();
-            StockInItem::where('product_id', (int) $product->id)->delete();
-            StockMovement::where('product_id', (int) $product->id)->delete();
-            ProductStock::where('product_id', (int) $product->id)->delete();
-            $product->delete();
-        });
-
-        ActivityLogger::log(
-            'product.force_deleted',
-            null,
-            "Force deleted product: {$snapshot['name']} with all transaction history",
-            ['product' => $snapshot],
-            isset($snapshot['branch_id']) ? (int) $snapshot['branch_id'] : null
-        );
-
-        $this->show_delete_warning_modal = false;
-        $this->warning_message = '';
-        $this->has_transaction_history = false;
-        $this->pending_delete_id = 0;
-        $this->pending_delete_name = '';
-
-        session()->flash('status', 'Product and all related records deleted successfully.');
-    }
-
-    public function closeDeleteWarningModal(): void
-    {
-        $this->show_delete_warning_modal = false;
-        $this->warning_message = '';
-        $this->has_transaction_history = false;
-        $this->pending_delete_id = 0;
-        $this->pending_delete_name = '';
-    }
-
-    public function openDeleteModal(int $id): void
-    {
-        $this->syncAuthContext();
-
-        $product = Product::query()
-            ->when(! $this->isSuperAdmin, fn ($q) => $q->where('branch_id', (int) (auth()->user()?->branch_id ?? 0)))
-            ->findOrFail($id);
-
-        $this->pending_delete_id = (int) $product->id;
-        $this->pending_delete_name = (string) $product->name;
-        $this->show_delete_modal = true;
-    }
-
-    public function closeDeleteModal(): void
-    {
-        $this->show_delete_modal = false;
-        $this->pending_delete_id = 0;
-        $this->pending_delete_name = '';
-    }
-
-    public function confirmDelete(): void
-    {
-        $id = (int) $this->pending_delete_id;
-        $this->closeDeleteModal();
-
-        if ($id > 0) {
-            $this->delete($id);
-        }
     }
 
     public function openVoidModal(int $id): void

@@ -26,6 +26,7 @@ class RbacSeeder extends Seeder
             'products.manage',
             'stock_in.manage',
             'stock_levels.view',
+            'stock_valuation.view',
             'opening_stock.manage',
             'expenses.manage',
             'reports.view',
@@ -81,6 +82,7 @@ class RbacSeeder extends Seeder
             'stock_in.batch_print',
 
             'stock_levels.view',
+            'stock_valuation.view',
             'opening_stock.view',
             'opening_stock.edit',
 

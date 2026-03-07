@@ -282,14 +282,12 @@
                                             </td>
                                             <td class="text-right">
                                                 <div class="inline-flex items-center gap-3">
+                                                    <button type="button" wire:click="viewProduct({{ $product->id }})" class="ui-btn-link text-xs">{{ __('View') }}</button>
                                                     @can('products.edit')
-                                                        <button type="button" wire:click.stop.prevent="openEditModal({{ $product->id }})" class="ui-btn-link">{{ __('Edit') }}</button>
+                                                        <button type="button" wire:click.stop.prevent="openEditModal({{ $product->id }})" class="ui-btn-link text-xs">{{ __('Edit') }}</button>
                                                     @endcan
                                                     @can('products.void')
-                                                        <button type="button" wire:click.stop.prevent="openVoidModal({{ $product->id }})" class="text-orange-600 hover:text-orange-800 text-sm font-medium">{{ __('Void') }}</button>
-                                                    @endcan
-                                                    @can('products.delete')
-                                                        <button type="button" wire:click.stop.prevent="openDeleteModal({{ $product->id }})" class="ui-btn-link-danger">{{ __('Delete') }}</button>
+                                                        <button type="button" wire:click.stop.prevent="openVoidModal({{ $product->id }})" class="text-orange-600 hover:text-orange-800 text-xs font-medium">{{ __('Void') }}</button>
                                                     @endcan
                                                 </div>
                                             </td>
@@ -319,6 +317,126 @@
             @endif
         </div>
     </div>
+
+    {{-- View Product Modal --}}
+    @if ($show_view_modal && $viewing_product)
+        <div wire:key="view-modal-{{ $viewing_product->id }}" class="fixed inset-0 z-50 flex items-center justify-center p-4" data-modal-root>
+            <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" wire:click="closeViewModal" data-modal-overlay></div>
+            <div class="relative w-full max-w-2xl ui-card max-h-[90vh] overflow-y-auto">
+                <div class="p-4 border-b border-slate-200 sticky top-0 bg-white">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <div class="text-sm text-slate-500">{{ __('Product Details') }}</div>
+                            <div class="mt-1 font-semibold text-slate-900">{{ $viewing_product->name }}</div>
+                        </div>
+                        <button type="button" wire:click="closeViewModal" class="text-slate-400 hover:text-slate-600">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="p-4 space-y-4">
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div>
+                            <div class="text-xs text-slate-500">{{ __('Branch') }}</div>
+                            <div class="font-medium">{{ $viewing_product->branch?->name ?? '-' }}</div>
+                        </div>
+                        <div>
+                            <div class="text-xs text-slate-500">{{ __('Category') }}</div>
+                            <div class="font-medium">{{ $viewing_product->category?->name ?? '-' }}</div>
+                        </div>
+                        <div>
+                            <div class="text-xs text-slate-500">{{ __('Status') }}</div>
+                            <div class="font-medium">
+                                @if ((string) $viewing_product->status === 'active')
+                                    <span class="ui-badge-success">{{ __('Active') }}</span>
+                                @elseif ((string) $viewing_product->status === 'void_pending')
+                                    <span class="ui-badge-warning">{{ __('Void Pending') }}</span>
+                                @elseif ((string) $viewing_product->status === 'voided')
+                                    <span class="ui-badge-danger">{{ __('Voided') }}</span>
+                                @else
+                                    <span class="ui-badge-info">{{ __('Inactive') }}</span>
+                                @endif
+                            </div>
+                        </div>
+                        <div>
+                            <div class="text-xs text-slate-500">{{ __('Unit Type') }}</div>
+                            <div class="font-medium">{{ $viewing_product->unitType?->name ?? '-' }}</div>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-50 rounded-lg p-4">
+                        <div class="text-xs text-slate-500 mb-3">{{ __('Pricing') }}</div>
+                        <div class="grid grid-cols-3 gap-4">
+                            <div class="text-center">
+                                <div class="text-lg font-mono">{{ $viewing_product->cost_price !== null ? number_format((float) $viewing_product->cost_price, 2) : '-' }}</div>
+                                <div class="text-xs text-slate-500">{{ __('Cost Price') }}</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-lg font-mono">{{ $viewing_product->min_selling_price !== null ? number_format((float) $viewing_product->min_selling_price, 2) : '-' }}</div>
+                                <div class="text-xs text-slate-500">{{ __('Min Price') }}</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-lg font-mono font-bold text-green-600">{{ number_format((float) $viewing_product->selling_price, 2) }}</div>
+                                <div class="text-xs text-slate-500">{{ __('Selling Price') }}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-50 rounded-lg p-4">
+                        <div class="text-xs text-slate-500 mb-3">{{ __('Stock') }}</div>
+                        <div class="grid grid-cols-3 gap-4">
+                            <div class="text-center">
+                                <div class="text-2xl font-mono font-bold">{{ $viewing_product->stock?->current_stock ?? 0 }}</div>
+                                <div class="text-xs text-slate-500">{{ __('Current Stock') }}</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-lg font-mono">{{ $viewing_product->stock?->cost_price !== null ? number_format((float) $viewing_product->stock->cost_price, 2) : '-' }}</div>
+                                <div class="text-xs text-slate-500">{{ __('Stock Cost') }}</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-lg font-mono font-bold text-blue-600">{{ $viewing_product->stock ? number_format((float) $viewing_product->stock->current_stock * (float) $viewing_product->stock->cost_price, 2) : '0.00' }}</div>
+                                <div class="text-xs text-slate-500">{{ __('Stock Value') }}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    @if ($viewing_product->bulk_enabled)
+                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                            <div class="text-xs text-blue-600 font-medium mb-2">{{ __('Bulk Settings') }}</div>
+                            <div class="text-sm text-blue-800">
+                                <strong>{{ __('Bulk Type:') }}</strong> {{ $viewing_product->bulkType?->name ?? '-' }}
+                            </div>
+                        </div>
+                    @endif
+
+                    @if ($viewing_product->description)
+                        <div>
+                            <div class="text-xs text-slate-500">{{ __('Description') }}</div>
+                            <div class="mt-1 text-sm bg-slate-50 rounded p-3">{{ $viewing_product->description }}</div>
+                        </div>
+                    @endif
+
+                    <div class="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                            <div class="text-xs text-slate-500">{{ __('Created') }}</div>
+                            <div class="font-medium">{{ $viewing_product->created_at->format('M j, Y H:i') }}</div>
+                        </div>
+                        <div>
+                            <div class="text-xs text-slate-500">{{ __('Last Updated') }}</div>
+                            <div class="font-medium">{{ $viewing_product->updated_at->format('M j, Y H:i') }}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="p-4 border-t border-slate-200 flex justify-end gap-3">
+                    <button type="button" wire:click="closeViewModal" class="ui-btn-primary">{{ __('Close') }}</button>
+                </div>
+            </div>
+        </div>
+    @endif
 
     @if ($show_edit_modal)
         <div class="fixed inset-0 z-50 flex items-start justify-center p-4 pt-8 sm:pt-12 overflow-y-auto" data-modal-root>
@@ -469,88 +587,6 @@
                     </button>
                     <button type="button" wire:click="save" class="ui-btn-primary">
                         {{ __('Save') }}
-                    </button>
-                </div>
-            </div>
-        </div>
-    @endif
-
-    @if ($show_delete_modal)
-        <div class="fixed inset-0 z-50 flex items-center justify-center p-4" data-modal-root>
-            <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" wire:click="closeDeleteModal" data-modal-overlay></div>
-            <div class="relative w-full max-w-lg ui-card">
-                <div class="p-4 border-b border-slate-200">
-                    <div class="text-sm text-slate-500">{{ __('Confirm Delete') }}</div>
-                    <div class="mt-1 font-semibold text-slate-900">{{ __('Delete Product') }}</div>
-                </div>
-
-                <div class="p-4">
-                    <div class="text-sm text-slate-700">
-                        {{ __('Are you sure you want to delete this product?') }}
-                        <span class="font-semibold">{{ $pending_delete_name ?: '-' }}</span>
-                    </div>
-
-                    <div class="mt-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3">
-                        <button type="button" wire:click="closeDeleteModal" class="ui-btn-secondary" data-modal-close>{{ __('Cancel') }}</button>
-                        <button type="button" wire:click="confirmDelete" class="ui-btn-danger">{{ __('Delete') }}</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    @endif
-
-    {{-- Force Delete Warning Modal --}}
-    @if ($show_delete_warning_modal)
-        <div class="fixed inset-0 z-50 flex items-center justify-center p-4" data-modal-root>
-            <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" wire:click="closeDeleteWarningModal" data-modal-overlay></div>
-            <div class="relative w-full max-w-2xl bg-white rounded-xl shadow-2xl border-2 border-red-200">
-                <!-- Header -->
-                <div class="p-6 border-b border-red-200 bg-red-50">
-                    <div class="flex items-center gap-3">
-                        <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
-                            <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-1.964-1.333-2.732 0L3.732 16c-.77 1.333.192 3 1.732 3z" />
-                            </svg>
-                        </div>
-                        <div>
-                            <div class="text-lg font-bold text-red-900">{{ __('Warning: Product Has Transaction History') }}</div>
-                            <div class="text-sm text-red-700 mt-1">{{ $pending_delete_name }}</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Content -->
-                <div class="p-6">
-                    <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-                        <div class="flex items-start gap-3">
-                            <svg class="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            <div class="text-sm text-red-800">
-                                {{ $warning_message }}
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                        <div class="flex items-start gap-3">
-                            <svg class="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            <div class="text-sm text-amber-800">
-                                <strong>{{ __('Recommendation:') }}</strong> {{ __('Consider setting the product to "inactive" status instead of deleting it. This preserves your transaction history for reporting and audit purposes.') }}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Footer -->
-                <div class="p-4 border-t border-slate-200 bg-slate-50 flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3">
-                    <button type="button" wire:click="closeDeleteWarningModal" class="ui-btn-secondary" data-modal-close>
-                        {{ __('Cancel') }}
-                    </button>
-                    <button type="button" wire:click="confirmForceDelete" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium">
-                        {{ __('Delete Everything') }}
                     </button>
                 </div>
             </div>
