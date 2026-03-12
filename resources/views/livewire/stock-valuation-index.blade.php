@@ -74,7 +74,7 @@
                                 <th class="whitespace-nowrap text-center">{{ __('Qty') }}</th>
                                 <th class="whitespace-nowrap text-right">{{ __('Opening Cost') }}</th>
                                 <th class="whitespace-nowrap text-right">{{ __('Stock-In Cost') }}</th>
-                                <th class="whitespace-nowrap text-right">{{ __('Current Cost') }}</th>
+                                <th class="whitespace-nowrap text-right">{{ __('Current Cost (Wtd Avg)') }}</th>
                                 <th class="whitespace-nowrap text-right">{{ __('Sell Price') }}</th>
                                 <th class="whitespace-nowrap text-right">{{ __('Value') }}</th>
                                 <th class="whitespace-nowrap text-right">{{ __('Margin') }}</th>
@@ -103,7 +103,7 @@
                                         {{ isset($product->stock_in_cost_price) && $product->stock_in_cost_price !== null ? number_format((float) $product->stock_in_cost_price, 2) : '-' }}
                                     </td>
                                     <td class="whitespace-nowrap text-right font-mono font-semibold text-slate-900">
-                                        {{ $product->stock?->cost_price !== null ? number_format((float) $product->stock->cost_price, 2) : '-' }}
+                                        {{ isset($product->current_cost_price) && $product->current_cost_price !== null ? number_format((float) $product->current_cost_price, 2) : '-' }}
                                     </td>
                                     <td class="whitespace-nowrap text-right font-mono font-semibold text-green-600">
                                         {{ number_format((float) $product->selling_price, 2) }}

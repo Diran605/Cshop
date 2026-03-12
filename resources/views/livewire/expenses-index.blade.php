@@ -70,8 +70,13 @@
                             </div>
 
                             <div>
-                                <label class="ui-label">{{ __('Expense Type (optional)') }}</label>
-                                <input type="text" wire:model.defer="expense_type" class="mt-1 ui-input" />
+                                <label class="ui-label">{{ __('Expense Type') }}</label>
+                                <select wire:model.defer="expense_type" class="mt-1 ui-select">
+                                    <option value="">{{ __('Select type...') }}</option>
+                                    @foreach ($expenseTypes as $type)
+                                        <option value="{{ $type->name }}">{{ $type->name }}</option>
+                                    @endforeach
+                                </select>
                                 @error('expense_type') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
                             </div>
 

@@ -391,6 +391,14 @@ class ExpensesIndex extends Component
 
         $branches = Branch::query()->where('is_active', true)->orderBy('name')->get();
 
+        // Get expense types for dropdown
+        $expenseTypes = \App\Models\ExpenseType::query()
+            ->when(! $this->isSuperAdmin, fn ($q) => $q->where('branch_id', $this->branch_id))
+            ->when($this->isSuperAdmin && $this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
+
         $selectedExpense = null;
         if ($this->show_expense_modal && $this->selected_expense_id > 0) {
             $selectedExpense = Expense::query()->with(['branch', 'user', 'voidedBy'])->find($this->selected_expense_id);
@@ -433,6 +441,7 @@ class ExpensesIndex extends Component
 
         return view('livewire.expenses-index', [
             'branches' => $branches,
+            'expenseTypes' => $expenseTypes,
             'expenses' => $expenses,
             'selectedExpense' => $selectedExpense,
         ]);

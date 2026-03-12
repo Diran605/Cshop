@@ -5,6 +5,7 @@ namespace App\Livewire;
 use App\Models\Branch;
 use App\Models\Product;
 use App\Models\ProductStock;
+use App\Models\StockInItem;
 use App\Models\StockMovement;
 use App\Support\ActivityLogger;
 use Carbon\Carbon;
@@ -85,7 +86,7 @@ class OpeningStockIndex extends Component
         $this->resetPage();
     }
 
-    public function editOpeningStock(int $productId): void
+    public function viewOpeningStock(int $productId): void
     {
         $this->syncAuthContext();
 
@@ -98,111 +99,22 @@ class OpeningStockIndex extends Component
             ->where('branch_id', $this->branch_id)
             ->first();
 
-        // Get latest expiry date from stock in items
-        $latestStockItem = StockInItem::query()
-            ->where('product_id', $product->id)
-            ->whereHas('receipt', function ($query) {
-                $query->where('branch_id', $this->branch_id);
-            })
-            ->whereNotNull('expiry_date')
-            ->orderBy('created_at', 'desc')
-            ->first();
-
         $this->editing_product_id = $product->id;
         $this->editing_product_name = $product->name;
         $this->opening_quantity = $stock ? (int) $stock->current_stock : 0;
         $this->opening_cost_price = $stock && $stock->cost_price !== null ? (string) $stock->cost_price : null;
-        $this->opening_expiry_date = $latestStockItem ? $latestStockItem->expiry_date->toDateString() : null;
+        $this->opening_expiry_date = null; // Not pre-filled - opening stock is independent
 
         $this->show_edit_modal = true;
     }
 
-    public function saveOpeningStock(): void
-    {
-        $this->validate();
-
-        $this->syncAuthContext();
-
-        $product = Product::query()
-            ->when(! $this->isSuperAdmin, fn ($q) => $q->where('branch_id', $this->branch_id))
-            ->findOrFail($this->editing_product_id);
-
-        DB::transaction(function () use ($product) {
-            $stock = ProductStock::query()
-                ->where('product_id', $product->id)
-                ->where('branch_id', $this->branch_id)
-                ->first();
-
-            $oldQuantity = $stock ? (int) $stock->current_stock : 0;
-            $newQuantity = (int) $this->opening_quantity;
-            $quantityDiff = $newQuantity - $oldQuantity;
-
-            // Update or create product stock
-            if ($stock) {
-                $stock->current_stock = $newQuantity;
-                $stock->cost_price = ($this->opening_cost_price !== null && $this->opening_cost_price !== '')
-                    ? number_format((float) $this->opening_cost_price, 2, '.', '')
-                    : null;
-                $stock->save();
-            } else {
-                $stock = ProductStock::query()->create([
-                    'branch_id' => $this->branch_id,
-                    'product_id' => $product->id,
-                    'current_stock' => $newQuantity,
-                    'minimum_stock' => 0,
-                    'cost_price' => ($this->opening_cost_price !== null && $this->opening_cost_price !== '')
-                        ? number_format((float) $this->opening_cost_price, 2, '.', '')
-                        : null,
-                ]);
-            }
-
-            // Create stock movement if quantity changed
-            if ($quantityDiff !== 0) {
-                StockMovement::query()->create([
-                    'branch_id' => $this->branch_id,
-                    'product_id' => $product->id,
-                    'user_id' => $this->auth_user_id,
-                    'movement_type' => $quantityDiff > 0 ? 'IN' : 'OUT',
-                    'quantity' => abs($quantityDiff),
-                    'before_stock' => $oldQuantity,
-                    'after_stock' => $newQuantity,
-                    'unit_cost' => ($this->opening_cost_price !== null && $this->opening_cost_price !== '')
-                        ? number_format((float) $this->opening_cost_price, 2, '.', '')
-                        : null,
-                    'unit_price' => $product->selling_price,
-                    'moved_at' => Carbon::now(),
-                    'notes' => 'Opening stock adjustment',
-                ]);
-            }
-
-            ActivityLogger::log(
-                'opening_stock.updated',
-                ['type' => Product::class, 'id' => $product->id],
-                "Updated opening stock for {$product->name}: {$oldQuantity} → {$newQuantity}",
-                [
-                    'product_id' => $product->id,
-                    'product_name' => $product->name,
-                    'old_quantity' => $oldQuantity,
-                    'new_quantity' => $newQuantity,
-                    'cost_price' => $this->opening_cost_price,
-                    'expiry_date' => $this->opening_expiry_date,
-                ],
-                $this->branch_id
-            );
-        });
-
-        $this->show_edit_modal = false;
-        $this->resetEditForm();
-        session()->flash('status', 'Opening stock updated successfully.');
-    }
-
-    public function closeEditModal(): void
+    public function closeViewModal(): void
     {
         $this->show_edit_modal = false;
-        $this->resetEditForm();
+        $this->resetViewForm();
     }
 
-    protected function resetEditForm(): void
+    protected function resetViewForm(): void
     {
         $this->editing_product_id = 0;
         $this->editing_product_name = '';
@@ -227,6 +139,22 @@ class OpeningStockIndex extends Component
             ->orderBy('name', 'asc');
 
         $products = $query->paginate(20);
+
+        // Get opening stock costs from stock movements
+        $productIds = $products->pluck('id')->toArray();
+        $openingCosts = DB::table('stock_movements')
+            ->whereIn('product_id', $productIds)
+            ->where('branch_id', $this->branch_id)
+            ->where('notes', 'like', '%Opening stock%')
+            ->get(['product_id', 'unit_cost'])
+            ->groupBy('product_id')
+            ->map(fn ($items) => $items->first()->unit_cost)
+            ->toArray();
+
+        // Attach opening cost to products
+        foreach ($products as $product) {
+            $product->opening_cost_price = $openingCosts[$product->id] ?? null;
+        }
 
         $branches = Branch::query()
             ->where('is_active', true)

@@ -17,6 +17,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Livewire\Attributes\Computed;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Maatwebsite\Excel\Facades\Excel;
@@ -27,10 +28,12 @@ class SalesIndex extends Component
 
     public string $mode = 'add';
 
-    public string $sale_entry_type = 'group';
+    public string $sale_entry_type = 'single';
 
     public int $branch_id = 0;
     public int $product_id = 0;
+
+    public ?array $selected_product_data = null;
 
     public string $product_search = '';
     public string $sales_search = '';
@@ -132,11 +135,8 @@ class SalesIndex extends Component
             $this->branch_id = (int) (Branch::query()->where('is_active', true)->orderBy('name')->value('id') ?? 0);
         }
 
-        $this->product_id = (int) (Product::query()
-            ->where('status', Product::STATUS_ACTIVE)
-            ->when($this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
-            ->orderBy('name')
-            ->value('id') ?? 0);
+        $this->product_id = 0;
+        $this->selected_product_data = null;
         $this->entry_mode = 'unit';
         $this->entry_quantity = 1;
         $this->bulk_quantity = 1;
@@ -151,7 +151,7 @@ class SalesIndex extends Component
         $this->product_search = '';
         $this->sales_search = '';
 
-        $this->sale_entry_type = 'group';
+        $this->sale_entry_type = 'single';
 
         $today = Carbon::today();
         $this->sales_date_from = $today->toDateString();
@@ -183,77 +183,55 @@ class SalesIndex extends Component
 
         if ($currentUserId !== $this->auth_user_id) {
             $this->auth_user_id = $currentUserId;
-            $this->cart = [];
-            $this->selected_sale_id = 0;
-            $this->amount_paid = null;
-            $this->customer_name = null;
-            $this->notes = null;
-            $this->sold_at_date = Carbon::today()->toDateString();
-            $this->entry_mode = 'unit';
-            $this->entry_quantity = 1;
-            $this->bulk_quantity = 1;
-            $this->product_search = '';
-            $this->sales_search = '';
-
-            $this->sale_entry_type = 'group';
-
-            $today = Carbon::today();
-            $this->sales_date_from = $today->toDateString();
-            $this->sales_date_to = $today->toDateString();
-            $this->sales_status = 'active';
-            $this->selected_sales = [];
-
-            $this->show_edit_modal = false;
-            $this->show_void_modal = false;
-            $this->editing_sale_id = 0;
-            $this->edit_branch_id = 0;
-            $this->edit_cart = [];
-            $this->edit_product_id = 0;
-            $this->edit_entry_mode = 'unit';
-            $this->edit_entry_quantity = 1;
-            $this->edit_bulk_quantity = 1;
-            $this->edit_payment_method = 'cash';
-            $this->edit_amount_paid = null;
-            $this->edit_customer_name = null;
-            $this->edit_notes = null;
-            $this->pending_void_sale_id = 0;
-            $this->void_reason = null;
+            $this->isSuperAdmin = (bool) ($user?->role === 'super_admin');
         }
-
-        $this->isSuperAdmin = (bool) ($user?->role === 'super_admin');
     }
 
-    public function updatedProductId(): void
+    public function updatedProductId(int $value): void
     {
+        if ($value <= 0) {
+            $this->selected_product_data = null;
+            return;
+        }
+
         $product = Product::query()
-            ->with(['bulkType'])
+            ->with(['bulkType', 'category', 'unitType'])
             ->when($this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
-            ->find($this->product_id);
-        if ($product && (bool) $product->bulk_enabled) {
-            $this->entry_mode = 'bulk';
-            $this->bulk_quantity = max(1, (int) $this->bulk_quantity);
+            ->find($value);
+
+        if ($product) {
+            $this->selected_product_data = [
+                'id' => $product->id,
+                'name' => $product->name,
+                'selling_price' => (string) ($product->selling_price ?? '0'),
+                'min_selling_price' => $product->min_selling_price !== null ? (string) $product->min_selling_price : null,
+                'bulk_enabled' => (bool) $product->bulk_enabled,
+                'units_per_bulk' => (int) ($product->bulkType?->units_per_bulk ?? 0),
+                'category_name' => $product->category?->name,
+                'unit_type_name' => $product->unitType?->name,
+            ];
+            
+            // Reset entry mode to unit if product doesn't support bulk
+            if (! $product->bulk_enabled) {
+                $this->entry_mode = 'unit';
+            }
         } else {
-            $this->entry_mode = 'unit';
-            $this->entry_quantity = max(1, (int) $this->entry_quantity);
+            $this->selected_product_data = null;
         }
     }
 
-    public function updatedBranchId(): void
+    public function updatedBranchId(int $value): void
     {
+        // Reset product selection when branch changes
+        $this->product_id = 0;
+        $this->selected_product_data = null;
+        
         if (! $this->isSuperAdmin) {
             return;
         }
 
         $this->cart = [];
         $this->selected_sale_id = 0;
-
-        $this->product_id = (int) (Product::query()
-            ->where('status', Product::STATUS_ACTIVE)
-            ->when($this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
-            ->orderBy('name')
-            ->value('id') ?? 0);
-
-        $this->updatedProductId();
     }
 
     public function updatedSaleEntryType(): void
@@ -1597,6 +1575,8 @@ class SalesIndex extends Component
                 ->find($this->selected_sale_id);
         }
 
+        $selectedBranch = $branches->firstWhere('id', $this->branch_id);
+
         return view('livewire.sales-index', [
             'branches' => $branches,
             'products' => $products,
@@ -1614,7 +1594,25 @@ class SalesIndex extends Component
             'editChangeDue' => $editChangeDue,
             'sales' => $sales,
             'selectedSale' => $selectedSale,
-            'isSuperAdmin' => $this->isSuperAdmin,
+            'selectedBranch' => $selectedBranch,
+            'entryPriceDisplay' => $this->calculateEntryPriceDisplay(),
         ]);
+    }
+
+    protected function calculateEntryPriceDisplay(): string
+    {
+        if ($this->product_id <= 0 || ! $this->selected_product_data) {
+            return '0';
+        }
+
+        $isBulk = $this->entry_mode === 'bulk' && $this->selected_product_data['bulk_enabled'];
+        $unitsPerBulk = (int) ($this->selected_product_data['units_per_bulk'] ?? 0);
+
+        if ($isBulk && $unitsPerBulk > 0) {
+            $basePrice = (float) ($this->cart[$this->product_id]['unit_price'] ?? $this->selected_product_data['selling_price'] ?? 0);
+            return number_format($basePrice * $unitsPerBulk, 2, '.', '');
+        }
+
+        return (string) ($this->cart[$this->product_id]['unit_price'] ?? $this->selected_product_data['selling_price'] ?? '0');
     }
 }

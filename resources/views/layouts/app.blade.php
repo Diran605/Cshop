@@ -412,6 +412,48 @@
                         </div>
                     @endcanany
 
+                    {{-- Expenses Module --}}
+                    @canany(['expenses.view', 'expenses.manage'])
+                        <div class="pt-4">
+                            <div class="ui-nav-section-title">{{ __('Expenses') }}</div>
+                            <div class="mt-2 space-y-1">
+                                @can('expenses.manage')
+                                    <a href="{{ route('expense-types.index') }}"
+                                        class="ui-nav-link {{ request()->routeIs('expense-types.index') ? 'ui-nav-link-active' : '' }}">
+                                        <span class="flex items-center gap-2">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                                            </svg>
+                                            {{ __('Expense Types') }}
+                                        </span>
+                                    </a>
+                                @endcan
+                                @can('expenses.view')
+                                    <a href="{{ route('expenses.index', ['mode' => 'add']) }}"
+                                        class="ui-nav-link {{ request()->routeIs('expenses.index') && request()->route('mode') === 'add' ? 'ui-nav-link-active' : '' }}">
+                                        <span class="flex items-center gap-2">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                            </svg>
+                                            {{ __('Add Expense') }}
+                                        </span>
+                                    </a>
+                                @endcan
+                                @can('expenses.view')
+                                    <a href="{{ route('expenses.index', ['mode' => 'manage']) }}"
+                                        class="ui-nav-link {{ request()->routeIs('expenses.index') && request()->route('mode') === 'manage' ? 'ui-nav-link-active' : '' }}">
+                                        <span class="flex items-center gap-2">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                            </svg>
+                                            {{ __('Manage Expenses') }}
+                                        </span>
+                                    </a>
+                                @endcan
+                            </div>
+                        </div>
+                    @endcanany
+
                     {{-- Clearance Module --}}
                     @canany(['clearance.view', 'clearance.discount', 'clearance.donate', 'clearance.dispose', 'clearance.rules.view', 'clearance.reports'])
                         <div class="pt-4">
@@ -425,6 +467,17 @@
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
                                             </svg>
                                             {{ __('Clearance Manager') }}
+                                        </span>
+                                    </a>
+                                @endcan
+                                @can('clearance.view')
+                                    <a href="{{ route('clearance.records') }}"
+                                        class="ui-nav-link {{ request()->routeIs('clearance.records') ? 'ui-nav-link-active' : '' }}">
+                                        <span class="flex items-center gap-2">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                            </svg>
+                                            {{ __('Clearance Records') }}
                                         </span>
                                     </a>
                                 @endcan

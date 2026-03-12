@@ -1,21 +1,12 @@
 <div class="ui-page">
     <div class="ui-page-container">
+        {{-- Header --}}
         <div class="mb-6">
-            <h2 class="ui-page-title">{{ __('Sales') }}</h2>
-            <div class="ui-page-subtitle">{{ __('Record sales and manage existing receipts.') }}</div>
-            <div class="mt-4 flex flex-col sm:flex-row items-start sm:items-center gap-3">
-                <a href="{{ route('sales.download-template') }}" class="ui-btn-secondary w-full sm:w-auto text-center">
-                    {{ __('Download Template') }}
-                </a>
-                <label class="ui-btn-secondary cursor-pointer w-full sm:w-auto text-center">
-                    {{ __('Import Excel') }}
-                    <input type="file" wire:model="excel_file" accept=".xlsx,.xls" class="hidden" />
-                </label>
-                @if ($excel_file)
-                    <button type="button" wire:click="importExcel" class="ui-btn-primary w-full sm:w-auto">
-                        {{ __('Upload') }}
-                    </button>
-                @endif
+            <div class="flex items-start justify-between">
+                <div>
+                    <div class="text-xs font-bold tracking-wider uppercase text-purple-600 mb-1">Point of Sale</div>
+                    <h1 class="text-2xl font-bold text-slate-900">Record Sale</h1>
+                </div>
             </div>
         </div>
 
@@ -37,268 +28,243 @@
             </div>
         @endif
 
-        <div class="space-y-6">
+        {{-- Row 1: Sale Configuration (left) + Add Products (right) --}}
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {{-- Sale Configuration Card --}}
             <div class="ui-card">
-                    <div class="ui-card-body">
-                        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                            <h3 class="ui-card-title">{{ __('Record Sale') }}</h3>
-
-                            <div class="ui-tabs" role="tablist">
+                <div class="ui-card-body">
+                    <h3 class="text-lg font-semibold text-slate-900 mb-4">Sale Configuration</h3>
+                    <div class="space-y-4">
+                        {{-- Sale Type Toggle --}}
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Sale Type</label>
+                            <div class="inline-flex rounded-lg border border-slate-300/80 bg-white/60 p-1">
                                 <button type="button"
-                                    class="ui-tab {{ $sale_entry_type === 'single' ? 'ui-tab-active' : '' }}"
                                     wire:click="$set('sale_entry_type', 'single')"
-                                    role="tab"
-                                    aria-selected="{{ $sale_entry_type === 'single' ? 'true' : 'false' }}">
-                                    {{ __('Single') }}
+                                    class="px-4 py-2 text-sm font-medium rounded-md transition-all {{ $sale_entry_type === 'single' ? 'bg-purple-500 text-white shadow-md' : 'text-slate-700 hover:bg-slate-100' }}">
+                                    Single
                                 </button>
                                 <button type="button"
-                                    class="ui-tab {{ $sale_entry_type === 'group' ? 'ui-tab-active' : '' }}"
                                     wire:click="$set('sale_entry_type', 'group')"
-                                    role="tab"
-                                    aria-selected="{{ $sale_entry_type === 'group' ? 'true' : 'false' }}">
-                                    {{ __('Group') }}
+                                    class="px-4 py-2 text-sm font-medium rounded-md transition-all {{ $sale_entry_type === 'group' ? 'bg-purple-500 text-white shadow-md' : 'text-slate-700 hover:bg-slate-100' }}">
+                                    Group
                                 </button>
                             </div>
                         </div>
 
-                        <div class="mt-4 space-y-4">
+                        {{-- Sale Date --}}
                         <div>
-                            <label class="ui-label">{{ __('Branch') }}</label>
-                            @if ($isSuperAdmin)
-                                <select wire:model.live="branch_id" class="mt-1 ui-select">
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Sale Date</label>
+                            <input type="date" wire:model.defer="sold_at_date" class="ui-input" />
+                            @error('sold_at_date') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                        </div>
+
+                        {{-- Branch Selection for Super Admin --}}
+                        @if ($isSuperAdmin)
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">Branch</label>
+                                <select wire:model.live="branch_id" class="ui-select">
                                     <option value="0">{{ __('Select...') }}</option>
                                     @foreach ($branches as $branch)
                                         <option value="{{ $branch->id }}">{{ $branch->name }}</option>
                                     @endforeach
                                 </select>
                                 @error('branch_id') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                            </div>
+                        @endif
+                    </div>
+                </div>
+            </div>
+
+            {{-- Add Products Card --}}
+            <div class="ui-card">
+                <div class="ui-card-body">
+                    <h3 class="text-lg font-semibold text-slate-900 mb-4">Add Products</h3>
+
+                    <div class="space-y-4">
+                        {{-- Product Dropdown --}}
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Product</label>
+                            <input type="text" wire:model.live.debounce.300ms="product_search" class="ui-input mb-2" placeholder="Search product..." />
+                            <select wire:key="products-{{ $branch_id }}-{{ md5($product_search) }}" wire:model.live="product_id" class="ui-select">
+                                <option value="0">{{ __('Select...') }}</option>
+                                @foreach ($products as $product)
+                                    <option value="{{ $product->id }}">{{ $product->name }}@if($product->category) ({{ $product->category->name }})@endif</option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        {{-- Entry Type Toggle --}}
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Entry Type</label>
+                            <div class="inline-flex rounded-lg border border-slate-300/80 bg-white/60 p-1">
+                                <button type="button" wire:click="$set('entry_mode', 'unit')" class="px-4 py-2 text-sm font-medium rounded-md transition-all {{ $entry_mode === 'unit' ? 'bg-purple-500 text-white shadow-md' : 'text-slate-700 hover:bg-slate-100' }}" @if (!($selected_product_data && $selected_product_data['bulk_enabled'])) disabled @endif>
+                                    Units
+                                </button>
+                                <button type="button" wire:click="$set('entry_mode', 'bulk')" class="px-4 py-2 text-sm font-medium rounded-md transition-all {{ $entry_mode === 'bulk' ? 'bg-purple-500 text-white shadow-md' : 'text-slate-700 hover:bg-slate-100' }}" @if (!($selected_product_data && $selected_product_data['bulk_enabled'])) disabled @endif>
+                                    Bulk
+                                </button>
+                            </div>
+                        </div>
+
+                        {{-- Quantity and Price --}}
+                        <div class="grid grid-cols-2 gap-4">
+                            @if ($entry_mode === 'bulk' && $selected_product_data && $selected_product_data['bulk_enabled'])
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-700 mb-2">Bulk Quantity</label>
+                                    <input type="number" min="1" wire:model.defer="bulk_quantity" class="ui-input font-mono" />
+                                </div>
                             @else
-                                <div class="mt-1 rounded-lg border border-slate-300/80 bg-white/60 px-3 py-2 text-sm text-slate-700">
-                                    {{ $branches->first()?->name ?? '-' }}
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-700 mb-2">Quantity</label>
+                                    <input type="number" min="1" wire:model.defer="entry_quantity" class="ui-input font-mono" />
+                                </div>
+                            @endif
+
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">
+                                    @if ($entry_mode === 'bulk' && $selected_product_data && $selected_product_data['bulk_enabled'])
+                                        Price per Bulk
+                                    @else
+                                        Price per Unit
+                                    @endif
+                                </label>
+                                <input wire:key="price-{{ $product_id }}-{{ $entry_mode }}" type="number" min="0" step="0.01" class="ui-input font-mono" value="{{ $entryPriceDisplay }}" wire:change="setUnitPrice({{ (int) $product_id }}, $event.target.value)" @if ($product_id <= 0) disabled @endif />
+                            </div>
+                        </div>
+
+                        {{-- Add Item Button --}}
+                        <button type="button" wire:click="addProduct" class="w-full bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white font-medium py-3 px-4 rounded-lg shadow-md transition-all">
+                            + Add Item
+                        </button>
+
+                        {{-- Items List --}}
+                        @if (count($cartItems) > 0)
+                            <div class="border-t border-slate-200 pt-4 space-y-3">
+                                @foreach ($cartItems as $item)
+                                    @php($available = $stockMap[$item['product_id']] ?? 0)
+                                    <div class="flex items-start justify-between p-3 bg-slate-50 rounded-lg">
+                                        <div class="flex-1 min-w-0">
+                                            <div class="flex items-center gap-2">
+                                                <span class="font-medium text-slate-900 truncate">{{ $item['name'] }}</span>
+                                                @if ($item['category_name'] ?? null)
+                                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-teal-100 text-teal-800">
+                                                        {{ $item['category_name'] }}
+                                                    </span>
+                                                @endif
+                                            </div>
+                                            <div class="mt-1 text-sm text-slate-600">
+                                                {{ $item['quantity'] }} × {{ number_format((float) $item['unit_price'], 2) }}
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center gap-3 ml-4">
+                                            <div class="font-mono font-bold text-purple-600">
+                                                {{ number_format((float) $item['unit_price'] * (int) $item['quantity'], 2) }}
+                                            </div>
+                                            <button type="button" wire:click="removeItem({{ $item['product_id'] }})" class="text-red-500 hover:text-red-700 font-bold text-lg">×</button>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endif
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {{-- Row 2: Payment Details (left) + Order Summary (right) --}}
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+            {{-- Payment Details Card --}}
+            <div class="ui-card">
+                <div class="ui-card-body">
+                    <h3 class="text-lg font-semibold text-slate-900 mb-4">Payment Details</h3>
+
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Customer Name (optional)</label>
+                            <input type="text" wire:model.defer="customer_name" class="ui-input" />
+                            @error('customer_name') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Payment Method</label>
+                            <select wire:model.defer="payment_method" class="ui-select">
+                                <option value="cash">Cash</option>
+                                <option value="mobile_money">Mobile Money</option>
+                                <option value="card">Card</option>
+                                <option value="bank_transfer">Bank Transfer</option>
+                            </select>
+                            @if ($payment_method === 'cash')
+                                <div class="mt-2 inline-flex items-center px-3 py-1.5 bg-green-100 text-green-700 rounded-full text-sm font-medium">
+                                    <svg class="w-4 h-4 mr-1.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>
+                                    Cash Payment
                                 </div>
                             @endif
                         </div>
 
                         <div>
-                            <label class="ui-label">{{ __('Sale Date') }}</label>
-                            <input type="date" wire:model.defer="sold_at_date" class="mt-1 ui-input" />
-                            @error('sold_at_date') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Amount Paid</label>
+                            <input type="number" min="0" step="0.01" wire:model.defer="amount_paid" class="ui-input font-mono" />
+                            @error('amount_paid') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
                         </div>
 
                         <div>
-                            <label class="ui-label">{{ __('Product') }}</label>
-                            <div class="mt-1 space-y-2">
-                                <input type="text" wire:model.live.debounce.300ms="product_search" class="ui-input" placeholder="Search product..." />
-                                <select wire:key="products-{{ $branch_id }}-{{ md5($product_search) }}" wire:model="product_id" class="ui-select">
-                                    <option value="0">{{ __('Select...') }}</option>
-                                    @foreach ($products as $product)
-                                        <option value="{{ $product->id }}">{{ $product->name }}@if($product->category) ({{ $product->category->name }})@endif</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                        </div>
-
-                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                            <div>
-                                <label class="ui-label">{{ __('Entry Type') }}</label>
-                                <div class="mt-1 inline-flex rounded-lg border border-slate-300/80 bg-white/60 p-1">
-                                    <button type="button" wire:click="$set('entry_mode', 'unit')" class="px-3 py-2 text-sm font-medium rounded-md {{ $entry_mode === 'unit' ? 'bg-primary-blue text-white' : 'text-slate-700 hover:bg-soft-blue' }}" @if (!($selectedProduct && (bool) $selectedProduct->bulk_enabled)) disabled @endif>
-                                        {{ __('Units') }}
-                                    </button>
-                                    <button type="button" wire:click="$set('entry_mode', 'bulk')" class="px-3 py-2 text-sm font-medium rounded-md {{ $entry_mode === 'bulk' ? 'bg-primary-blue text-white' : 'text-slate-700 hover:bg-soft-blue' }}" @if (!($selectedProduct && (bool) $selectedProduct->bulk_enabled)) disabled @endif>
-                                        {{ __('Bulk') }}
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div class="sm:col-span-2">
-                                @if (($selectedProduct && (bool) $selectedProduct->bulk_enabled) && $entry_mode === 'bulk')
-                                    <label class="ui-label">{{ __('Bulk Quantity') }}</label>
-                                    <input type="number" min="1" wire:model.defer="bulk_quantity" class="mt-1 ui-input" />
-                                    <div class="mt-1 text-xs text-slate-500">
-                                        {{ __('Units per bulk:') }}
-                                        <span class="font-medium">
-                                            {{ (int) ($selectedProduct?->bulkType?->units_per_bulk ?? 0) }}
-                                            {{ $selectedProduct?->bulkType?->bulkUnit?->name ? '(' . $selectedProduct->bulkType->bulkUnit->name . ')' : '' }}
-                                        </span>
-                                        {{ __('• Total units:') }}
-                                        <span class="font-medium">{{ (int) $bulk_quantity * (int) ($selectedProduct?->bulkType?->units_per_bulk ?? 0) }}</span>
-                                    </div>
-                                @else
-                                    <label class="ui-label">{{ __('Quantity (Units)') }}</label>
-                                    <input type="number" min="1" wire:model.defer="entry_quantity" class="mt-1 ui-input" />
-                                @endif
-                            </div>
-                        </div>
-
-                        <div>
-                            <label class="ui-label">
-                                @if (($selectedProduct && (bool) $selectedProduct->bulk_enabled) && $entry_mode === 'bulk')
-                                    {{ __('Price per Bulk') }}
-                                @else
-                                    {{ __('Price per Unit') }}
-                                @endif
-                            </label>
-                            @php($entryUnitsPerBulk = (int) ($selectedProduct?->bulkType?->units_per_bulk ?? 0))
-                            @php($entryPriceDisplay = (($selectedProduct && (bool) $selectedProduct->bulk_enabled) && $entry_mode === 'bulk' && $entryUnitsPerBulk > 0) ? number_format(((float) ($cart[$product_id]['unit_price'] ?? ($selectedProduct?->selling_price ?? 0)) * $entryUnitsPerBulk), 2, '.', '') : (string) ($cart[$product_id]['unit_price'] ?? ($selectedProduct?->selling_price ?? '0')))
-                            <input type="number" min="0" step="0.01" class="mt-1 ui-input" value="{{ $entryPriceDisplay }}" wire:change="setUnitPrice({{ (int) $product_id }}, $event.target.value)" @if ($product_id <= 0) disabled @endif />
-                        </div>
-
-                        <div class="flex items-center justify-end">
-                            <button type="button" wire:click="addProduct" class="ui-btn-primary">
-                                {{ __('Add Item') }}
-                            </button>
-                        </div>
-
-                        <div>
-                            <div class="text-sm font-semibold text-slate-700">{{ __('Payment') }}</div>
-
-                            <div class="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                <div class="sm:col-span-3">
-                                    <label class="ui-label">{{ __('Customer Name (optional)') }}</label>
-                                    <input type="text" wire:model.defer="customer_name" class="mt-1 ui-input" />
-                                    @error('customer_name') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
-                                </div>
-                                <div>
-                                    <label class="ui-label">{{ __('Method') }}</label>
-                                    <div class="mt-1 rounded-lg border border-slate-300/80 bg-white/60 px-3 py-2 text-sm text-slate-700">
-                                        {{ __('Cash') }}
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <label class="ui-label">{{ __('Amount Paid') }}</label>
-                                    <input type="number" min="0" step="0.01" wire:model.defer="amount_paid" class="mt-1 ui-input" />
-                                    @error('amount_paid') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
-                                </div>
-                            </div>
-
-                            <div class="mt-3">
-                                <label class="ui-label">{{ __('Notes (optional)') }}</label>
-                                <textarea wire:model.defer="notes" rows="2" class="mt-1 ui-input"></textarea>
-                                @error('notes') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
-                            </div>
-
-                            <div class="mt-4 ui-muted-panel space-y-1">
-                                <div class="flex items-center justify-between">
-                                    <div>{{ __('Sub Total') }}</div>
-                                    <div class="font-medium">{{ number_format((float) $subTotal, 2) }}</div>
-                                </div>
-                                <div class="flex items-center justify-between">
-                                    <div>{{ __('Grand Total') }}</div>
-                                    <div class="font-semibold text-slate-900">{{ number_format((float) $grandTotal, 2) }}</div>
-                                </div>
-                                <div class="flex items-center justify-between">
-                                    <div>{{ __('Change Due') }}</div>
-                                    <div class="font-medium">{{ number_format((float) $changeDue, 2) }}</div>
-                                </div>
-                            </div>
-
-                            <div class="mt-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3">
-                                <button type="button" wire:click="clearCart" class="ui-btn-secondary w-full sm:w-auto">
-                                    {{ __('Clear Items') }}
-                                </button>
-                                <button type="button" wire:click="finalizeSale" class="ui-btn-primary w-full sm:w-auto">
-                                    {{ __('Post Sale') }}
-                                </button>
-                            </div>
-
-                            @error('cart')
-                                <div class="rounded-md bg-red-50 p-4 text-sm text-red-800">{{ $message }}</div>
-                            @enderror
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Notes (optional)</label>
+                            <textarea wire:model.defer="notes" rows="3" class="ui-input"></textarea>
+                            @error('notes') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
                         </div>
                     </div>
                 </div>
-                </div>
+            </div>
 
-                <div class="ui-card">
-                    <div class="ui-card-body">
-                        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-                            <h3 class="ui-card-title">{{ __('Sale Items') }}</h3>
-                            <div class="text-sm text-slate-500">
-                                {{ __('Branch:') }}
-                                <span class="font-medium">{{ $branches->firstWhere('id', $branch_id)?->name ?? '-' }}</span>
-                            </div>
+            {{-- Order Summary Card --}}
+            <div class="ui-card">
+                <div class="ui-card-body">
+                    <h3 class="text-lg font-semibold text-slate-900 mb-4">Order Summary</h3>
+
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between py-2 border-b border-slate-200">
+                            <span class="text-slate-600">Sub Total</span>
+                            <span class="font-medium text-purple-600">{{ number_format((float) $subTotal, 2) }}</span>
                         </div>
 
-                        <div class="mt-4 overflow-x-auto">
-                            <div class="ui-table-wrap">
-                            <table class="ui-table">
-                                <thead>
-                                    <tr>
-                                        <th>{{ __('Product') }}</th>
-                                        <th>{{ __('Available') }}</th>
-                                        <th>{{ __('Qty') }}</th>
-                                        <th>{{ __('Price') }}</th>
-                                        <th>{{ __('Total') }}</th>
-                                        <th></th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach ($cartItems as $item)
-                                        @php($available = $stockMap[$item['product_id']] ?? 0)
-                                        <tr wire:key="cart-{{ $item['product_id'] }}">
-                                            <td>
-                                                <div class="font-medium">
-                                                    {{ $item['name'] }}
-                                                    @if (!empty($item['is_clearance']))
-                                                        <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800">
-                                                            {{ __('Clearance') }}
-                                                        </span>
-                                                    @endif
-                                                </div>
-                                                @if (!empty($item['is_clearance']) && !empty($item['original_price']))
-                                                    <div class="text-xs text-slate-500 mt-0.5">
-                                                        <span class="line-through">XAF {{ number_format((float) $item['original_price'], 0, ',', ' ') }}</span>
-                                                        <span class="ml-1 text-green-600 font-medium">→ XAF {{ number_format((float) $item['clearance_price'], 0, ',', ' ') }}</span>
-                                                    </div>
-                                                @endif
-                                            </td>
-                                            <td class="{{ $available < $item['quantity'] ? 'text-red-700' : '' }}">
-                                                {{ $available }}
-                                            </td>
-                                            <td>
-                                                <div class="inline-flex items-center gap-2">
-                                                    <button type="button" wire:click="decrementItem({{ $item['product_id'] }})" class="ui-stepper-btn">-</button>
-                                                    <input type="number" min="1" class="w-20 ui-input-compact" value="{{ (string) ($item['entry_mode'] ?? 'unit') === 'bulk' ? (int) ($item['bulk_quantity'] ?? 0) : (int) $item['quantity'] }}" wire:change="setQuantity({{ $item['product_id'] }}, $event.target.value)" />
-                                                    <button type="button" wire:click="incrementItem({{ $item['product_id'] }})" class="ui-stepper-btn">+</button>
-                                                    @if (!empty($item['unit_type_name'] ?? null))
-                                                        <span class="text-xs text-slate-500">{{ $item['unit_type_name'] }}</span>
-                                                    @endif
-                                                </div>
-                                                @if ((string) ($item['entry_mode'] ?? 'unit') === 'bulk')
-                                                    <div class="mt-1 text-xs text-slate-500">{{ __('Units:') }} {{ (int) $item['quantity'] }}</div>
-                                                @endif
-                                            </td>
-                                            <td>
-                                                @php($isBulk = (string) ($item['entry_mode'] ?? 'unit') === 'bulk')
-                                                @php($unitsPerBulk = (int) ($item['units_per_bulk'] ?? 0))
-                                                @php($displayPrice = $isBulk && $unitsPerBulk > 0 ? number_format(((float) $item['unit_price'] * $unitsPerBulk), 2, '.', '') : (string) $item['unit_price'])
-                                                <input type="number" min="0" step="0.01" class="w-28 ui-input-compact" value="{{ $displayPrice }}" wire:change="setUnitPrice({{ $item['product_id'] }}, $event.target.value)" />
-                                                @if (($item['min_selling_price'] ?? null) !== null && ($item['min_selling_price'] ?? '') !== '')
-                                                    <div class="mt-1 text-[11px] text-slate-500">{{ __('Min:') }} {{ number_format((float) $item['min_selling_price'], 2) }}</div>
-                                                @endif
-                                            </td>
-                                            <td>
-                                                {{ number_format((float) $item['unit_price'] * (int) $item['quantity'], 2) }}
-                                            </td>
-                                            <td class="text-right">
-                                                <button type="button" wire:click="removeItem({{ $item['product_id'] }})" class="ui-btn-link-danger">{{ __('Remove') }}</button>
-                                            </td>
-                                        </tr>
-                                    @endforeach
-
-                                    @if (count($cartItems) === 0)
-                                        <tr>
-                                            <td colspan="6" class="ui-table-empty">{{ __('No items added.') }}</td>
-                                        </tr>
-                                    @endif
-                                </tbody>
-                            </table>
-                            </div>
+                        <div class="flex items-center justify-between py-2">
+                            <span class="text-slate-600">Grand Total</span>
+                            <span class="text-2xl font-bold text-purple-600 font-mono">{{ number_format((float) $grandTotal, 2) }}</span>
                         </div>
+
+                        @if ($payment_method === 'cash')
+                            <div class="flex items-center justify-between py-3 border-t border-dashed border-green-300 bg-green-50 rounded-lg px-3">
+                                <div>
+                                    <span class="text-slate-600">Change Due</span>
+                                    <div class="text-xs text-slate-400 mt-0.5">Shown for cash only</div>
+                                </div>
+                                @if ((float) $changeDue > 0)
+                                    <span class="text-lg font-bold text-green-700 font-mono">
+                                        {{ number_format((float) $changeDue, 2) }}
+                                    </span>
+                                @else
+                                    <span class="font-medium text-slate-500 font-mono">{{ number_format((float) $changeDue, 2) }}</span>
+                                @endif
+                            </div>
+                        @endif
+                    </div>
+
+                    @error('cart')
+                        <div class="mt-4 rounded-md bg-red-50 p-4 text-sm text-red-800">{{ $message }}</div>
+                    @enderror
+
+                    {{-- Action Buttons --}}
+                    <div class="flex items-center gap-4 mt-6 pt-4 border-t border-slate-200">
+                        <button type="button" wire:click="clearCart" class="flex-1 border-2 border-red-500 text-red-500 font-medium py-3 px-6 rounded-lg hover:bg-red-50 transition-all">
+                            Clear Items
+                        </button>
+                        <button type="button" wire:click="finalizeSale" class="flex-2 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-bold py-3 px-8 rounded-lg shadow-lg transition-all">
+                            Post Sale
+                        </button>
                     </div>
                 </div>
+            </div>
         </div>
 
         @if ($show_sale_modal && $selectedSale)

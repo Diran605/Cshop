@@ -84,7 +84,6 @@ class RbacSeeder extends Seeder
             'stock_levels.view',
             'stock_valuation.view',
             'opening_stock.view',
-            'opening_stock.edit',
 
             'sales.view',
             'sales.post',
@@ -102,6 +101,10 @@ class RbacSeeder extends Seeder
             'expenses.create',
             'expenses.edit',
             'expenses.delete',
+            'expense_types.view',
+            'expense_types.create',
+            'expense_types.edit',
+            'expense_types.delete',
 
             'reports.sales',
             'reports.profit',

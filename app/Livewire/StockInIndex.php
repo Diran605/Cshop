@@ -267,6 +267,13 @@ class StockInIndex extends Component
         unset($this->draft_lines[$key]);
     }
 
+    public function clearDraftLines(): void
+    {
+        $this->draft_lines = [];
+        $this->draft_seq = 0;
+        $this->resetErrorBag('draft_lines');
+    }
+
     public function incrementDraftLine(int $key): void
     {
         $this->resetErrorBag('draft_lines');

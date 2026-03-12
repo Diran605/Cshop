@@ -1,21 +1,10 @@
 <div class="ui-page">
     <div class="ui-page-container">
+        {{-- Header --}}
         <div class="mb-6">
-            <h2 class="ui-page-title">{{ __('Stock In') }}</h2>
-            <div class="ui-page-subtitle">{{ __('Receive inventory into stock.') }}</div>
-            <div class="mt-4 flex flex-col sm:flex-row items-start sm:items-center gap-3">
-                <a href="{{ route('stock_in.download-template') }}" class="ui-btn-secondary w-full sm:w-auto text-center">
-                    {{ __('Download Template') }}
-                </a>
-                <label class="ui-btn-secondary cursor-pointer w-full sm:w-auto text-center">
-                    {{ __('Import Excel') }}
-                    <input type="file" wire:model="excel_file" accept=".xlsx,.xls" class="hidden" />
-                </label>
-                @if ($excel_file)
-                    <button type="button" wire:click="importExcel" class="ui-btn-primary w-full sm:w-auto">
-                        {{ __('Upload') }}
-                    </button>
-                @endif
+            <div>
+                <div class="text-xs font-bold tracking-wider uppercase text-purple-600 mb-1">Inventory Management</div>
+                <h1 class="text-2xl font-bold text-slate-900">Record Stock In</h1>
             </div>
         </div>
 
@@ -37,232 +26,247 @@
             </div>
         @endif
 
-        <div class="space-y-6">
+        {{-- Row 1: Stock Configuration (left) + Add Products (right) --}}
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {{-- Stock Configuration Card --}}
             <div class="ui-card">
                 <div class="ui-card-body">
-                    <h3 class="ui-card-title">{{ __('Add Stock In') }}</h3>
-
-                        <div class="mt-4 space-y-4">
-                            <div>
-                                <label class="ui-label">{{ __('Branch') }}</label>
-                                @if ($isSuperAdmin)
-                                    <select wire:model.live="branch_id" class="mt-1 ui-select">
-                                        <option value="0">{{ __('Select...') }}</option>
-                                        @foreach ($branches as $branch)
-                                            <option value="{{ $branch->id }}">{{ $branch->name }}</option>
-                                        @endforeach
-                                    </select>
-                                    @error('branch_id') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
-                                @else
-                                    <div class="mt-1 rounded-lg border border-slate-300/80 bg-white/60 px-3 py-2 text-sm text-slate-700">
-                                        {{ $branches->first()?->name ?? '-' }}
-                                    </div>
-                                @endif
-                            </div>
-
-                            <div>
-                                <label class="ui-label">{{ __('Received Date') }}</label>
-                                <input type="date" wire:model.defer="received_at_date" class="mt-1 ui-input" />
-                                @error('received_at_date') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
-                            </div>
-
-                            <div>
-                                <label class="ui-label">{{ __('Product') }}</label>
-                                <div class="mt-1 space-y-2">
-                                    <input type="text" wire:model.live.debounce.300ms="product_search" class="ui-input" placeholder="Search product..." />
-                                    <select wire:key="products-{{ $branch_id }}-{{ md5($product_search) }}" wire:model="product_id" @disabled($isSuperAdmin && $branch_id <= 0) class="ui-select">
-                                        <option value="0">{{ __('Select...') }}</option>
-                                        @foreach ($products as $product)
-                                            <option value="{{ $product->id }}">{{ $product->name }}@if($product->category) ({{ $product->category->name }})@endif</option>
-                                        @endforeach
-                                    </select>
+                    <h3 class="text-lg font-semibold text-slate-900 mb-4">Stock Configuration</h3>
+                    <div class="space-y-4">
+                        {{-- Branch Selection --}}
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Branch</label>
+                            @if ($isSuperAdmin)
+                                <select wire:model.live="branch_id" class="ui-select">
+                                    <option value="0">{{ __('Select...') }}</option>
+                                    @foreach ($branches as $branch)
+                                        <option value="{{ $branch->id }}">{{ $branch->name }}</option>
+                                    @endforeach
+                                </select>
+                                @error('branch_id') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                            @else
+                                <div class="rounded-lg border border-slate-300/80 bg-white/60 px-3 py-2 text-sm text-slate-700">
+                                    {{ $branches->first()?->name ?? '-' }}
                                 </div>
-                                @error('product_id') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                            @endif
+                        </div>
 
-                                @if ($isSuperAdmin && $branch_id <= 0)
-                                    <div class="mt-1 text-xs text-slate-500">{{ __('Select a branch first to load products.') }}</div>
-                                @endif
+                        {{-- Received Date --}}
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Received Date</label>
+                            <input type="date" wire:model.defer="received_at_date" class="ui-input" />
+                            @error('received_at_date') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                        </div>
+
+                        {{-- Supplier --}}
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Supplier (optional)</label>
+                            <input type="text" wire:model.defer="supplier_name" class="ui-input" placeholder="Enter supplier name..." />
+                            @error('supplier_name') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                        </div>
+
+                        {{-- Batch Ref No --}}
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Batch Ref No (optional)</label>
+                            <input type="text" wire:model.defer="batch_ref_no" class="ui-input" placeholder="Enter batch reference..." />
+                            @error('batch_ref_no') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {{-- Add Products Card --}}
+            <div class="ui-card">
+                <div class="ui-card-body">
+                    <h3 class="text-lg font-semibold text-slate-900 mb-4">Add Products</h3>
+
+                    <div class="space-y-4">
+                        {{-- Product Dropdown --}}
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Product</label>
+                            <input type="text" wire:model.live.debounce.300ms="product_search" class="ui-input mb-2" placeholder="Search product..." />
+                            <select wire:key="products-{{ $branch_id }}-{{ md5($product_search) }}" wire:model.live="product_id" class="ui-select" @disabled($isSuperAdmin && $branch_id <= 0)>
+                                <option value="0">{{ __('Select...') }}</option>
+                                @foreach ($products as $product)
+                                    <option value="{{ $product->id }}">{{ $product->name }}@if($product->category) ({{ $product->category->name }})@endif</option>
+                                @endforeach
+                            </select>
+                            @if ($isSuperAdmin && $branch_id <= 0)
+                                <div class="mt-1 text-xs text-slate-500">{{ __('Select a branch first to load products.') }}</div>
+                            @endif
+                        </div>
+
+                        {{-- Entry Type Toggle --}}
+                        @if ($selectedProduct && (bool) $selectedProduct->bulk_enabled)
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">Entry Type</label>
+                                <div class="inline-flex rounded-lg border border-slate-300/80 bg-white/60 p-1">
+                                    <button type="button" wire:click="$set('entry_mode', 'unit')" class="px-4 py-2 text-sm font-medium rounded-md transition-all {{ $entry_mode === 'unit' ? 'bg-purple-500 text-white shadow-md' : 'text-slate-700 hover:bg-slate-100' }}">
+                                        Units
+                                    </button>
+                                    <button type="button" wire:click="$set('entry_mode', 'bulk')" class="px-4 py-2 text-sm font-medium rounded-md transition-all {{ $entry_mode === 'bulk' ? 'bg-purple-500 text-white shadow-md' : 'text-slate-700 hover:bg-slate-100' }}">
+                                        Bulk
+                                    </button>
+                                </div>
                             </div>
+                        @endif
 
-                            @if ($selectedProduct && (bool) $selectedProduct->bulk_enabled)
+                        {{-- Quantity and Cost Price --}}
+                        <div class="grid grid-cols-2 gap-4">
+                            @if ($selectedProduct && (bool) $selectedProduct->bulk_enabled && $entry_mode === 'bulk')
                                 <div>
-                                    <label class="ui-label">{{ __('Entry Type') }}</label>
-                                    <div class="mt-1 inline-flex rounded-lg border border-slate-300/80 bg-white/60 p-1">
-                                        <button type="button" wire:click="$set('entry_mode', 'unit')" class="px-3 py-2 text-sm font-medium rounded-md {{ $entry_mode === 'unit' ? 'bg-primary-blue text-white' : 'text-slate-700 hover:bg-soft-blue' }}">
-                                            {{ __('Units') }}
-                                        </button>
-                                        <button type="button" wire:click="$set('entry_mode', 'bulk')" class="px-3 py-2 text-sm font-medium rounded-md {{ $entry_mode === 'bulk' ? 'bg-primary-blue text-white' : 'text-slate-700 hover:bg-soft-blue' }}">
-                                            {{ __('Bulk') }}
-                                        </button>
+                                    <label class="block text-sm font-medium text-slate-700 mb-2">Bulk Quantity</label>
+                                    <input type="number" min="1" wire:model.defer="bulk_quantity" class="ui-input font-mono" />
+                                    <div class="mt-1 text-xs text-slate-500">
+                                        {{ __('Units per bulk:') }} <span class="font-medium">{{ (int) ($selectedProduct?->bulkType?->units_per_bulk ?? 0) }}</span>
+                                        {{ __('• Total:') }} <span class="font-medium">{{ (int) $bulk_quantity * (int) ($selectedProduct?->bulkType?->units_per_bulk ?? 0) }}</span>
                                     </div>
-                                    @error('entry_mode') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                                    @error('bulk_quantity') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                                </div>
+                            @else
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-700 mb-2">Quantity</label>
+                                    <input type="number" min="1" wire:model.defer="quantity" class="ui-input font-mono" />
+                                    @error('quantity') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
                                 </div>
                             @endif
 
                             <div>
-                                @if (($selectedProduct && (bool) $selectedProduct->bulk_enabled) && $entry_mode === 'bulk')
-                                    <label class="ui-label">{{ __('Bulk Quantity') }}</label>
-                                    <input type="number" min="1" wire:model.defer="bulk_quantity" class="mt-1 ui-input" />
-                                    <div class="mt-1 text-xs text-slate-500">
-                                        {{ __('Units per bulk:') }}
-                                        <span class="font-medium">
-                                            {{ (int) ($selectedProduct?->bulkType?->units_per_bulk ?? 0) }}
-                                            {{ $selectedProduct?->bulkType?->bulkUnit?->name ? '(' . $selectedProduct->bulkType->bulkUnit->name . ')' : '' }}
-                                        </span>
-                                        {{ __('• Total units:') }}
-                                        <span class="font-medium">{{ (int) $bulk_quantity * (int) ($selectedProduct?->bulkType?->units_per_bulk ?? 0) }}</span>
-                                    </div>
-                                    @error('bulk_quantity') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
-                                @else
-                                    <label class="ui-label">{{ __('Quantity (Units)') }}</label>
-                                    <input type="number" min="1" wire:model.defer="quantity" class="mt-1 ui-input" />
-                                    @error('quantity') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
-                                @endif
-                            </div>
-
-                            <div>
-                                <label class="ui-label">
-                                    @if (($selectedProduct && (bool) $selectedProduct->bulk_enabled) && $entry_mode === 'bulk')
-                                        {{ __('Cost Price per Bulk (optional)') }}
+                                <label class="block text-sm font-medium text-slate-700 mb-2">
+                                    @if ($selectedProduct && (bool) $selectedProduct->bulk_enabled && $entry_mode === 'bulk')
+                                        Cost per Bulk
                                     @else
-                                        {{ __('Cost Price per Unit (optional)') }}
+                                        Cost per Unit
                                     @endif
                                 </label>
-                                <input type="number" min="0" step="0.01" wire:model.defer="cost_price" class="mt-1 ui-input" />
+                                <input type="number" min="0" step="0.01" wire:model.defer="cost_price" class="ui-input font-mono" placeholder="0.00" />
                                 @error('cost_price') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
                             </div>
-
-                            <div>
-                                <label class="ui-label">{{ __('Supplier (optional)') }}</label>
-                                <input type="text" wire:model.defer="supplier_name" class="mt-1 ui-input" />
-                                @error('supplier_name') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
-                            </div>
-
-                            <div>
-                                <label class="ui-label">{{ __('Batch Ref No (optional)') }}</label>
-                                <input type="text" wire:model.defer="batch_ref_no" class="mt-1 ui-input" />
-                                @error('batch_ref_no') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
-                            </div>
-
-                            <div>
-                                <label class="ui-label">{{ __('Expiry Date (optional)') }}</label>
-                                <input type="date" wire:model.defer="expiry_date" class="mt-1 ui-input" />
-                                @error('expiry_date') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
-                            </div>
-
-                            <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3">
-                                <button type="button" wire:click="addDraftLine" class="ui-btn-secondary w-full sm:w-auto">
-                                    {{ __('Add Line') }}
-                                </button>
-                                <button type="button" wire:click="save" class="ui-btn-primary w-full sm:w-auto">
-                                    {{ __('Post Receipt') }}
-                                </button>
-                            </div>
-
-                            @error('draft_lines')
-                                <div class="rounded-md bg-red-50 p-4 text-sm text-red-800">{{ $message }}</div>
-                            @enderror
-
-                            @php($draftItems = array_values($draft_lines))
-                            @php($draftTotalQty = collect($draftItems)->sum('quantity'))
-                            @php($draftTotalCost = collect($draftItems)->reduce(function ($carry, $row) { $cp = $row['cost_price'] ?? null; $qty = (int) ($row['quantity'] ?? 0); return $carry + (($cp !== null && $cp !== '') ? ((float) $cp * $qty) : 0); }, 0))
-
-                            <div class="overflow-x-auto">
-                                <div class="ui-table-wrap">
-                                    <table class="ui-table">
-                                        <thead>
-                                            <tr>
-                                                <th>{{ __('Product') }}</th>
-                                                <th>{{ __('Supplier') }}</th>
-                                                <th>{{ __('Batch') }}</th>
-                                                <th>{{ __('Qty') }}</th>
-                                                <th>{{ __('Expiry') }}</th>
-                                                <th>{{ __('Cost') }}</th>
-                                                <th>{{ __('Total') }}</th>
-                                                <th class="px-4 py-3"></th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            @foreach ($draftItems as $line)
-                                                @php($isBulk = (string) ($line['entry_mode'] ?? 'unit') === 'bulk')
-                                                @php($displayQty = $isBulk ? (int) ($line['bulk_quantity'] ?? 0) : (int) ($line['quantity'] ?? 0))
-                                                @php($unitsPerBulk = (int) ($line['units_per_bulk'] ?? 0))
-                                                @php($displayCost = $isBulk ? ((($line['cost_price'] ?? null) !== null && ($line['cost_price'] ?? '') !== '' && $unitsPerBulk > 0) ? number_format(((float) $line['cost_price'] * $unitsPerBulk), 2, '.', '') : '') : (string) ($line['cost_price'] ?? ''))
-                                                @php($lineTotal = (($line['cost_price'] ?? null) !== null && ($line['cost_price'] ?? '') !== '') ? ((float) $line['cost_price'] * (int) ($line['quantity'] ?? 0)) : null)
-                                                <tr wire:key="draft-line-{{ $line['key'] }}">
-                                                    <td class="text-slate-900">
-                                                        <div class="font-medium">{{ $line['name'] ?? '-' }}</div>
-                                                        @if ($isBulk)
-                                                            <div class="mt-1 text-xs text-slate-500">{{ __('Units:') }} {{ (int) ($line['quantity'] ?? 0) }}</div>
-                                                        @endif
-                                                    </td>
-                                                    <td>
-                                                        <input type="text" class="w-44 ui-input-compact" value="{{ (string) ($line['supplier_name'] ?? '') }}" wire:change="setDraftLineSupplierName({{ (int) $line['key'] }}, $event.target.value)" />
-                                                    </td>
-                                                    <td>
-                                                        <input type="text" class="w-36 ui-input-compact" value="{{ (string) ($line['batch_ref_no'] ?? '') }}" wire:change="setDraftLineBatchRefNo({{ (int) $line['key'] }}, $event.target.value)" />
-                                                    </td>
-                                                    <td>
-                                                        <div class="inline-flex items-center gap-2">
-                                                            <button type="button" wire:click="decrementDraftLine({{ (int) $line['key'] }})" class="ui-stepper-btn">-</button>
-                                                            <input type="number" min="1" class="w-24 ui-input-compact" value="{{ $displayQty }}" wire:change="setDraftLineQuantity({{ (int) $line['key'] }}, $event.target.value)" />
-                                                            <button type="button" wire:click="incrementDraftLine({{ (int) $line['key'] }})" class="ui-stepper-btn">+</button>
-                                                            @if (!empty($line['unit_type_name'] ?? null))
-                                                                <span class="text-xs text-slate-500">{{ $line['unit_type_name'] }}</span>
-                                                            @endif
-                                                        </div>
-                                                    </td>
-                                                    <td>
-                                                        <input type="date" class="w-44 ui-input-compact" value="{{ (string) ($line['expiry_date'] ?? '') }}" wire:change="setDraftLineExpiryDate({{ (int) $line['key'] }}, $event.target.value)" />
-                                                    </td>
-                                                    <td>
-                                                        <input type="number" min="0" step="0.01" class="w-28 ui-input-compact" value="{{ $displayCost }}" wire:change="setDraftLineCostPrice({{ (int) $line['key'] }}, $event.target.value)" />
-                                                    </td>
-                                                    <td>
-                                                        {{ $lineTotal !== null ? number_format((float) $lineTotal, 2) : '-' }}
-                                                    </td>
-                                                    <td class="px-4 py-3 text-sm text-right">
-                                                        <button type="button" wire:click="removeDraftLine({{ (int) $line['key'] }})" class="ui-btn-link-danger">{{ __('Remove') }}</button>
-                                                    </td>
-                                                </tr>
-                                            @endforeach
-
-                                            @if (count($draftItems) === 0)
-                                                <tr>
-                                                    <td colspan="8" class="ui-table-empty">{{ __('No lines added.') }}</td>
-                                                </tr>
-                                            @endif
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-
-                            <div>
-                                <label class="ui-label">{{ __('Notes (optional)') }}</label>
-                                <textarea wire:model.defer="notes" rows="2" class="mt-1 ui-input"></textarea>
-                                @error('notes') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
-                            </div>
-
-                            <div class="ui-muted-panel space-y-1">
-                                <div class="flex items-center justify-between">
-                                    <div>{{ __('Total Qty') }}</div>
-                                    <div class="font-medium">{{ (int) $draftTotalQty }}</div>
-                                </div>
-                                <div class="flex items-center justify-between">
-                                    <div>{{ __('Total Cost') }}</div>
-                                    <div class="font-semibold text-slate-900">{{ number_format((float) $draftTotalCost, 2) }}</div>
-                                </div>
-                            </div>
                         </div>
+
+                        {{-- Expiry Date --}}
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Expiry Date (optional)</label>
+                            <input type="date" wire:model.defer="expiry_date" class="ui-input" />
+                            @error('expiry_date') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                        </div>
+
+                        {{-- Add Line Button --}}
+                        <button type="button" wire:click="addDraftLine" class="w-full bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white font-medium py-3 px-4 rounded-lg shadow-md transition-all">
+                            + Add Line
+                        </button>
+
+                        {{-- Draft Lines List --}}
+                        @php($draftItems = array_values($draft_lines))
+                        @if (count($draftItems) > 0)
+                            <div class="border-t border-slate-200 pt-4 space-y-3">
+                                @foreach ($draftItems as $line)
+                                    @php($isBulk = (string) ($line['entry_mode'] ?? 'unit') === 'bulk')
+                                    @php($displayQty = $isBulk ? (int) ($line['bulk_quantity'] ?? 0) : (int) ($line['quantity'] ?? 0))
+                                    @php($lineTotal = (($line['cost_price'] ?? null) !== null && ($line['cost_price'] ?? '') !== '') ? ((float) $line['cost_price'] * (int) ($line['quantity'] ?? 0)) : null)
+                                    <div class="flex items-start justify-between p-3 bg-slate-50 rounded-lg">
+                                        <div class="flex-1 min-w-0">
+                                            <div class="flex items-center gap-2">
+                                                <span class="font-medium text-slate-900 truncate">{{ $line['name'] ?? '-' }}</span>
+                                                @if ($isBulk)
+                                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                                                        Bulk
+                                                    </span>
+                                                @endif
+                                            </div>
+                                            <div class="mt-1 text-sm text-slate-600">
+                                                {{ $displayQty }} @if($isBulk) bulk ({{ (int) ($line['quantity'] ?? 0) }} units) @endif
+                                                @if(($line['cost_price'] ?? null) !== null)
+                                                    × {{ number_format((float) $line['cost_price'], 2) }}
+                                                @endif
+                                            </div>
+                                            @if(($line['supplier_name'] ?? null) || ($line['batch_ref_no'] ?? null))
+                                                <div class="mt-1 text-xs text-slate-500">
+                                                    @if($line['supplier_name'] ?? null) {{ $line['supplier_name'] }} @endif
+                                                    @if($line['batch_ref_no'] ?? null) • Batch: {{ $line['batch_ref_no'] }} @endif
+                                                </div>
+                                            @endif
+                                        </div>
+                                        <div class="flex items-center gap-3 ml-4">
+                                            @if ($lineTotal !== null)
+                                                <div class="font-mono font-bold text-purple-600">
+                                                    {{ number_format((float) $lineTotal, 2) }}
+                                                </div>
+                                            @endif
+                                            <button type="button" wire:click="removeDraftLine({{ (int) $line['key'] }})" class="text-red-500 hover:text-red-700 font-bold text-lg">×</button>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endif
+
+                        @error('draft_lines')
+                            <div class="rounded-md bg-red-50 p-4 text-sm text-red-800">{{ $message }}</div>
+                        @enderror
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {{-- Row 2: Stock Details (left) + Stock Summary (right) --}}
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+            {{-- Stock Details Card --}}
+            <div class="ui-card">
+                <div class="ui-card-body">
+                    <h3 class="text-lg font-semibold text-slate-900 mb-4">Additional Details</h3>
+
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Notes (optional)</label>
+                            <textarea wire:model.defer="notes" rows="3" class="ui-input" placeholder="Add any notes about this stock receipt..."></textarea>
+                            @error('notes') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {{-- Stock Summary Card --}}
+            <div class="ui-card">
+                <div class="ui-card-body">
+                    <h3 class="text-lg font-semibold text-slate-900 mb-4">Stock Summary</h3>
+
+                    @php($draftTotalQty = collect($draftItems)->sum('quantity'))
+                    @php($draftTotalCost = collect($draftItems)->reduce(function ($carry, $row) { $cp = $row['cost_price'] ?? null; $qty = (int) ($row['quantity'] ?? 0); return $carry + (($cp !== null && $cp !== '') ? ((float) $cp * $qty) : 0); }, 0))
+
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between py-2 border-b border-slate-200">
+                            <span class="text-slate-600">Total Items</span>
+                            <span class="font-medium text-slate-900">{{ count($draftItems) }}</span>
+                        </div>
+
+                        <div class="flex items-center justify-between py-2 border-b border-slate-200">
+                            <span class="text-slate-600">Total Quantity</span>
+                            <span class="font-medium text-purple-600">{{ (int) $draftTotalQty }}</span>
+                        </div>
+
+                        <div class="flex items-center justify-between py-2">
+                            <span class="text-slate-600">Total Cost</span>
+                            <span class="text-2xl font-bold text-purple-600 font-mono">{{ number_format((float) $draftTotalCost, 2) }}</span>
+                        </div>
+                    </div>
+
+                    {{-- Action Buttons --}}
+                    <div class="flex items-center gap-4 mt-6 pt-4 border-t border-slate-200">
+                        <button type="button" wire:click="clearDraftLines" class="flex-1 border-2 border-red-500 text-red-500 font-medium py-3 px-6 rounded-lg hover:bg-red-50 transition-all">
+                            Clear Lines
+                        </button>
+                        <button type="button" wire:click="save" class="flex-2 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-bold py-3 px-8 rounded-lg shadow-lg transition-all">
+                            Post Receipt
+                        </button>
                     </div>
                 </div>
             </div>
         </div>
 
         @if ($selectedReceipt)
-            <div wire:key="receipt-modal-{{ $selectedReceipt->id }}" class="fixed inset-0 z-50 flex items-center justify-center" data-modal-root>
+            <div wire:key="receipt-modal-{{ $selectedReceipt->id }}" class="fixed inset-0 z-50 flex items-center justify-center p-4" data-modal-root>
                 <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" wire:click="selectReceipt(0)" data-modal-overlay></div>
-                <div class="relative w-full max-w-3xl mx-4 ui-card">
+                <div class="relative w-full max-w-3xl ui-card">
                     <div class="p-4 border-b border-slate-200 flex items-center justify-between">
                         <div>
                             <div class="text-sm text-slate-500">{{ __('Receipt Posted') }}</div>
@@ -340,6 +344,7 @@
                 </div>
             </div>
         @endif
+    </div>
 </div>
 
 {{-- Order your soul. Reduce your wants. - Augustine --}}

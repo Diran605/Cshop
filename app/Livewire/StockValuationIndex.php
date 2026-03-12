@@ -95,7 +95,7 @@ class StockValuationIndex extends Component
         // Enrich products with cost price data
         $productIds = $products->pluck('id')->toArray();
 
-        // Get opening stock costs (first stock movement with "Opening stock" note)
+        // Get opening stock costs from stock movements
         $openingCosts = DB::table('stock_movements')
             ->whereIn('product_id', $productIds)
             ->when(! $this->isSuperAdmin, fn ($q) => $q->where('branch_id', $this->branch_id))
@@ -106,27 +106,26 @@ class StockValuationIndex extends Component
             ->map(fn ($items) => $items->first()->unit_cost)
             ->toArray();
 
-        // Get stock-in weighted average costs
-        $stockInItems = StockInItem::query()
+        // Get actual stock-in costs (latest cost price from stock_in_items)
+        $stockInCosts = StockInItem::query()
             ->whereIn('product_id', $productIds)
             ->whereHas('receipt', function ($query) {
                 $query->when(! $this->isSuperAdmin, fn ($q) => $q->where('branch_id', $this->branch_id))
                     ->when($this->isSuperAdmin && $this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id));
             })
-            ->where('remaining_quantity', '>', 0)
-            ->get(['product_id', 'remaining_quantity', 'cost_price']);
-
-        $stockInCosts = [];
-        foreach ($stockInItems->groupBy('product_id') as $productId => $items) {
-            $totalQty = $items->sum('remaining_quantity');
-            $totalCost = $items->sum(fn ($item) => $item->remaining_quantity * $item->cost_price);
-            $stockInCosts[$productId] = $totalQty > 0 ? $totalCost / $totalQty : null;
-        }
+            ->whereNotNull('cost_price')
+            ->orderBy('created_at', 'desc')
+            ->get(['product_id', 'cost_price'])
+            ->groupBy('product_id')
+            ->map(fn ($items) => $items->first()->cost_price)
+            ->toArray();
 
         // Attach cost data to products
         foreach ($products as $product) {
             $product->opening_cost_price = $openingCosts[$product->id] ?? null;
             $product->stock_in_cost_price = $stockInCosts[$product->id] ?? null;
+            // Current cost is the weighted average from product_stocks
+            $product->current_cost_price = $product->stock?->cost_price;
         }
 
         // Calculate stock valuation summary

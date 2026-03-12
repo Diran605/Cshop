@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use App\Models\Branch;
 use App\Models\Category;
+use App\Models\Expense;
 use App\Models\Product;
 use App\Models\SalesItem;
 use Carbon\Carbon;
@@ -134,6 +135,18 @@ class ReportsProfitIndex extends Component
         $lowProfitLines = (int) ($summaryRow?->low_profit_lines ?? 0);
         $lossLines = (int) ($summaryRow?->loss_lines ?? 0);
 
+        // Get expenses for the same period
+        $expenseTotal = Expense::query()
+            ->when($this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
+            ->whereNull('voided_at')
+            ->whereBetween('expense_date', [$from->toDateString(), $to->toDateString()])
+            ->sum('amount');
+        $expenseTotal = (float) ($expenseTotal ?? 0);
+
+        // Calculate net profit (Gross Profit - Expenses)
+        $netProfit = $profitTotal - $expenseTotal;
+        $netProfitMargin = $salesTotal > 0 ? (($netProfit / $salesTotal) * 100.0) : 0.0;
+
         $profitByDay = (clone $salesItemsBase)
             ->groupBy(DB::raw('DATE(sales_receipts.sold_at)'))
             ->orderBy(DB::raw('DATE(sales_receipts.sold_at)'))
@@ -188,6 +201,9 @@ class ReportsProfitIndex extends Component
             'cogsTotal' => $cogsTotal,
             'profitTotal' => $profitTotal,
             'profitMargin' => $profitMargin,
+            'expenseTotal' => $expenseTotal,
+            'netProfit' => $netProfit,
+            'netProfitMargin' => $netProfitMargin,
             'lowProfitLines' => $lowProfitLines,
             'lossLines' => $lossLines,
             'profitByDay' => $profitByDay,
