@@ -281,15 +281,7 @@
                                                 @endif
                                             </td>
                                             <td class="text-right">
-                                                <div class="inline-flex items-center gap-3">
-                                                    <button type="button" wire:click="viewProduct({{ $product->id }})" class="ui-btn-link text-xs">{{ __('View') }}</button>
-                                                    @can('products.edit')
-                                                        <button type="button" wire:click.stop.prevent="openEditModal({{ $product->id }})" class="ui-btn-link text-xs">{{ __('Edit') }}</button>
-                                                    @endcan
-                                                    @can('products.void')
-                                                        <button type="button" wire:click.stop.prevent="openVoidModal({{ $product->id }})" class="text-orange-600 hover:text-orange-800 text-xs font-medium">{{ __('Void') }}</button>
-                                                    @endcan
-                                                </div>
+                                                <button type="button" wire:click="viewProduct({{ $product->id }})" class="ui-btn-link text-xs">{{ __('View') }}</button>
                                             </td>
                                         </tr>
                                     @endforeach

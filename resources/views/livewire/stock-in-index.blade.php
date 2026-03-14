@@ -84,13 +84,28 @@
                         {{-- Product Dropdown --}}
                         <div>
                             <label class="block text-sm font-medium text-slate-700 mb-2">Product</label>
-                            <input type="text" wire:model.live.debounce.300ms="product_search" class="ui-input mb-2" placeholder="Search product..." />
-                            <select wire:key="products-{{ $branch_id }}-{{ md5($product_search) }}" wire:model.live="product_id" class="ui-select" @disabled($isSuperAdmin && $branch_id <= 0)>
-                                <option value="0">{{ __('Select...') }}</option>
-                                @foreach ($products as $product)
-                                    <option value="{{ $product->id }}">{{ $product->name }}@if($product->category) ({{ $product->category->name }})@endif</option>
-                                @endforeach
-                            </select>
+                            <input type="text" wire:model.live.debounce.300ms="product_search" class="ui-input mb-2" placeholder="Search product..." autocomplete="off" />
+                            @if (count($searchableProducts) > 0)
+                                <div class="border border-slate-300 rounded-md max-h-48 overflow-y-auto absolute z-10 bg-white w-full max-w-md">
+                                    @foreach ($searchableProducts as $product)
+                                        <button type="button" wire:click="selectProduct({{ $product->id }})" class="w-full text-left px-3 py-2 hover:bg-slate-100 border-b border-slate-100 last:border-b-0">
+                                            <div class="font-medium">{{ $product->name }}</div>
+                                            <div class="text-xs text-slate-500">{{ $product->category?->name }}</div>
+                                        </button>
+                                    @endforeach
+                                </div>
+                            @endif
+                            @if ($selectedProduct)
+                                <div class="mt-2 p-2 bg-green-50 border border-green-200 rounded-md">
+                                    <div class="flex items-center justify-between">
+                                        <div>
+                                            <span class="font-medium text-green-800">{{ $selectedProduct->name }}</span>
+                                            <span class="text-xs text-green-600 ml-2">{{ $selectedProduct->category?->name }}</span>
+                                        </div>
+                                        <button type="button" wire:click="$set('product_id', 0)" class="text-green-700 hover:text-green-900 text-sm">Clear</button>
+                                    </div>
+                                </div>
+                            @endif
                             @if ($isSuperAdmin && $branch_id <= 0)
                                 <div class="mt-1 text-xs text-slate-500">{{ __('Select a branch first to load products.') }}</div>
                             @endif

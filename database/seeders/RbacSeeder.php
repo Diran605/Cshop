@@ -104,7 +104,7 @@ class RbacSeeder extends Seeder
             'expense_types.view',
             'expense_types.create',
             'expense_types.edit',
-            'expense_types.delete',
+            'expense_types.void',
 
             'reports.sales',
             'reports.profit',
@@ -129,6 +129,9 @@ class RbacSeeder extends Seeder
             'clearance.rules.edit',
             'clearance.rules.delete',
             'clearance.reports',
+            'clearance.records.view',
+            'clearance.records.edit',
+            'clearance.records.delete',
         ];
 
         foreach ($permissions as $name) {

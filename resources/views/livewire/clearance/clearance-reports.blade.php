@@ -120,34 +120,6 @@
                     </div>
                 </div>
             </div>
-
-            {{-- Daily Trend Chart --}}
-            <div class="ui-card">
-                <div class="ui-card-body">
-                    <h3 class="ui-card-title">{{ __('Daily Trend') }}</h3>
-                    @if ($this->dailyTrend->count() > 0)
-                        <div class="mt-4">
-                            <div class="flex items-end justify-between h-40 gap-1">
-                                @foreach ($this->dailyTrend as $day)
-                                    @php
-                                        $max = $this->dailyTrend->max('recovered') ?: 1;
-                                        $height = $max > 0 ? ($day->recovered / $max) * 100 : 0;
-                                    @endphp
-                                    <div class="flex-1 flex flex-col items-center gap-1">
-                                        <div class="text-[10px] text-slate-400">XAF {{ number_format($day->recovered, 0, ',', ' ') }}</div>
-                                        <div class="w-full bg-green-200 rounded-t relative" style="height: {{ max($height, 4) }}%">
-                                            <div class="absolute inset-0 bg-green-500 rounded-t opacity-80"></div>
-                                        </div>
-                                        <div class="text-[10px] text-slate-400">{{ Carbon\Carbon::parse($day->date)->format('d') }}</div>
-                                    </div>
-                                @endforeach
-                            </div>
-                        </div>
-                    @else
-                        <div class="mt-4 text-center py-8 text-slate-500">{{ __('No data for selected period') }}</div>
-                    @endif
-                </div>
-            </div>
         </div>
 
         {{-- Recent Actions --}}

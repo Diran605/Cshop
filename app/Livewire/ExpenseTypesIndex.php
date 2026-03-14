@@ -143,8 +143,50 @@ class ExpenseTypesIndex extends Component
         session()->flash('status', $this->editing_id > 0 ? 'Expense type updated.' : 'Expense type created.');
     }
 
+    // Delete modal
+    public bool $show_delete_modal = false;
+    public int $pending_delete_id = 0;
+    public string $pending_delete_name = '';
+
+    public function openDeleteModal(int $id): void
+    {
+        $expenseType = ExpenseType::query()
+            ->when(! $this->isSuperAdmin, fn ($q) => $q->where('branch_id', $this->branch_id))
+            ->find($id);
+
+        if (! $expenseType) {
+            return;
+        }
+
+        $this->pending_delete_id = $id;
+        $this->pending_delete_name = $expenseType->name;
+        $this->show_delete_modal = true;
+    }
+
+    public function closeDeleteModal(): void
+    {
+        $this->show_delete_modal = false;
+        $this->pending_delete_id = 0;
+        $this->pending_delete_name = '';
+    }
+
+    public function confirmDelete(): void
+    {
+        if ($this->pending_delete_id <= 0) {
+            return;
+        }
+
+        $this->delete($this->pending_delete_id);
+        $this->closeDeleteModal();
+    }
+
     public function delete(int $id): void
     {
+        if (! auth()->user()?->can('expense_types.void')) {
+            session()->flash('error', 'You do not have permission to void expense types.');
+            return;
+        }
+
         $this->syncAuthContext();
 
         $expenseType = ExpenseType::query()
@@ -153,17 +195,18 @@ class ExpenseTypesIndex extends Component
 
         $name = $expenseType->name;
 
-        $expenseType->delete();
+        $expenseType->is_active = false;
+        $expenseType->save();
 
         ActivityLogger::log(
-            'expense_type.deleted',
+            'expense_type.voided',
             $expenseType,
-            "Deleted expense type: {$name}",
+            "Voided expense type: {$name}",
             ['name' => $name],
             $this->branch_id
         );
 
-        session()->flash('status', 'Expense type deleted.');
+        session()->flash('status', 'Expense type voided.');
     }
 
     public function closeModal(): void

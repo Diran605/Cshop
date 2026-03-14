@@ -622,6 +622,23 @@ class StockInIndex extends Component
                 ->find($this->product_id);
         }
 
+        $searchableProducts = [];
+        if ($this->branch_id > 0 && trim($this->product_search) !== '') {
+            $searchableProducts = Product::query()
+                ->where('status', Product::STATUS_ACTIVE)
+                ->where('branch_id', $this->branch_id)
+                ->where(function ($q) {
+                    $term = '%' . trim($this->product_search) . '%';
+                    $q->where('name', 'like', $term)
+                        ->orWhere('description', 'like', $term)
+                        ->orWhereHas('category', fn ($qc) => $qc->where('name', 'like', $term));
+                })
+                ->with('category')
+                ->orderBy('name')
+                ->limit(10)
+                ->get();
+        }
+
         $selectedReceipt = null;
         if ($this->selected_receipt_id > 0) {
             $selectedReceipt = StockInReceipt::query()
@@ -635,8 +652,15 @@ class StockInIndex extends Component
             'branches' => $branches,
             'products' => $products,
             'selectedProduct' => $selectedProduct,
+            'searchableProducts' => $searchableProducts,
             'selectedReceipt' => $selectedReceipt,
             'isSuperAdmin' => $this->isSuperAdmin,
         ]);
+    }
+
+    public function selectProduct(int $productId): void
+    {
+        $this->product_id = $productId;
+        $this->product_search = '';
     }
 }

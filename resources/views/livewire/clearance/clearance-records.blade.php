@@ -151,16 +151,22 @@
                                         @endif
                                     </td>
                                     <td class="text-center">
-                                        <button type="button" wire:click="openViewModal({{ $item->id }})" class="ui-btn-link text-xs">
-                                            {{ __('View') }}
-                                        </button>
+                                        @can('clearance.records.view')
+                                            <button type="button" wire:click="openViewModal({{ $item->id }})" class="ui-btn-link text-xs">
+                                                {{ __('View') }}
+                                            </button>
+                                        @endcan
                                         @if($item->status !== 'actioned')
-                                            <button type="button" wire:click="openEditModal({{ $item->id }})" class="ui-btn-link text-xs">
-                                                {{ __('Edit') }}
-                                            </button>
-                                            <button type="button" wire:click="delete({{ $item->id }})" class="ui-btn-link text-xs text-red-600" onclick="return confirm('Delete this record?')">
-                                                {{ __('Delete') }}
-                                            </button>
+                                            @can('clearance.records.edit')
+                                                <button type="button" wire:click="openEditModal({{ $item->id }})" class="ui-btn-link text-xs">
+                                                    {{ __('Edit') }}
+                                                </button>
+                                            @endcan
+                                            @can('clearance.records.delete')
+                                                <button type="button" wire:click="delete({{ $item->id }})" class="ui-btn-link text-xs text-red-600" onclick="return confirm('Delete this record?')">
+                                                    {{ __('Delete') }}
+                                                </button>
+                                            @endcan
                                         @endif
                                     </td>
                                 </tr>

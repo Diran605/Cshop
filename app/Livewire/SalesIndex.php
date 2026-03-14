@@ -99,7 +99,6 @@ class SalesIndex extends Component
         return [
             'branch_id' => ['required', 'integer', 'min:1'],
             'payment_method' => ['required', 'string', 'in:cash'],
-            'amount_paid' => ['required', 'numeric', 'min:0'],
             'customer_name' => ['nullable', 'string', 'max:255'],
             'notes' => ['nullable', 'string', 'max:1000'],
             'sold_at_date' => ['required', 'date'],
@@ -486,13 +485,8 @@ class SalesIndex extends Component
         }
 
         $grandTotal = $subTotal;
-        $amountPaid = ($data['amount_paid'] !== null && $data['amount_paid'] !== '') ? (float) $data['amount_paid'] : 0.0;
-        $changeDue = max(0.0, $amountPaid - $grandTotal);
-
-        if ($amountPaid < $grandTotal) {
-            $this->addError('amount_paid', 'Amount paid must be greater than or equal to grand total.');
-            return;
-        }
+        $amountPaid = $grandTotal;
+        $changeDue = 0.0;
 
         try {
             $saleId = DB::transaction(function () use ($cartItems, $data, $subTotal, $grandTotal, $amountPaid, $changeDue) {
@@ -1515,6 +1509,23 @@ class SalesIndex extends Component
                 ->find($this->product_id);
         }
 
+        $searchableProducts = [];
+        if ($this->branch_id > 0 && trim($this->product_search) !== '') {
+            $searchableProducts = Product::query()
+                ->where('status', Product::STATUS_ACTIVE)
+                ->where('branch_id', $this->branch_id)
+                ->where(function ($q) {
+                    $term = '%' . trim($this->product_search) . '%';
+                    $q->where('name', 'like', $term)
+                        ->orWhere('description', 'like', $term)
+                        ->orWhereHas('category', fn ($qc) => $qc->where('name', 'like', $term));
+                })
+                ->with('category')
+                ->orderBy('name')
+                ->limit(10)
+                ->get();
+        }
+
         $stockMap = ProductStock::query()
             ->when($this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
             ->pluck('current_stock', 'product_id')
@@ -1582,6 +1593,7 @@ class SalesIndex extends Component
             'products' => $products,
             'editProducts' => $editProducts,
             'selectedProduct' => $selectedProduct,
+            'searchableProducts' => $searchableProducts,
             'stockMap' => $stockMap,
             'editStockMap' => $editStockMap,
             'cartItems' => $cartItems,
@@ -1614,5 +1626,38 @@ class SalesIndex extends Component
         }
 
         return (string) ($this->cart[$this->product_id]['unit_price'] ?? $this->selected_product_data['selling_price'] ?? '0');
+    }
+
+    public function selectProduct(int $productId): void
+    {
+        $this->product_id = $productId;
+        $this->product_search = '';
+
+        if ($productId <= 0) {
+            $this->selected_product_data = null;
+            return;
+        }
+
+        $product = Product::query()
+            ->with(['bulkType.bulkUnit', 'unitType'])
+            ->when($this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
+            ->find($productId);
+
+        if ($product) {
+            $this->selected_product_data = [
+                'id' => $product->id,
+                'name' => $product->name,
+                'selling_price' => (string) ($product->selling_price ?? '0'),
+                'bulk_enabled' => (bool) ($product->bulk_enabled ?? false),
+                'units_per_bulk' => (int) ($product->units_per_bulk ?? 0),
+                'bulk_type_id' => $product->bulk_type_id,
+            ];
+
+            if ((bool) $product->bulk_enabled && $this->entry_mode === 'bulk') {
+                $this->entry_mode = 'unit';
+            }
+        } else {
+            $this->selected_product_data = null;
+        }
     }
 }

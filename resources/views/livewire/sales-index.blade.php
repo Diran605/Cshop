@@ -85,13 +85,28 @@
                         {{-- Product Dropdown --}}
                         <div>
                             <label class="block text-sm font-medium text-slate-700 mb-2">Product</label>
-                            <input type="text" wire:model.live.debounce.300ms="product_search" class="ui-input mb-2" placeholder="Search product..." />
-                            <select wire:key="products-{{ $branch_id }}-{{ md5($product_search) }}" wire:model.live="product_id" class="ui-select">
-                                <option value="0">{{ __('Select...') }}</option>
-                                @foreach ($products as $product)
-                                    <option value="{{ $product->id }}">{{ $product->name }}@if($product->category) ({{ $product->category->name }})@endif</option>
-                                @endforeach
-                            </select>
+                            <input type="text" wire:model.live.debounce.300ms="product_search" class="ui-input mb-2" placeholder="Search product..." autocomplete="off" />
+                            @if (count($searchableProducts) > 0)
+                                <div class="border border-slate-300 rounded-md max-h-48 overflow-y-auto absolute z-10 bg-white w-full max-w-md">
+                                    @foreach ($searchableProducts as $product)
+                                        <button type="button" wire:click="selectProduct({{ $product->id }})" class="w-full text-left px-3 py-2 hover:bg-slate-100 border-b border-slate-100 last:border-b-0">
+                                            <div class="font-medium">{{ $product->name }}</div>
+                                            <div class="text-xs text-slate-500">{{ $product->category?->name }}</div>
+                                        </button>
+                                    @endforeach
+                                </div>
+                            @endif
+                            @if ($selectedProduct)
+                                <div class="mt-2 p-2 bg-green-50 border border-green-200 rounded-md">
+                                    <div class="flex items-center justify-between">
+                                        <div>
+                                            <span class="font-medium text-green-800">{{ $selectedProduct->name }}</span>
+                                            <span class="text-xs text-green-600 ml-2">{{ $selectedProduct->category?->name }}</span>
+                                        </div>
+                                        <button type="button" wire:click="$set('product_id', 0)" class="text-green-700 hover:text-green-900 text-sm">Clear</button>
+                                    </div>
+                                </div>
+                            @endif
                         </div>
 
                         {{-- Entry Type Toggle --}}
@@ -145,16 +160,17 @@
                                     @php($available = $stockMap[$item['product_id']] ?? 0)
                                     <div class="flex items-start justify-between p-3 bg-slate-50 rounded-lg">
                                         <div class="flex-1 min-w-0">
-                                            <div class="flex items-center gap-2">
-                                                <span class="font-medium text-slate-900 truncate">{{ $item['name'] }}</span>
-                                                @if ($item['category_name'] ?? null)
-                                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-teal-100 text-teal-800">
-                                                        {{ $item['category_name'] }}
-                                                    </span>
+                                            <div class="font-medium text-slate-900 truncate">
+                                                {{ $item['name'] }}
+                                                @if (isset($item['is_clearance']) && $item['is_clearance'])
+                                                    <span class="ml-1 px-1.5 py-0.5 bg-yellow-100 text-yellow-800 text-xs rounded">Clearance</span>
                                                 @endif
                                             </div>
-                                            <div class="mt-1 text-sm text-slate-600">
-                                                {{ $item['quantity'] }} × {{ number_format((float) $item['unit_price'], 2) }}
+                                            <div class="mt-1 text-sm text-slate-600 flex items-center gap-2">
+                                                {{ $item['quantity'] }} × 
+                                                <input type="number" min="0" step="0.01" class="w-20 px-1 py-0.5 text-sm border border-slate-300 rounded" 
+                                                    value="{{ $item['unit_price'] }}" 
+                                                    wire:change="setUnitPrice({{ $item['product_id'] }}, $event.target.value)" />
                                             </div>
                                         </div>
                                         <div class="flex items-center gap-3 ml-4">
@@ -187,25 +203,10 @@
                         </div>
 
                         <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-2">Payment Method</label>
-                            <select wire:model.defer="payment_method" class="ui-select">
-                                <option value="cash">Cash</option>
-                                <option value="mobile_money">Mobile Money</option>
-                                <option value="card">Card</option>
-                                <option value="bank_transfer">Bank Transfer</option>
-                            </select>
-                            @if ($payment_method === 'cash')
-                                <div class="mt-2 inline-flex items-center px-3 py-1.5 bg-green-100 text-green-700 rounded-full text-sm font-medium">
-                                    <svg class="w-4 h-4 mr-1.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>
-                                    Cash Payment
-                                </div>
-                            @endif
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-2">Amount Paid</label>
-                            <input type="number" min="0" step="0.01" wire:model.defer="amount_paid" class="ui-input font-mono" />
-                            @error('amount_paid') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Payment</label>
+                            <div class="p-2 bg-green-50 border border-green-200 rounded-md">
+                                <span class="text-green-800 font-medium">Cash</span>
+                            </div>
                         </div>
 
                         <div>
@@ -232,22 +233,6 @@
                             <span class="text-slate-600">Grand Total</span>
                             <span class="text-2xl font-bold text-purple-600 font-mono">{{ number_format((float) $grandTotal, 2) }}</span>
                         </div>
-
-                        @if ($payment_method === 'cash')
-                            <div class="flex items-center justify-between py-3 border-t border-dashed border-green-300 bg-green-50 rounded-lg px-3">
-                                <div>
-                                    <span class="text-slate-600">Change Due</span>
-                                    <div class="text-xs text-slate-400 mt-0.5">Shown for cash only</div>
-                                </div>
-                                @if ((float) $changeDue > 0)
-                                    <span class="text-lg font-bold text-green-700 font-mono">
-                                        {{ number_format((float) $changeDue, 2) }}
-                                    </span>
-                                @else
-                                    <span class="font-medium text-slate-500 font-mono">{{ number_format((float) $changeDue, 2) }}</span>
-                                @endif
-                            </div>
-                        @endif
                     </div>
 
                     @error('cart')
@@ -361,10 +346,6 @@
                             <div class="flex items-center justify-between">
                                 <div>{{ __('Paid') }}</div>
                                 <div class="font-medium">{{ number_format((float) $selectedSale->amount_paid, 2) }}</div>
-                            </div>
-                            <div class="flex items-center justify-between">
-                                <div>{{ __('Change') }}</div>
-                                <div class="font-medium">{{ number_format((float) $selectedSale->change_due, 2) }}</div>
                             </div>
                         </div>
                     </div>
@@ -517,10 +498,6 @@
                             <div class="flex items-center justify-between">
                                 <div>{{ __('Grand Total') }}</div>
                                 <div class="font-semibold text-slate-900">{{ number_format((float) $editGrandTotal, 2) }}</div>
-                            </div>
-                            <div class="flex items-center justify-between">
-                                <div>{{ __('Change Due') }}</div>
-                                <div class="font-medium">{{ number_format((float) $editChangeDue, 2) }}</div>
                             </div>
                         </div>
 

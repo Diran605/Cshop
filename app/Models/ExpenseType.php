@@ -39,4 +39,10 @@ class ExpenseType extends Model
     {
         return $query->where('branch_id', $branchId);
     }
+
+    public function markAsInactive(): void
+    {
+        $this->is_active = false;
+        $this->save();
+    }
 }

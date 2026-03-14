@@ -73,6 +73,11 @@ class ClearanceRecords extends Component
 
     public function openViewModal(int $itemId): void
     {
+        if (! auth()->user()?->can('clearance.records.view')) {
+            session()->flash('error', 'You do not have permission to view clearance records.');
+            return;
+        }
+
         $this->view_item_id = $itemId;
         $this->viewItem = ClearanceItem::with(['product', 'branch', 'discountRule', 'actionedBy', 'actions'])
             ->findOrFail($itemId);
@@ -88,6 +93,11 @@ class ClearanceRecords extends Component
 
     public function openEditModal(int $itemId): void
     {
+        if (! auth()->user()?->can('clearance.records.edit')) {
+            session()->flash('error', 'You do not have permission to edit clearance records.');
+            return;
+        }
+
         $item = ClearanceItem::findOrFail($itemId);
 
         $this->edit_item_id = $itemId;
@@ -146,6 +156,11 @@ class ClearanceRecords extends Component
 
     public function delete(int $itemId): void
     {
+        if (! auth()->user()?->can('clearance.records.delete')) {
+            session()->flash('error', 'You do not have permission to delete clearance records.');
+            return;
+        }
+
         $item = ClearanceItem::findOrFail($itemId);
         $productName = $item->product?->name ?? 'Unknown';
 

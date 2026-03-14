@@ -140,6 +140,12 @@
                                             class="ui-nav-sublink {{ request()->routeIs('products.index') && request()->route('mode') === 'expired' ? 'ui-nav-sublink-active' : '' }}">
                                             {{ __('Expired Products') }}
                                         </a>
+                                        @can('opening_stock.manage')
+                                            <a href="{{ route('opening_stock.index') }}"
+                                                class="ui-nav-sublink {{ request()->routeIs('opening_stock.index') ? 'ui-nav-sublink-active' : '' }}">
+                                                {{ __('Opening Stock') }}
+                                            </a>
+                                        @endcan
                                     </div>
                                 </details>
                             @endcan
@@ -178,38 +184,35 @@
                                 </details>
                             @endcan
 
-                            @can('stock_levels.view')
-                                <a href="{{ route('stock_levels.index') }}" class="ui-nav-link {{ request()->routeIs('stock_levels.index') ? 'ui-nav-link-active' : '' }}">
-                                    <span class="flex items-center gap-2">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                            @canany(['stock_levels.view', 'stock_valuation.view'])
+                                <details class="ui-nav-group" {{ request()->routeIs('stock_levels.index') || request()->routeIs('stock_valuation.index') ? 'open' : '' }}>
+                                    <summary class="ui-nav-group-summary {{ request()->routeIs('stock_levels.index') || request()->routeIs('stock_valuation.index') ? 'ui-nav-link-active' : '' }}">
+                                        <span class="flex items-center gap-2">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                                            </svg>
+                                            {{ __('Stocks') }}
+                                        </span>
+                                        <svg class="ui-nav-caret" width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                            <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
                                         </svg>
-                                        {{ __('Stock Levels') }}
-                                    </span>
-                                </a>
-                            @endcan
-
-                            @can('stock_valuation.view')
-                                <a href="{{ route('stock_valuation.index') }}" class="ui-nav-link {{ request()->routeIs('stock_valuation.index') ? 'ui-nav-link-active' : '' }}">
-                                    <span class="flex items-center gap-2">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                        </svg>
-                                        {{ __('Stock Valuation') }}
-                                    </span>
-                                </a>
-                            @endcan
-
-                            @can('opening_stock.manage')
-                                <a href="{{ route('opening_stock.index') }}" class="ui-nav-link {{ request()->routeIs('opening_stock.index') ? 'ui-nav-link-active' : '' }}">
-                                    <span class="flex items-center gap-2">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                                        </svg>
-                                        {{ __('Opening Stock') }}
-                                    </span>
-                                </a>
-                            @endcan
+                                    </summary>
+                                    <div class="ui-nav-group-panel">
+                                        @can('stock_levels.view')
+                                            <a href="{{ route('stock_levels.index') }}"
+                                                class="ui-nav-sublink {{ request()->routeIs('stock_levels.index') ? 'ui-nav-sublink-active' : '' }}">
+                                                {{ __('Stock Levels') }}
+                                            </a>
+                                        @endcan
+                                        @can('stock_valuation.view')
+                                            <a href="{{ route('stock_valuation.index') }}"
+                                                class="ui-nav-sublink {{ request()->routeIs('stock_valuation.index') ? 'ui-nav-sublink-active' : '' }}">
+                                                {{ __('Stock Valuation') }}
+                                            </a>
+                                        @endcan
+                                    </div>
+                                </details>
+                            @endcanany
 
                             @can('stock_adjustments.view')
                                 <a href="{{ route('stock_adjustments.index') }}" class="ui-nav-link {{ request()->routeIs('stock_adjustments.index') ? 'ui-nav-link-active' : '' }}">
@@ -252,32 +255,6 @@
                                                 {{ __('Daily Summary') }}
                                             </a>
                                         @endcan
-                                    </div>
-                                </details>
-                            @endcan
-
-                            @can('expenses.view')
-                                <details class="ui-nav-group" {{ request()->routeIs('expenses.index') ? 'open' : '' }}>
-                                    <summary class="ui-nav-group-summary {{ request()->routeIs('expenses.index') ? 'ui-nav-link-active' : '' }}">
-                                        <span class="flex items-center gap-2">
-                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-                                            </svg>
-                                            {{ __('Expenses') }}
-                                        </span>
-                                        <svg class="ui-nav-caret" width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                            <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
-                                        </svg>
-                                    </summary>
-                                    <div class="ui-nav-group-panel">
-                                        <a href="{{ route('expenses.index', ['mode' => 'add']) }}"
-                                            class="ui-nav-sublink {{ request()->routeIs('expenses.index') && request()->route('mode') === 'add' ? 'ui-nav-sublink-active' : '' }}">
-                                            {{ __('Add Expense') }}
-                                        </a>
-                                        <a href="{{ route('expenses.index', ['mode' => 'manage']) }}"
-                                            class="ui-nav-sublink {{ request()->routeIs('expenses.index') && (request()->route('mode') === 'manage' || request()->route('mode') === null) ? 'ui-nav-sublink-active' : '' }}">
-                                            {{ __('Manage Expenses') }}
-                                        </a>
                                     </div>
                                 </details>
                             @endcan
@@ -470,7 +447,7 @@
                                         </span>
                                     </a>
                                 @endcan
-                                @can('clearance.view')
+                                @can('clearance.records.view')
                                     <a href="{{ route('clearance.records') }}"
                                         class="ui-nav-link {{ request()->routeIs('clearance.records') ? 'ui-nav-link-active' : '' }}">
                                         <span class="flex items-center gap-2">

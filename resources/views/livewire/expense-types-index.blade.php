@@ -74,7 +74,7 @@
                                         <button type="button" wire:click="openEditModal({{ $type->id }})" class="ui-btn-link text-xs">
                                             {{ __('Edit') }}
                                         </button>
-                                        <button type="button" wire:click="delete({{ $type->id }})" class="ui-btn-link text-xs text-red-600" onclick="return confirm('Delete this expense type?')">
+                                        <button type="button" wire:click="openDeleteModal({{ $type->id }})" class="ui-btn-link text-xs text-red-600">
                                             {{ __('Delete') }}
                                         </button>
                                     </td>
@@ -135,6 +135,32 @@
                     </button>
                     <button type="button" wire:click="save" class="ui-btn-primary">
                         {{ __('Save') }}
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- Delete Confirmation Modal --}}
+    @if ($show_delete_modal)
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-4" data-modal-root>
+            <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" wire:click="closeDeleteModal" data-modal-overlay></div>
+            <div class="relative w-full max-w-sm ui-card">
+                <div class="p-4 border-b border-slate-200">
+                    <div class="font-semibold text-slate-900">{{ __('Confirm Void') }}</div>
+                </div>
+                <div class="p-4">
+                    <p class="text-sm text-slate-700">
+                        {{ __('Are you sure you want to void expense type:') }}
+                        <strong>{{ $pending_delete_name }}</strong>?
+                    </p>
+                </div>
+                <div class="p-4 border-t border-slate-200 flex justify-end gap-3">
+                    <button type="button" wire:click="closeDeleteModal" class="ui-btn-secondary" data-modal-close>
+                        {{ __('Cancel') }}
+                    </button>
+                    <button type="button" wire:click="confirmDelete" class="ui-btn-danger">
+                        {{ __('Void') }}
                     </button>
                 </div>
             </div>
