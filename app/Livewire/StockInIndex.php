@@ -496,6 +496,22 @@ class StockInIndex extends Component
                 }
 
                 $stock->save();
+
+                // Update Product WAC
+                $product = Product::query()->find((int) $row['product_id']);
+                if ($product) {
+                    $productWac = $product->weighted_average_cost !== null ? (float) $product->weighted_average_cost : (float) ($product->cost_price ?? 0);
+                    $newCost = $incomingCost ?? $productWac;
+                    $currentStock = (int) ($product->stock?->current_stock ?? 0);
+                    $newStock = $currentStock + $qty;
+                    
+                    if ($newStock > 0) {
+                        $newWac = (($currentStock * $productWac) + ($qty * $newCost)) / $newStock;
+                        $product->weighted_average_cost = number_format($newWac, 2, '.', '');
+                        $product->save();
+                    }
+                }
+
                 $afterStock = (int) $stock->current_stock;
 
                 $lineTotal = (($row['cost_price'] ?? null) !== null && ($row['cost_price'] ?? '') !== '')

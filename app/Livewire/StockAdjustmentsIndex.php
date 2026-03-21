@@ -277,6 +277,15 @@ class StockAdjustmentsIndex extends Component
                             $receipt->void_reviewed_at = now();
                             $receipt->save();
 
+                            // Recalculate WAC for affected products
+                            $items = StockInItem::query()->where('stock_in_receipt_id', $receiptId)->get();
+                            foreach ($items as $item) {
+                                $product = Product::query()->find($item->product_id);
+                                if ($product) {
+                                    $this->recalculateWac($item->product_id, (int) $receipt->branch_id);
+                                }
+                            }
+
                             ActivityLogger::log(
                                 'stock_in.voided',
                                 $receipt,
@@ -590,5 +599,49 @@ class StockAdjustmentsIndex extends Component
             'adjustments' => $adjustments,
             'branches' => $branches,
         ]);
+    }
+
+    protected function recalculateWac(int $productId, int $branchId): void
+    {
+        $product = Product::query()->find($productId);
+        if (!$product) {
+            return;
+        }
+
+        // Get all non-voided stock-in items for this product and branch
+        $stockItems = StockInItem::query()
+            ->join('stock_in_receipts', 'stock_in_receipts.id', '=', 'stock_in_items.stock_in_receipt_id')
+            ->whereNull('stock_in_receipts.voided_at')
+            ->where('stock_in_items.product_id', $productId)
+            ->where('stock_in_receipts.branch_id', $branchId)
+            ->where('stock_in_items.remaining_quantity', '>', 0)
+            ->whereNotNull('stock_in_items.cost_price')
+            ->select([
+                'stock_in_items.remaining_quantity',
+                'stock_in_items.cost_price'
+            ])
+            ->get();
+
+        if ($stockItems->isEmpty()) {
+            $product->weighted_average_cost = null;
+            $product->save();
+            return;
+        }
+
+        $totalQty = 0;
+        $totalCost = 0;
+
+        foreach ($stockItems as $item) {
+            $qty = (int) $item->remaining_quantity;
+            $cost = (float) $item->cost_price;
+            $totalQty += $qty;
+            $totalCost += ($qty * $cost);
+        }
+
+        if ($totalQty > 0) {
+            $wac = $totalCost / $totalQty;
+            $product->weighted_average_cost = number_format($wac, 2, '.', '');
+            $product->save();
+        }
     }
 }

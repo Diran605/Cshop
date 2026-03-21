@@ -220,6 +220,7 @@
                                         @endif
                                         <th>{{ __('Category') }}</th>
                                         <th>{{ __('Cost') }}</th>
+                                        <th>{{ __('WAC') }}</th>
                                         <th>{{ __('Min Price') }}</th>
                                         <th>{{ __('Price') }}</th>
                                         <th>{{ __('Bulk Type') }}</th>
@@ -257,6 +258,9 @@
                                                 {{ $product->cost_price !== null ? number_format((float) $product->cost_price, 2) : '-' }}
                                             </td>
                                             <td>
+                                                {{ $product->weighted_average_cost !== null ? number_format((float) $product->weighted_average_cost, 2) : '-' }}
+                                            </td>
+                                            <td>
                                                 {{ $product->min_selling_price !== null ? number_format((float) $product->min_selling_price, 2) : '-' }}
                                             </td>
                                             <td>
@@ -281,7 +285,19 @@
                                                 @endif
                                             </td>
                                             <td class="text-right">
-                                                <button type="button" wire:click="viewProduct({{ $product->id }})" class="ui-btn-link text-xs">{{ __('View') }}</button>
+                                                <div class="flex items-center justify-end gap-2">
+                                                    @can('products.view')
+                                                        <button type="button" wire:click="viewProduct({{ $product->id }})" class="ui-btn-link text-xs">{{ __('View') }}</button>
+                                                    @endcan
+                                                    @can('products.edit')
+                                                        <button type="button" wire:click="openEditModal({{ $product->id }})" class="ui-btn-link text-xs">{{ __('Edit') }}</button>
+                                                    @endcan
+                                                    @can('products.void')
+                                                        @if ((string) $product->status === 'active')
+                                                            <button type="button" wire:click="openVoidModal({{ $product->id }})" class="ui-btn-link-danger text-xs">{{ __('Void') }}</button>
+                                                        @endif
+                                                    @endcan
+                                                </div>
                                             </td>
                                         </tr>
                                     @endforeach

@@ -327,9 +327,10 @@ class SalesIndex extends Component
             'is_clearance' => false,
             'clearance_price' => null,
             'original_price' => null,
+            'use_clearance_price' => true,
         ];
 
-        // Check for active clearance item and apply clearance price
+        // Check for active clearance item
         $clearanceItem = ClearanceItem::where('branch_id', $this->branch_id)
             ->where('product_id', $product->id)
             ->where('status', ClearanceItem::STATUS_ACTIONED)
@@ -341,8 +342,9 @@ class SalesIndex extends Component
             $this->cart[$product->id]['is_clearance'] = true;
             $this->cart[$product->id]['clearance_price'] = (string) $clearanceItem->clearance_price;
             $this->cart[$product->id]['original_price'] = (string) $clearanceItem->original_price;
-            $this->cart[$product->id]['unit_price'] = (string) $clearanceItem->clearance_price;
             $this->cart[$product->id]['clearance_item_id'] = $clearanceItem->id;
+            // Default to use clearance price
+            $this->cart[$product->id]['unit_price'] = (string) $clearanceItem->clearance_price;
         }
 
         $this->enforceSingleMode();
@@ -448,6 +450,22 @@ class SalesIndex extends Component
         }
 
         $this->cart[$productId]['unit_price'] = number_format($v, 2, '.', '');
+    }
+
+    public function toggleClearancePrice(int $productId): void
+    {
+        if (! isset($this->cart[$productId]) || ! ($this->cart[$productId]['is_clearance'] ?? false)) {
+            return;
+        }
+
+        $useClearance = ! ($this->cart[$productId]['use_clearance_price'] ?? true);
+        $this->cart[$productId]['use_clearance_price'] = $useClearance;
+
+        if ($useClearance) {
+            $this->cart[$productId]['unit_price'] = (string) ($this->cart[$productId]['clearance_price'] ?? 0);
+        } else {
+            $this->cart[$productId]['unit_price'] = (string) ($this->cart[$productId]['original_price'] ?? $this->cart[$productId]['selling_price'] ?? 0);
+        }
     }
 
     public function clearCart(): void

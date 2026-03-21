@@ -69,6 +69,8 @@ class RbacSeeder extends Seeder
             'products.edit',
             'products.void',
 
+            'batches.view',
+
             'stock_adjustments.view',
             'stock_adjustments.approve',
             'stock_adjustments.reject',

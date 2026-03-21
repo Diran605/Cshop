@@ -166,11 +166,17 @@
                                                     <span class="ml-1 px-1.5 py-0.5 bg-yellow-100 text-yellow-800 text-xs rounded">Clearance</span>
                                                 @endif
                                             </div>
-                                            <div class="mt-1 text-sm text-slate-600 flex items-center gap-2">
+                                            <div class="mt-1 text-sm text-slate-600">
                                                 {{ $item['quantity'] }} × 
                                                 <input type="number" min="0" step="0.01" class="w-20 px-1 py-0.5 text-sm border border-slate-300 rounded" 
                                                     value="{{ $item['unit_price'] }}" 
                                                     wire:change="setUnitPrice({{ $item['product_id'] }}, $event.target.value)" />
+                                                @if (isset($item['is_clearance']) && $item['is_clearance'] && isset($item['clearance_price']))
+                                                    <button type="button" wire:click="toggleClearancePrice({{ $item['product_id'] }})" 
+                                                        class="ml-2 text-xs px-2 py-0.5 rounded {{ ($item['use_clearance_price'] ?? true) ? 'bg-purple-100 text-purple-700' : 'bg-slate-200 text-slate-600' }}">
+                                                        {{ ($item['use_clearance_price'] ?? true) ? 'Clearance' : 'Normal' }}
+                                                    </button>
+                                                @endif
                                             </div>
                                         </div>
                                         <div class="flex items-center gap-3 ml-4">

@@ -96,62 +96,62 @@
             </div>
         </div>
 
-        <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-8 gap-6">
+        <div class="mt-6 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-4">
             <div class="ui-card">
                 <div class="ui-card-body">
-                    <div class="text-sm text-slate-500">{{ __('Sales Total') }}</div>
-                    <div class="mt-1 text-2xl font-semibold text-slate-900">{{ number_format((float) $salesTotal, 2) }}</div>
+                    <div class="text-xs text-slate-500">{{ __('Sales Total') }}</div>
+                    <div class="mt-1 text-lg font-semibold text-slate-900">{{ number_format((float) $salesTotal, 2) }}</div>
                 </div>
             </div>
 
             <div class="ui-card">
                 <div class="ui-card-body">
-                    <div class="text-sm text-slate-500">{{ __('COGS') }}</div>
-                    <div class="mt-1 text-2xl font-semibold text-slate-900">{{ number_format((float) $cogsTotal, 2) }}</div>
+                    <div class="text-xs text-slate-500">{{ __('COGS') }}</div>
+                    <div class="mt-1 text-lg font-semibold text-slate-900">{{ number_format((float) $cogsTotal, 2) }}</div>
                 </div>
             </div>
 
             <div class="ui-card">
                 <div class="ui-card-body">
-                    <div class="text-sm text-slate-500">{{ __('Gross Profit') }}</div>
-                    <div class="mt-1 text-2xl font-semibold text-emerald-600">{{ number_format((float) $profitTotal, 2) }}</div>
+                    <div class="text-xs text-slate-500">{{ __('Gross Profit') }}</div>
+                    <div class="mt-1 text-lg font-semibold text-emerald-600">{{ number_format((float) $profitTotal, 2) }}</div>
                     <div class="text-xs text-slate-500">{{ number_format((float) $profitMargin, 1) }}% margin</div>
                 </div>
             </div>
 
             <div class="ui-card">
                 <div class="ui-card-body">
-                    <div class="text-sm text-slate-500">{{ __('Expenses') }}</div>
-                    <div class="mt-1 text-2xl font-semibold text-orange-600">{{ number_format((float) $expenseTotal, 2) }}</div>
+                    <div class="text-xs text-slate-500">{{ __('Expenses') }}</div>
+                    <div class="mt-1 text-lg font-semibold text-orange-600">{{ number_format((float) $expenseTotal, 2) }}</div>
                 </div>
             </div>
 
             <div class="ui-card">
                 <div class="ui-card-body">
-                    <div class="text-sm text-slate-500">{{ __('Net Profit') }}</div>
-                    <div class="mt-1 text-2xl font-semibold {{ $netProfit >= 0 ? 'text-emerald-600' : 'text-red-600' }}">{{ number_format((float) $netProfit, 2) }}</div>
+                    <div class="text-xs text-slate-500">{{ __('Net Profit') }}</div>
+                    <div class="mt-1 text-lg font-semibold {{ $netProfit >= 0 ? 'text-emerald-600' : 'text-red-600' }}">{{ number_format((float) $netProfit, 2) }}</div>
                     <div class="text-xs text-slate-500">{{ number_format((float) $netProfitMargin, 1) }}% margin</div>
                 </div>
             </div>
 
             <div class="ui-card">
                 <div class="ui-card-body">
-                    <div class="text-sm text-slate-500">{{ __('Sales Count') }}</div>
-                    <div class="mt-1 text-2xl font-semibold text-slate-900">{{ number_format((int) $salesCount) }}</div>
+                    <div class="text-xs text-slate-500">{{ __('Sales Count') }}</div>
+                    <div class="mt-1 text-lg font-semibold text-slate-900">{{ number_format((int) $salesCount) }}</div>
                 </div>
             </div>
 
             <div class="ui-card">
                 <div class="ui-card-body">
-                    <div class="text-sm text-slate-500">{{ __('Low Profit Lines') }}</div>
-                    <div class="mt-1 text-2xl font-semibold text-amber-600">{{ number_format((int) $lowProfitLines) }}</div>
+                    <div class="text-xs text-slate-500">{{ __('Low Profit Lines') }}</div>
+                    <div class="mt-1 text-lg font-semibold text-amber-600">{{ number_format((int) $lowProfitLines) }}</div>
                 </div>
             </div>
 
             <div class="ui-card">
                 <div class="ui-card-body">
-                    <div class="text-sm text-slate-500">{{ __('Loss Lines') }}</div>
-                    <div class="mt-1 text-2xl font-semibold text-red-600">{{ number_format((int) $lossLines) }}</div>
+                    <div class="text-xs text-slate-500">{{ __('Loss Lines') }}</div>
+                    <div class="mt-1 text-lg font-semibold text-red-600">{{ number_format((int) $lossLines) }}</div>
                 </div>
             </div>
         </div>

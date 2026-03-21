@@ -19,6 +19,7 @@ class Product extends Model
         'category_id',
         'unit_type_id',
         'cost_price',
+        'weighted_average_cost',
         'min_selling_price',
         'selling_price',
         'bulk_enabled',

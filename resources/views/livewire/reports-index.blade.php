@@ -215,66 +215,7 @@
             </div>
         </div>
 
-        <div class="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6 no-print">
-            <div class="ui-card">
-                <div class="ui-card-body">
-                    <h3 class="ui-card-title">{{ __('Sales By Hour') }}</h3>
-                    <div class="mt-1 text-sm text-slate-600">{{ __('Peak sales hours (count + revenue)') }}</div>
-
-                    <div class="mt-4" style="height: 320px;">
-                        <canvas id="salesByHourChart"></canvas>
-                    </div>
-                </div>
-            </div>
-
-            <div class="ui-card">
-                <div class="ui-card-body">
-                    <h3 class="ui-card-title">{{ __('Branch Breakdown') }}</h3>
-                    <div class="mt-1 text-sm text-slate-600">{{ __('Only shown for Super Admin (All branches)') }}</div>
-
-                    <div class="mt-4 overflow-x-auto">
-                        <div class="ui-table-wrap">
-                            <table class="ui-table">
-                                <thead>
-                                    <tr>
-                                        <th>{{ __('Branch') }}</th>
-                                        <th class="text-right">{{ __('Sales') }}</th>
-                                        <th class="text-right">{{ __('Items') }}</th>
-                                        <th class="text-right">{{ __('Revenue') }}</th>
-                                        <th class="text-right">{{ __('COGS') }}</th>
-                                        <th class="text-right">{{ __('Profit') }}</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @if ($isSuperAdmin && (int) ($branch_id ?? 0) <= 0)
-                                        @foreach ($branchSales as $row)
-                                            <tr>
-                                                <td class="font-medium text-slate-900">{{ $row->branch_name }}</td>
-                                                <td class="text-right">{{ number_format((int) $row->sales_count) }}</td>
-                                                <td class="text-right">{{ number_format((int) $row->items_sold) }}</td>
-                                                <td class="text-right">{{ number_format((float) $row->sales_total, 2) }}</td>
-                                                <td class="text-right">{{ number_format((float) $row->cogs_total, 2) }}</td>
-                                                <td class="text-right">{{ number_format((float) $row->profit_total, 2) }}</td>
-                                            </tr>
-                                        @endforeach
-
-                                        @if ($branchSales->isEmpty())
-                                            <tr>
-                                                <td colspan="6" class="ui-table-empty">{{ __('No branch sales found for this period.') }}</td>
-                                            </tr>
-                                        @endif
-                                    @else
-                                        <tr>
-                                            <td colspan="6" class="ui-table-empty">{{ __('Select All branches as Super Admin to view this breakdown.') }}</td>
-                                        </tr>
-                                    @endif
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+        <div class="mt-6 ui-card">
 
         @php
             $trendLabels = [];
@@ -593,30 +534,6 @@
             })();
         </script>
 
-        <div class="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6 no-print">
-            <div class="ui-card">
-                <div class="ui-card-body">
-                    <h3 class="ui-card-title">{{ __('Period Bars') }}</h3>
-                    <div class="mt-1 text-sm text-slate-600">{{ __('Revenue / COGS / Profit (by :period)', ['period' => $periodLabel]) }}</div>
-
-                    <div class="mt-4" style="height: 320px;">
-                        <canvas id="salesTrendBarChart"></canvas>
-                    </div>
-                </div>
-            </div>
-
-            <div class="ui-card">
-                <div class="ui-card-body">
-                    <h3 class="ui-card-title">{{ __('Quantity Bars') }}</h3>
-                    <div class="mt-1 text-sm text-slate-600">{{ __('Items sold per :period', ['period' => $periodLabel]) }}</div>
-
-                    <div class="mt-4" style="height: 320px;">
-                        <canvas id="salesQtyBarChart"></canvas>
-                    </div>
-                </div>
-            </div>
-        </div>
-
         <div class="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div class="ui-card">
                 <div class="ui-card-body">
@@ -716,41 +633,6 @@
                                 @if ($salesByDay->isEmpty())
                                     <tr>
                                         <td colspan="3" class="ui-table-empty">{{ __('No sales for this period.') }}</td>
-                                    </tr>
-                                @endif
-                            </tbody>
-                        </table>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="ui-card">
-                <div class="ui-card-body">
-                    <h3 class="ui-card-title">{{ __('Stock In vs Sales (By Period)') }}</h3>
-
-                    <div class="mt-4 overflow-x-auto">
-                        <div class="ui-table-wrap">
-                        <table class="ui-table">
-                            <thead>
-                                <tr>
-                                    <th>{{ __('Period') }}</th>
-                                    <th>{{ __('Stock In Qty') }}</th>
-                                    <th>{{ __('Sold Qty') }}</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach ($movementByDay as $row)
-                                    <tr>
-                                        <td class="text-slate-900">{{ $row['day'] }}</td>
-                                        <td>{{ (int) $row['stock_in_qty'] }}</td>
-                                        <td>{{ (int) $row['sold_qty'] }}</td>
-                                    </tr>
-                                @endforeach
-
-                                @if (count($movementByDay) === 0)
-                                    <tr>
-                                        <td colspan="3" class="ui-table-empty">{{ __('No movement for this period.') }}</td>
                                     </tr>
                                 @endif
                             </tbody>
