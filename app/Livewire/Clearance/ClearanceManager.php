@@ -21,11 +21,18 @@ class ClearanceManager extends Component
 
     public string $filter_status = 'all';
     public string $filter_action = 'pending';
+    public string $filter_approval = 'all'; // NEW: Filter by approval status
     public string $search = '';
 
     public bool $isSuperAdmin = false;
     public int $filter_branch_id = 0;
     public int $userBranchId = 0;
+
+    // Approval modal (NEW)
+    public bool $show_approval_modal = false;
+    public ?int $approval_item_id = null;
+    public string $approval_notes = '';
+    public string $approval_action = 'approve'; // approve or reject
 
     // Discount modal
     public bool $show_discount_modal = false;
@@ -73,17 +80,26 @@ class ClearanceManager extends Component
         $this->resetPage();
     }
 
+    public function updatedFilterApproval(): void
+    {
+        $this->resetPage();
+    }
+
     #[Computed]
     public function clearanceItems()
     {
         $branchId = $this->isSuperAdmin && $this->filter_branch_id > 0 ? $this->filter_branch_id : $this->userBranchId;
 
         return ClearanceItem::query()
-            ->with(['product', 'discountRule', 'actionedBy'])
+            ->with(['product', 'discountRule', 'actionedBy', 'suggestedBy'])
             ->when($branchId > 0, fn ($q) => $q->where('branch_id', $branchId))
             ->when($this->filter_status !== 'all', fn ($q) => $q->where('status', $this->filter_status))
             ->when($this->filter_action === 'pending', fn ($q) => $q->where('status', '!=', ClearanceItem::STATUS_ACTIONED))
             ->when($this->filter_action === 'actioned', fn ($q) => $q->where('status', ClearanceItem::STATUS_ACTIONED))
+            // NEW: Filter by approval status
+            ->when($this->filter_approval === 'pending_approval', fn ($q) => $q->pendingApproval())
+            ->when($this->filter_approval === 'manual', fn ($q) => $q->where('approval_status', ClearanceItem::APPROVAL_MANUAL))
+            ->when($this->filter_approval === 'approved', fn ($q) => $q->where('approval_status', ClearanceItem::APPROVAL_APPROVED))
             ->when($this->search, function ($q) {
                 $q->whereHas('product', fn ($pq) => $pq->where('name', 'like', "%{$this->search}%"));
             })
@@ -293,6 +309,77 @@ class ClearanceManager extends Component
             'actioned' => 'bg-green-100 text-green-800',
             default => 'bg-gray-100 text-gray-800',
         };
+    }
+
+    // NEW APPROVAL METHODS
+
+    public function openApprovalModal(int $itemId, string $action = 'approve'): void
+    {
+        $item = ClearanceItem::find($itemId);
+        if (!$item || !$item->pendingApproval()->exists()) {
+            session()->flash('error', 'Item not available for approval');
+            return;
+        }
+
+        $this->approval_item_id = $itemId;
+        $this->approval_action = $action;
+        $this->approval_notes = '';
+        $this->show_approval_modal = true;
+    }
+
+    public function closeApprovalModal(): void
+    {
+        $this->show_approval_modal = false;
+        $this->approval_item_id = null;
+        $this->approval_notes = '';
+        $this->approval_action = 'approve';
+    }
+
+    public function submitApproval(): void
+    {
+        $item = ClearanceItem::find($this->approval_item_id);
+        if (!$item) return;
+
+        if ($this->approval_action === 'approve') {
+            $item->approve($this->approval_notes);
+            session()->flash('success', "✅ {$item->product->name} approved for clearance");
+        } else {
+            $item->reject($this->approval_notes);
+            session()->flash('success', "❌ {$item->product->name} rejected from clearance");
+        }
+
+        $this->closeApprovalModal();
+        $this->dispatch('clearance-updated');
+    }
+
+    public function approveBulk(array $itemIds): void
+    {
+        $count = 0;
+        foreach ($itemIds as $itemId) {
+            $item = ClearanceItem::find($itemId);
+            if ($item && $item->pendingApproval()->exists()) {
+                $item->approve('Bulk approved by ' . auth()->user()->name);
+                $count++;
+            }
+        }
+
+        session()->flash('success', "✅ {$count} items approved for clearance");
+        $this->dispatch('clearance-updated');
+    }
+
+    public function rejectBulk(array $itemIds): void
+    {
+        $count = 0;
+        foreach ($itemIds as $itemId) {
+            $item = ClearanceItem::find($itemId);
+            if ($item && $item->pendingApproval()->exists()) {
+                $item->reject('Bulk rejected by ' . auth()->user()->name);
+                $count++;
+            }
+        }
+
+        session()->flash('success', "❌ {$count} items rejected from clearance");
+        $this->dispatch('clearance-updated');
     }
 
     public function render()

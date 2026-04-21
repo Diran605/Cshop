@@ -508,7 +508,9 @@
 
                         <div class="hidden sm:flex sm:items-center gap-3">
                             @canany(['alerts.stock_adjustment', 'alerts.expired_stock', 'alerts.expiry_warning', 'alerts.low_stock'])
-                                <x-notification-bell />
+                                <div wire:ignore>
+                                    <x-notification-bell />
+                                </div>
                             @endcanany
 
                             <x-dropdown align="right" width="48">

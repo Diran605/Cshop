@@ -66,7 +66,7 @@
 
             @if (! $isSuperAdmin)
                 @canany(['alerts.stock_adjustment', 'alerts.expired_stock', 'alerts.expiry_warning', 'alerts.low_stock'])
-                    <div class="mb-6">
+                    <div class="mb-6" wire:ignore>
                         <livewire:dashboard-alerts />
                     </div>
                 @endcanany

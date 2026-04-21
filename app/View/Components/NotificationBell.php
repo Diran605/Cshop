@@ -9,6 +9,7 @@ use Illuminate\View\View;
 class NotificationBell extends Component
 {
     public int $unreadCount;
+    public $notifications;
 
     public function __construct()
     {
@@ -16,6 +17,14 @@ class NotificationBell extends Component
             ->forUser(auth()->id())
             ->unread()
             ->count();
+
+        // Fetch notifications once in constructor, not in view
+        $this->notifications = Alert::query()
+            ->forUser(auth()->id())
+            ->with(['user'])
+            ->orderBy('created_at', 'desc')
+            ->limit(10)
+            ->get();
     }
 
     public function render(): View

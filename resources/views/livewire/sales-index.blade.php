@@ -136,7 +136,12 @@
                                 </div>
                             @endif
 
-                            <div>
+                            @if ($entry_mode === 'bulk' && $selected_product_data && $selected_product_data['bulk_enabled'])
+                                <div class="text-xs text-green-600 mb-1">
+                                    ✓ Bulk enabled • {{ $selected_product_data['units_per_bulk'] }} units per bulk
+                                </div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">Price per Bulk</label>
+                            @else
                                 <label class="block text-sm font-medium text-slate-700 mb-2">
                                     @if ($entry_mode === 'bulk' && $selected_product_data && $selected_product_data['bulk_enabled'])
                                         Price per Bulk
@@ -144,8 +149,8 @@
                                         Price per Unit
                                     @endif
                                 </label>
-                                <input wire:key="price-{{ $product_id }}-{{ $entry_mode }}" type="number" min="0" step="0.01" class="ui-input font-mono" value="{{ $entryPriceDisplay }}" wire:change="setUnitPrice({{ (int) $product_id }}, $event.target.value)" @if ($product_id <= 0) disabled @endif />
-                            </div>
+                            @endif
+                            <input wire:key="price-{{ $product_id }}-{{ $entry_mode }}" type="number" min="0" step="0.01" class="ui-input font-mono" value="{{ $entryPriceDisplay }}" wire:change="setUnitPrice({{ (int) $product_id }}, $event.target.value)" @if ($product_id <= 0) disabled @endif />
                         </div>
 
                         {{-- Add Item Button --}}

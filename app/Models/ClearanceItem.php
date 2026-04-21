@@ -28,12 +28,24 @@ class ClearanceItem extends Model
         'actioned_at',
         'actioned_by',
         'notes',
+        'approval_status',
+        'suggested_at',
+        'suggested_by',
+        'approval_notes',
     ];
 
     protected $casts = [
         'expiry_date' => 'date',
         'actioned_at' => 'datetime',
+        'suggested_at' => 'datetime',
     ];
+
+    // Approval status constants
+    const APPROVAL_MANUAL = 'manual';
+    const APPROVAL_AUTO_SUGGESTED = 'auto_suggested';
+    const APPROVAL_PENDING = 'pending_approval';
+    const APPROVAL_APPROVED = 'approved';
+    const APPROVAL_REJECTED = 'rejected';
 
     // Status constants
     const STATUS_APPROACHING = 'approaching';
@@ -70,6 +82,11 @@ class ClearanceItem extends Model
     public function actionedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'actioned_by');
+    }
+
+    public function suggestedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'suggested_by');
     }
 
     public function actions(): HasMany
@@ -255,6 +272,53 @@ class ClearanceItem extends Model
     }
 
     /**
+     * Scope for pending approval items (auto-suggested, awaiting manager review)
+     */
+    public function scopePendingApproval($query)
+    {
+        return $query->whereIn('approval_status', [
+            self::APPROVAL_AUTO_SUGGESTED,
+            self::APPROVAL_PENDING,
+        ]);
+    }
+
+    /**
+     * Approve a suggested item for clearance
+     */
+    public function approve(?string $notes = null): void
+    {
+        $this->approval_status = self::APPROVAL_APPROVED;
+        $this->approval_notes = $notes;
+        $this->save();
+
+        ActivityLogger::log(
+            'clearance.approved',
+            $this,
+            "Approved clearance for {$this->product->name}",
+            ['notes' => $notes],
+            $this->branch_id
+        );
+    }
+
+    /**
+     * Reject a suggested item (remove from clearance consideration)
+     */
+    public function reject(?string $notes = null): void
+    {
+        $this->approval_status = self::APPROVAL_REJECTED;
+        $this->approval_notes = $notes;
+        $this->save();
+
+        ActivityLogger::log(
+            'clearance.rejected',
+            $this,
+            "Rejected clearance for {$this->product->name}",
+            ['notes' => $notes],
+            $this->branch_id
+        );
+    }
+
+    /**
      * Get status badge color
      */
     public function getStatusColorAttribute(): string
@@ -266,6 +330,21 @@ class ClearanceItem extends Model
             self::STATUS_EXPIRED => 'gray',
             self::STATUS_ACTIONED => 'green',
             default => 'gray',
+        };
+    }
+
+    /**
+     * Get approval status badge
+     */
+    public function getApprovalBadgeAttribute(): string
+    {
+        return match ($this->approval_status) {
+            self::APPROVAL_MANUAL => '👤 Manual',
+            self::APPROVAL_AUTO_SUGGESTED => '🤖 Auto-Suggested',
+            self::APPROVAL_PENDING => '⏳ Pending',
+            self::APPROVAL_APPROVED => '✅ Approved',
+            self::APPROVAL_REJECTED => '❌ Rejected',
+            default => 'Unknown',
         };
     }
 }

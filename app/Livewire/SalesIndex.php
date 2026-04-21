@@ -50,6 +50,7 @@ class SalesIndex extends Component
     public string $entry_mode = 'unit';
     public int $entry_quantity = 1;
     public int $bulk_quantity = 1;
+    public ?string $custom_entry_price = null; // Track custom price before adding to cart
 
     public bool $isSuperAdmin = false;
 
@@ -186,10 +187,17 @@ class SalesIndex extends Component
         }
     }
 
+    public function updatedEntryMode(string $value): void
+    {
+        // Reset custom price when switching entry mode to recalculate display
+        $this->custom_entry_price = null;
+    }
+
     public function updatedProductId(int $value): void
     {
         if ($value <= 0) {
             $this->selected_product_data = null;
+            $this->custom_entry_price = null;
             return;
         }
 
@@ -209,6 +217,7 @@ class SalesIndex extends Component
                 'category_name' => $product->category?->name,
                 'unit_type_name' => $product->unitType?->name,
             ];
+            $this->custom_entry_price = null; // Reset custom price when changing product
             
             // Reset entry mode to unit if product doesn't support bulk
             if (! $product->bulk_enabled) {
@@ -216,6 +225,7 @@ class SalesIndex extends Component
             }
         } else {
             $this->selected_product_data = null;
+            $this->custom_entry_price = null;
         }
     }
 
@@ -313,11 +323,23 @@ class SalesIndex extends Component
             return;
         }
 
+        // Determine unit price: use custom price if set, otherwise use product selling price
+        $unitPrice = (float) $product->selling_price;
+        if ($this->custom_entry_price !== null) {
+            $customPrice = (float) $this->custom_entry_price;
+            // If in bulk mode, user entered bulk price, convert to per-unit
+            if ($this->entry_mode === 'bulk' && $unitsPerBulk > 0) {
+                $unitPrice = $customPrice / $unitsPerBulk;
+            } else {
+                $unitPrice = $customPrice;
+            }
+        }
+
         $this->cart[$product->id] = [
             'product_id' => (int) $product->id,
             'name' => (string) $product->name,
             'unit_type_name' => $product->unitType?->name,
-            'unit_price' => (string) $product->selling_price,
+            'unit_price' => (string) number_format($unitPrice, 2, '.', ''),
             'quantity' => $unitsQty,
             'entry_mode' => $this->entry_mode,
             'bulk_quantity' => $bulkQty,
@@ -329,6 +351,9 @@ class SalesIndex extends Component
             'original_price' => null,
             'use_clearance_price' => true,
         ];
+
+        // Clear custom price after adding
+        $this->custom_entry_price = null;
 
         // Check for active clearance item
         $clearanceItem = ClearanceItem::where('branch_id', $this->branch_id)
@@ -432,7 +457,9 @@ class SalesIndex extends Component
     {
         $this->resetErrorBag('cart');
 
+        // If product not in cart yet, store as custom price
         if (! isset($this->cart[$productId])) {
+            $this->custom_entry_price = (string) $unitPrice;
             return;
         }
 
@@ -443,6 +470,7 @@ class SalesIndex extends Component
 
         $mode = (string) ($this->cart[$productId]['entry_mode'] ?? 'unit');
         if ($mode === 'bulk') {
+            // User entered bulk price, convert to per-unit price for storage
             $unitsPerBulk = (int) ($this->cart[$productId]['units_per_bulk'] ?? 0);
             if ($unitsPerBulk > 0) {
                 $v = $v / $unitsPerBulk;
@@ -471,6 +499,7 @@ class SalesIndex extends Component
     public function clearCart(): void
     {
         $this->cart = [];
+        $this->custom_entry_price = null;
         $this->amount_paid = null;
         $this->customer_name = null;
         $this->notes = null;
@@ -1633,6 +1662,11 @@ class SalesIndex extends Component
     {
         if ($this->product_id <= 0 || ! $this->selected_product_data) {
             return '0';
+        }
+
+        // If user entered a custom price before adding to cart, use that
+        if ($this->custom_entry_price !== null) {
+            return $this->custom_entry_price;
         }
 
         $isBulk = $this->entry_mode === 'bulk' && $this->selected_product_data['bulk_enabled'];
