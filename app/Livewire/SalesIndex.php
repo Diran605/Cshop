@@ -2,6 +2,8 @@
 
 namespace App\Livewire;
 
+use App\Exports\SalesTemplateExport;
+use App\Imports\SalesImport;
 use App\Models\Branch;
 use App\Models\ClearanceItem;
 use App\Models\Product;
@@ -11,8 +13,6 @@ use App\Models\SalesReceipt;
 use App\Models\StockInItem;
 use App\Models\StockMovement;
 use App\Support\ActivityLogger;
-use App\Exports\SalesTemplateExport;
-use App\Imports\SalesImport;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -28,18 +28,20 @@ class SalesIndex extends Component
 
     public string $mode = 'add';
 
-    public string $sale_entry_type = 'single';
-
     public int $branch_id = 0;
+
     public int $product_id = 0;
 
     public ?array $selected_product_data = null;
 
     public string $product_search = '';
+
     public string $sales_search = '';
 
     public string $sales_date_from;
+
     public string $sales_date_to;
+
     public string $sales_status = 'active';
 
     /**
@@ -48,8 +50,11 @@ class SalesIndex extends Component
     public array $selected_sales = [];
 
     public string $entry_mode = 'unit';
+
     public int $entry_quantity = 1;
+
     public int $bulk_quantity = 1;
+
     public ?string $custom_entry_price = null; // Track custom price before adding to cart
 
     public bool $isSuperAdmin = false;
@@ -61,9 +66,16 @@ class SalesIndex extends Component
      */
     public array $cart = [];
 
+    public ?int $selected_batch_id = null;
+
+    public bool $is_fifo = true;
+
     public string $payment_method = 'cash';
+
     public ?string $amount_paid = null;
+
     public ?string $customer_name = null;
+
     public ?string $notes = null;
 
     public string $sold_at_date = '';
@@ -73,24 +85,35 @@ class SalesIndex extends Component
     public bool $show_sale_modal = false;
 
     public bool $show_edit_modal = false;
+
     public bool $show_void_modal = false;
 
     public int $editing_sale_id = 0;
+
     public int $edit_branch_id = 0;
 
     public array $edit_cart = [];
 
     public int $edit_product_id = 0;
+
     public string $edit_entry_mode = 'unit';
+
     public int $edit_entry_quantity = 1;
+
     public int $edit_bulk_quantity = 1;
 
     public string $edit_payment_method = 'cash';
+
     public ?string $edit_amount_paid = null;
+
     public ?string $edit_customer_name = null;
+
     public ?string $edit_notes = null;
 
+    public ?string $edit_reason = null;
+
     public int $pending_void_sale_id = 0;
+
     public ?string $void_reason = null;
 
     public $excel_file = null;
@@ -151,8 +174,6 @@ class SalesIndex extends Component
         $this->product_search = '';
         $this->sales_search = '';
 
-        $this->sale_entry_type = 'single';
-
         $today = Carbon::today();
         $this->sales_date_from = $today->toDateString();
         $this->sales_date_to = $today->toDateString();
@@ -189,8 +210,29 @@ class SalesIndex extends Component
 
     public function updatedEntryMode(string $value): void
     {
-        // Reset custom price when switching entry mode to recalculate display
+        // Reset and reinitialize custom price when switching entry mode
         $this->custom_entry_price = null;
+
+        // Recalculate and show the appropriate price for the new mode
+        if ($this->product_id > 0 && $this->selected_product_data) {
+            $this->custom_entry_price = $this->entryPriceDisplay;
+        }
+    }
+
+    #[\Livewire\Attributes\On('product-selected')]
+    public function handleProductSelected(?int $productId, ?int $batchId = null, bool $isFifo = true): void
+    {
+        $this->product_id = $productId ?? 0;
+        $this->selected_batch_id = $batchId;
+        $this->is_fifo = $isFifo;
+        $this->updatedProductId($this->product_id);
+    }
+
+    #[\Livewire\Attributes\On('batch-selected')]
+    public function handleBatchSelected(int $batchId, bool $isFifo): void
+    {
+        $this->selected_batch_id = $batchId;
+        $this->is_fifo = $isFifo;
     }
 
     public function updatedProductId(int $value): void
@@ -198,6 +240,7 @@ class SalesIndex extends Component
         if ($value <= 0) {
             $this->selected_product_data = null;
             $this->custom_entry_price = null;
+
             return;
         }
 
@@ -218,7 +261,7 @@ class SalesIndex extends Component
                 'unit_type_name' => $product->unitType?->name,
             ];
             $this->custom_entry_price = null; // Reset custom price when changing product
-            
+
             // Reset entry mode to unit if product doesn't support bulk
             if (! $product->bulk_enabled) {
                 $this->entry_mode = 'unit';
@@ -234,33 +277,13 @@ class SalesIndex extends Component
         // Reset product selection when branch changes
         $this->product_id = 0;
         $this->selected_product_data = null;
-        
+
         if (! $this->isSuperAdmin) {
             return;
         }
 
         $this->cart = [];
         $this->selected_sale_id = 0;
-    }
-
-    public function updatedSaleEntryType(): void
-    {
-        $this->enforceSingleMode();
-    }
-
-    private function enforceSingleMode(): void
-    {
-        if ($this->sale_entry_type !== 'single') {
-            return;
-        }
-
-        $items = array_values($this->cart);
-        if (count($items) <= 1) {
-            return;
-        }
-
-        $last = $items[count($items) - 1];
-        $this->cart = [(int) $last['product_id'] => $last];
     }
 
     public function addProduct(): void
@@ -286,6 +309,7 @@ class SalesIndex extends Component
         if ($this->entry_mode === 'bulk') {
             if (! (bool) $product->bulk_enabled) {
                 $this->addError('cart', 'Bulk mode is not enabled for this product.');
+
                 return;
             }
 
@@ -295,6 +319,7 @@ class SalesIndex extends Component
                 ->find($this->product_id);
             if (! $product || ! $product->bulkType) {
                 $this->addError('cart', 'Bulk type is not configured for this product.');
+
                 return;
             }
 
@@ -304,6 +329,7 @@ class SalesIndex extends Component
 
             if ($unitsPerBulk <= 0) {
                 $this->addError('cart', 'Invalid units per bulk configuration.');
+
                 return;
             }
 
@@ -320,6 +346,7 @@ class SalesIndex extends Component
             } else {
                 $this->cart[$product->id]['quantity'] = (int) $this->cart[$product->id]['quantity'] + $unitsQty;
             }
+
             return;
         }
 
@@ -350,6 +377,8 @@ class SalesIndex extends Component
             'clearance_price' => null,
             'original_price' => null,
             'use_clearance_price' => true,
+            'is_fifo' => $this->is_fifo,
+            'batch_id' => $this->selected_batch_id,
         ];
 
         // Clear custom price after adding
@@ -372,7 +401,15 @@ class SalesIndex extends Component
             $this->cart[$product->id]['unit_price'] = (string) $clearanceItem->clearance_price;
         }
 
-        $this->enforceSingleMode();
+        // Clear selection to allow quick addition of next product
+        $this->product_id = 0;
+        $this->selected_product_data = null;
+        $this->entry_quantity = 1;
+        $this->bulk_quantity = 1;
+        $this->custom_entry_price = null;
+        $this->selected_batch_id = null;
+
+        $this->dispatch('product-added');
     }
 
     public function incrementItem(int $productId): void
@@ -387,6 +424,7 @@ class SalesIndex extends Component
         if ($mode === 'bulk') {
             $this->cart[$productId]['bulk_quantity'] = (int) ($this->cart[$productId]['bulk_quantity'] ?? 0) + 1;
             $this->cart[$productId]['quantity'] = (int) $this->cart[$productId]['bulk_quantity'] * (int) ($this->cart[$productId]['units_per_bulk'] ?? 0);
+
             return;
         }
 
@@ -406,17 +444,20 @@ class SalesIndex extends Component
             $newBulkQty = (int) ($this->cart[$productId]['bulk_quantity'] ?? 0) - 1;
             if ($newBulkQty <= 0) {
                 unset($this->cart[$productId]);
+
                 return;
             }
 
             $this->cart[$productId]['bulk_quantity'] = $newBulkQty;
             $this->cart[$productId]['quantity'] = $newBulkQty * (int) ($this->cart[$productId]['units_per_bulk'] ?? 0);
+
             return;
         }
 
         $newQty = (int) $this->cart[$productId]['quantity'] - 1;
         if ($newQty <= 0) {
             unset($this->cart[$productId]);
+
             return;
         }
 
@@ -441,12 +482,14 @@ class SalesIndex extends Component
 
         if ($qty <= 0) {
             unset($this->cart[$productId]);
+
             return;
         }
 
         if ($mode === 'bulk') {
             $this->cart[$productId]['bulk_quantity'] = $qty;
             $this->cart[$productId]['quantity'] = $qty * (int) ($this->cart[$productId]['units_per_bulk'] ?? 0);
+
             return;
         }
 
@@ -460,6 +503,7 @@ class SalesIndex extends Component
         // If product not in cart yet, store as custom price
         if (! isset($this->cart[$productId])) {
             $this->custom_entry_price = (string) $unitPrice;
+
             return;
         }
 
@@ -546,21 +590,27 @@ class SalesIndex extends Component
                         ->where('stock_in_receipts.branch_id', (int) $data['branch_id'])
                         ->where('stock_in_items.product_id', (int) $item['product_id'])
                         ->where('stock_in_items.remaining_quantity', '>', 0)
-                        ->where(function ($q) use ($today) {
+                        ->where(function ($q) use ($today, $item) {
+                            if (isset($item['is_fifo']) && ! $item['is_fifo'] && isset($item['batch_id']) && $item['batch_id'] > 0) {
+                                return; // user selected specific batch, don't strictly filter expired
+                            }
                             $q->whereNull('stock_in_items.expiry_date')
                                 ->orWhere('stock_in_items.expiry_date', '>=', $today);
+                        })
+                        ->when(isset($item['is_fifo']) && ! $item['is_fifo'] && isset($item['batch_id']) && $item['batch_id'] > 0, function ($q) use ($item) {
+                            $q->where('stock_in_items.id', (int) $item['batch_id']);
                         })
                         ->sum('stock_in_items.remaining_quantity'));
 
                     if ($available < (int) $item['quantity']) {
                         throw ValidationException::withMessages([
-                            'cart' => 'Insufficient non-expired stock for ' . $item['name'] . '. Available: ' . $available . ', Requested: ' . (int) $item['quantity'] . '.',
+                            'cart' => 'Insufficient non-expired stock for '.$item['name'].'. Available: '.$available.', Requested: '.(int) $item['quantity'].'.',
                         ]);
                     }
                 }
 
                 $receipt = SalesReceipt::query()->create([
-                    'receipt_no' => 'SL-' . strtoupper(Str::random(10)),
+                    'receipt_no' => 'SL-'.strtoupper(Str::random(10)),
                     'branch_id' => (int) $data['branch_id'],
                     'user_id' => auth()->id(),
                     'sold_at' => Carbon::parse($this->sold_at_date)->startOfDay(),
@@ -612,9 +662,15 @@ class SalesIndex extends Component
                         ->where('stock_in_receipts.branch_id', (int) $data['branch_id'])
                         ->where('stock_in_items.product_id', (int) $item['product_id'])
                         ->where('stock_in_items.remaining_quantity', '>', 0)
-                        ->where(function ($q) use ($today) {
+                        ->where(function ($q) use ($today, $item) {
+                            if (isset($item['is_fifo']) && ! $item['is_fifo'] && isset($item['batch_id']) && $item['batch_id'] > 0) {
+                                return; // user selected specific batch, don't strictly filter expired
+                            }
                             $q->whereNull('stock_in_items.expiry_date')
                                 ->orWhere('stock_in_items.expiry_date', '>=', $today);
+                        })
+                        ->when(isset($item['is_fifo']) && ! $item['is_fifo'] && isset($item['batch_id']) && $item['batch_id'] > 0, function ($q) use ($item) {
+                            $q->where('stock_in_items.id', (int) $item['batch_id']);
                         })
                         ->orderByRaw('CASE WHEN stock_in_items.expiry_date IS NULL THEN 1 ELSE 0 END')
                         ->orderBy('stock_in_items.expiry_date')
@@ -662,7 +718,7 @@ class SalesIndex extends Component
 
                     if ($toAllocate > 0) {
                         throw ValidationException::withMessages([
-                            'cart' => 'Stock allocation failed for ' . $item['name'] . '. Please retry.',
+                            'cart' => 'Stock allocation failed for '.$item['name'].'. Please retry.',
                         ]);
                     }
 
@@ -699,7 +755,7 @@ class SalesIndex extends Component
                     ]);
 
                     // Track clearance sale if applicable
-                    if (!empty($item['is_clearance']) && !empty($item['clearance_item_id'])) {
+                    if (! empty($item['is_clearance']) && ! empty($item['clearance_item_id'])) {
                         \App\Models\ClearanceSale::create([
                             'branch_id' => (int) $data['branch_id'],
                             'sales_item_id' => $salesItem->id,
@@ -741,7 +797,7 @@ class SalesIndex extends Component
                         'branch_id' => (int) $data['branch_id'],
                         'product_id' => (int) $item['product_id'],
                         'user_id' => auth()->id(),
-                        'movement_type' => 'OUT',
+                        'movement_type' => 'sale',
                         'quantity' => (int) $item['quantity'],
                         'before_stock' => $beforeStock,
                         'after_stock' => $afterStock,
@@ -751,8 +807,9 @@ class SalesIndex extends Component
                         'sales_receipt_id' => (int) $receipt->id,
                         'moved_at' => now(),
                         'notes' => null,
+                        'clearance_flag' => false,
+                        'created_by' => auth()->id(),
                     ]);
-
                 }
 
                 $receipt->cogs_total = number_format($cogsTotal, 2, '.', '');
@@ -778,6 +835,7 @@ class SalesIndex extends Component
             });
         } catch (ValidationException $e) {
             $this->setErrorBag($e->validator->getMessageBag());
+
             return;
         }
 
@@ -857,6 +915,7 @@ class SalesIndex extends Component
         $this->edit_amount_paid = null;
         $this->edit_customer_name = null;
         $this->edit_notes = null;
+        $this->edit_reason = null;
         $this->resetErrorBag();
     }
 
@@ -903,6 +962,7 @@ class SalesIndex extends Component
         if ($this->edit_entry_mode === 'bulk') {
             if (! (bool) $product->bulk_enabled || ! $product->bulkType) {
                 $this->addError('edit_cart', 'Bulk type is not configured for this product.');
+
                 return;
             }
 
@@ -912,6 +972,7 @@ class SalesIndex extends Component
 
             if ($unitsPerBulk <= 0) {
                 $this->addError('edit_cart', 'Invalid units per bulk configuration.');
+
                 return;
             }
 
@@ -928,6 +989,7 @@ class SalesIndex extends Component
             } else {
                 $this->edit_cart[$product->id]['quantity'] = (int) $this->edit_cart[$product->id]['quantity'] + $unitsQty;
             }
+
             return;
         }
 
@@ -956,6 +1018,7 @@ class SalesIndex extends Component
         if ($mode === 'bulk') {
             $this->edit_cart[$productId]['bulk_quantity'] = (int) ($this->edit_cart[$productId]['bulk_quantity'] ?? 0) + 1;
             $this->edit_cart[$productId]['quantity'] = (int) $this->edit_cart[$productId]['bulk_quantity'] * (int) ($this->edit_cart[$productId]['units_per_bulk'] ?? 0);
+
             return;
         }
 
@@ -975,17 +1038,20 @@ class SalesIndex extends Component
             $newBulkQty = (int) ($this->edit_cart[$productId]['bulk_quantity'] ?? 0) - 1;
             if ($newBulkQty <= 0) {
                 unset($this->edit_cart[$productId]);
+
                 return;
             }
 
             $this->edit_cart[$productId]['bulk_quantity'] = $newBulkQty;
             $this->edit_cart[$productId]['quantity'] = $newBulkQty * (int) ($this->edit_cart[$productId]['units_per_bulk'] ?? 0);
+
             return;
         }
 
         $newQty = (int) ($this->edit_cart[$productId]['quantity'] ?? 0) - 1;
         if ($newQty <= 0) {
             unset($this->edit_cart[$productId]);
+
             return;
         }
 
@@ -1003,6 +1069,7 @@ class SalesIndex extends Component
         $qty = (int) $quantity;
         if ($qty <= 0) {
             unset($this->edit_cart[$productId]);
+
             return;
         }
 
@@ -1010,6 +1077,7 @@ class SalesIndex extends Component
         if ($mode === 'bulk') {
             $this->edit_cart[$productId]['bulk_quantity'] = $qty;
             $this->edit_cart[$productId]['quantity'] = $qty * (int) ($this->edit_cart[$productId]['units_per_bulk'] ?? 0);
+
             return;
         }
 
@@ -1160,6 +1228,7 @@ class SalesIndex extends Component
             });
         } catch (ValidationException $e) {
             $this->setErrorBag($e->validator->getMessageBag());
+
             return;
         }
 
@@ -1177,9 +1246,16 @@ class SalesIndex extends Component
             return;
         }
 
+        if (! $this->edit_reason || trim($this->edit_reason) === '' || mb_strlen(trim($this->edit_reason)) < 5) {
+            $this->addError('edit_reason', 'A reason for this edit is required (minimum 5 characters).');
+
+            return;
+        }
+
         $items = array_values($this->edit_cart);
         if (count($items) === 0) {
             $this->addError('edit_cart', 'Cart is empty.');
+
             return;
         }
 
@@ -1194,6 +1270,7 @@ class SalesIndex extends Component
 
         if ($amountPaid < $grandTotal) {
             $this->addError('edit_amount_paid', 'Amount paid must be greater than or equal to grand total.');
+
             return;
         }
 
@@ -1259,7 +1336,7 @@ class SalesIndex extends Component
                         'stock_in_receipt_id' => null,
                         'sales_receipt_id' => (int) $receipt->id,
                         'moved_at' => now(),
-                        'notes' => 'SALE EDIT REVERSAL',
+                        'notes' => 'SALE EDIT REVERSAL: '.trim($this->edit_reason),
                     ]);
                 }
 
@@ -1281,7 +1358,7 @@ class SalesIndex extends Component
 
                     if ($available < (int) $item['quantity']) {
                         throw ValidationException::withMessages([
-                            'edit_cart' => 'Insufficient non-expired stock for ' . $item['name'] . '. Available: ' . $available . ', Requested: ' . (int) $item['quantity'] . '.',
+                            'edit_cart' => 'Insufficient non-expired stock for '.$item['name'].'. Available: '.$available.', Requested: '.(int) $item['quantity'].'.',
                         ]);
                     }
                 }
@@ -1364,7 +1441,7 @@ class SalesIndex extends Component
 
                     if ($toAllocate > 0) {
                         throw ValidationException::withMessages([
-                            'edit_cart' => 'Stock allocation failed for ' . $item['name'] . '. Please retry.',
+                            'edit_cart' => 'Stock allocation failed for '.$item['name'].'. Please retry.',
                         ]);
                     }
 
@@ -1423,7 +1500,7 @@ class SalesIndex extends Component
                         'stock_in_receipt_id' => null,
                         'sales_receipt_id' => (int) $receipt->id,
                         'moved_at' => now(),
-                        'notes' => 'SALE EDIT',
+                        'notes' => 'SALE EDIT: '.trim($this->edit_reason),
                     ]);
                 }
 
@@ -1448,12 +1525,14 @@ class SalesIndex extends Component
                         'before' => $before,
                         'after' => $receipt->only(['sub_total', 'grand_total', 'amount_paid', 'change_due', 'notes', 'customer_name']),
                         'items_count' => count($items),
+                        'edit_reason' => trim($this->edit_reason),
                     ],
                     (int) $receipt->branch_id
                 );
             });
         } catch (ValidationException $e) {
             $this->setErrorBag($e->validator->getMessageBag());
+
             return;
         }
 
@@ -1483,7 +1562,7 @@ class SalesIndex extends Component
         }
 
         if (trim($this->sales_search) !== '') {
-            $term = '%' . trim($this->sales_search) . '%';
+            $term = '%'.trim($this->sales_search).'%';
             $q->where(function ($qq) use ($term) {
                 $qq->where('receipt_no', 'like', $term)
                     ->orWhere('customer_name', 'like', $term)
@@ -1530,7 +1609,7 @@ class SalesIndex extends Component
             ->where('status', Product::STATUS_ACTIVE)
             ->when($this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
             ->when(trim($this->product_search) !== '', function ($q) {
-                $term = '%' . trim($this->product_search) . '%';
+                $term = '%'.trim($this->product_search).'%';
                 $q->where(function ($qq) use ($term) {
                     $qq->where('name', 'like', $term)
                         ->orWhere('description', 'like', $term)
@@ -1562,7 +1641,7 @@ class SalesIndex extends Component
                 ->where('status', Product::STATUS_ACTIVE)
                 ->where('branch_id', $this->branch_id)
                 ->where(function ($q) {
-                    $term = '%' . trim($this->product_search) . '%';
+                    $term = '%'.trim($this->product_search).'%';
                     $q->where('name', 'like', $term)
                         ->orWhere('description', 'like', $term)
                         ->orWhereHas('category', fn ($qc) => $qc->where('name', 'like', $term));
@@ -1608,7 +1687,7 @@ class SalesIndex extends Component
             ->when(! $this->isSuperAdmin, fn ($q) => $q->where('branch_id', (int) (auth()->user()?->branch_id ?? 0)))
             ->when($this->isSuperAdmin && $this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
             ->when(trim($this->sales_search) !== '', function ($q) {
-                $term = '%' . trim($this->sales_search) . '%';
+                $term = '%'.trim($this->sales_search).'%';
                 $q->where(function ($qq) use ($term) {
                     $qq->where('receipt_no', 'like', $term)
                         ->orWhere('customer_name', 'like', $term)
@@ -1654,11 +1733,12 @@ class SalesIndex extends Component
             'sales' => $sales,
             'selectedSale' => $selectedSale,
             'selectedBranch' => $selectedBranch,
-            'entryPriceDisplay' => $this->calculateEntryPriceDisplay(),
+            'entryPriceDisplay' => $this->entryPriceDisplay,
         ]);
     }
 
-    protected function calculateEntryPriceDisplay(): string
+    #[Computed]
+    protected function entryPriceDisplay(): string
     {
         if ($this->product_id <= 0 || ! $this->selected_product_data) {
             return '0';
@@ -1674,6 +1754,7 @@ class SalesIndex extends Component
 
         if ($isBulk && $unitsPerBulk > 0) {
             $basePrice = (float) ($this->cart[$this->product_id]['unit_price'] ?? $this->selected_product_data['selling_price'] ?? 0);
+
             return number_format($basePrice * $unitsPerBulk, 2, '.', '');
         }
 
@@ -1687,6 +1768,8 @@ class SalesIndex extends Component
 
         if ($productId <= 0) {
             $this->selected_product_data = null;
+            $this->custom_entry_price = null;
+
             return;
         }
 
@@ -1708,8 +1791,12 @@ class SalesIndex extends Component
             if ((bool) $product->bulk_enabled && $this->entry_mode === 'bulk') {
                 $this->entry_mode = 'unit';
             }
+
+            // Initialize custom_entry_price with the calculated display price
+            $this->custom_entry_price = $this->entryPriceDisplay;
         } else {
             $this->selected_product_data = null;
+            $this->custom_entry_price = null;
         }
     }
 }

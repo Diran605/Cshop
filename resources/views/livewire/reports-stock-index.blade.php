@@ -167,16 +167,15 @@
                     $trendSold = array_map(fn ($r) => (int) $r['sold_qty'], $trend);
                 @endphp
 
-                @once
-                    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-                @endonce
+                <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
-                <div class="mt-4">
+                <div class="mt-4" wire:ignore>
                     <canvas id="stockTrendChart" height="100"></canvas>
                 </div>
 
+                @script
                 <script>
-                    (function () {
+                    function renderStockChart() {
                         const el = document.getElementById('stockTrendChart');
                         if (!el || !window.Chart) return;
 
@@ -184,44 +183,38 @@
                         const stockIn = @json($trendIn);
                         const sold = @json($trendSold);
 
-                        if (el._chart) {
-                            el._chart.destroy();
-                        }
+                        if (el._chart) { el._chart.destroy(); }
 
                         el._chart = new Chart(el, {
                             type: 'bar',
                             data: {
                                 labels,
                                 datasets: [
-                                    {
-                                        label: 'Stock In',
-                                        data: stockIn,
-                                        backgroundColor: 'rgba(37, 99, 235, 0.25)',
-                                        borderColor: '#2563EB',
-                                        borderWidth: 1,
-                                    },
-                                    {
-                                        label: 'Sold',
-                                        data: sold,
-                                        backgroundColor: 'rgba(220, 38, 38, 0.20)',
-                                        borderColor: '#DC2626',
-                                        borderWidth: 1,
-                                    },
+                                    { label: 'Stock In', data: stockIn, backgroundColor: 'rgba(37, 99, 235, 0.25)', borderColor: '#2563EB', borderWidth: 1 },
+                                    { label: 'Sold', data: sold, backgroundColor: 'rgba(220, 38, 38, 0.20)', borderColor: '#DC2626', borderWidth: 1 },
                                 ]
                             },
                             options: {
-                                responsive: true,
-                                maintainAspectRatio: false,
-                                plugins: {
-                                    legend: { position: 'bottom' },
-                                },
-                                scales: {
-                                    y: { beginAtZero: true }
-                                }
+                                responsive: true, maintainAspectRatio: false,
+                                plugins: { legend: { position: 'bottom' } },
+                                scales: { y: { beginAtZero: true } }
                             }
                         });
-                    })();
+                    }
+
+                    function initStockChart() {
+                        if (typeof window.Chart === 'undefined') {
+                            setTimeout(initStockChart, 100);
+                            return;
+                        }
+                        renderStockChart();
+                    }
+                    
+                    initStockChart();
+                    Livewire.hook('morph.updated', () => { setTimeout(initStockChart, 100); });
+                    document.addEventListener('livewire:navigated', () => { setTimeout(initStockChart, 100); });
                 </script>
+                @endscript
             </div>
         </div>
 

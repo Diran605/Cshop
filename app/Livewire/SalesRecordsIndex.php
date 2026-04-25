@@ -52,6 +52,7 @@ class SalesRecordsIndex extends Component
     public ?string $edit_amount_paid = null;
     public ?string $edit_customer_name = null;
     public ?string $edit_notes = null;
+    public ?string $edit_reason = null;
 
     // Void modal
     public bool $show_void_modal = false;
@@ -245,6 +246,7 @@ class SalesRecordsIndex extends Component
         $this->edit_amount_paid = null;
         $this->edit_customer_name = null;
         $this->edit_notes = null;
+        $this->edit_reason = null;
         $this->resetErrorBag();
     }
 
@@ -434,6 +436,10 @@ class SalesRecordsIndex extends Component
             return;
         }
 
+        $this->validate([
+            'edit_reason' => ['required', 'string', 'min:5', 'max:500'],
+        ]);
+
         $this->edit_payment_method = 'cash';
 
         if ($this->editing_sale_id <= 0) {
@@ -519,7 +525,7 @@ class SalesRecordsIndex extends Component
                             'unit_price' => $item->unit_price !== null ? (string) $item->unit_price : null,
                             'sales_receipt_id' => (int) $receipt->id,
                             'moved_at' => now(),
-                            'notes' => 'SALE EDIT REVERSE',
+                            'notes' => 'SALE EDIT REVERSE: ' . $this->edit_reason,
                         ]);
                     }
                 }
@@ -577,7 +583,7 @@ class SalesRecordsIndex extends Component
                             'unit_price' => (string) $item['unit_price'],
                             'sales_receipt_id' => (int) $receipt->id,
                             'moved_at' => now(),
-                            'notes' => 'SALE EDIT',
+                            'notes' => 'SALE EDIT: ' . $this->edit_reason,
                         ]);
                     }
 
@@ -603,6 +609,7 @@ class SalesRecordsIndex extends Component
                     [
                         'branch_id' => (int) $receipt->branch_id,
                         'sales_receipt_id' => (int) $receipt->id,
+                        'edit_reason' => $this->edit_reason,
                     ],
                     (int) $receipt->branch_id
                 );

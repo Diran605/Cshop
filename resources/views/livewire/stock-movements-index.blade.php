@@ -45,14 +45,16 @@
                             <label class="ui-label">{{ __('Type') }}</label>
                             <select wire:model.live="movement_type" class="mt-1 ui-select">
                                 <option value="all">{{ __('All') }}</option>
-                                <option value="IN">{{ __('IN') }}</option>
-                                <option value="OUT">{{ __('OUT') }}</option>
+                                <option value="IN">{{ __('Stock In') }}</option>
+                                <option value="OUT">{{ __('Stock Out') }}</option>
+                                <option value="clearance_allocation">{{ __('Clearance Allocation') }}</option>
+                                <option value="clearance_reversal">{{ __('Clearance Reversal') }}</option>
                             </select>
                         </div>
 
                         <div>
                             <label class="ui-label">{{ __('Search') }}</label>
-                            <input type="text" wire:model.debounce.300ms="search" placeholder="{{ __('Product/User') }}" class="mt-1 ui-input" />
+                            <input type="text" wire:model.debounce.300ms="search" placeholder="{{ __('Product / User / Notes...') }}" class="mt-1 ui-input" />
                         </div>
                     </div>
 
@@ -72,6 +74,8 @@
                                         <th class="text-right">{{ __('Unit Price') }}</th>
                                         <th>{{ __('User') }}</th>
                                         <th>{{ __('Ref') }}</th>
+                                        <th>{{ __('Notes') }}</th>
+                                        <th></th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -80,7 +84,25 @@
                                             <td>{{ optional($m->moved_at)->format('Y-m-d H:i') }}</td>
                                             <td>{{ $m->branch?->name ?? '-' }}</td>
                                             <td class="text-slate-900">{{ $m->product?->name ?? '-' }}</td>
-                                            <td class="font-medium {{ $m->movement_type === 'IN' ? 'text-green-700' : 'text-red-700' }}">{{ $m->movement_type }}</td>
+                                            <td>
+                                                @php
+                                                    $typeLabel = match($m->movement_type) {
+                                                        'IN' => 'Stock In',
+                                                        'OUT' => 'Stock Out',
+                                                        'clearance_allocation' => 'Clearance',
+                                                        'clearance_reversal' => 'Reversal',
+                                                        default => $m->movement_type,
+                                                    };
+                                                    $typeBg = match($m->movement_type) {
+                                                        'IN' => 'bg-green-100 text-green-800',
+                                                        'OUT' => 'bg-red-100 text-red-800',
+                                                        'clearance_allocation' => 'bg-amber-100 text-amber-800',
+                                                        'clearance_reversal' => 'bg-purple-100 text-purple-800',
+                                                        default => 'bg-slate-100 text-slate-800',
+                                                    };
+                                                @endphp
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {{ $typeBg }}">{{ $typeLabel }}</span>
+                                            </td>
                                             <td class="text-right text-slate-900">{{ (int) $m->quantity }}</td>
                                             <td class="text-right">{{ (int) $m->before_stock }}</td>
                                             <td class="text-right">{{ (int) $m->after_stock }}</td>
@@ -96,6 +118,7 @@
                                                     -
                                                 @endif
                                             </td>
+                                            <td class="max-w-xs truncate text-xs text-slate-500" title="{{ $m->notes }}">{{ Str::limit($m->notes, 40) }}</td>
                                             <td>
                                                 <button wire:click="openDetailModal({{ $m->id }})" class="ui-btn-link">
                                                     {{ __('View') }}
@@ -106,7 +129,7 @@
 
                                     @if ($movements->isEmpty())
                                         <tr>
-                                            <td colspan="12" class="ui-table-empty">{{ __('No movements found.') }}</td>
+                                            <td colspan="13" class="ui-table-empty">{{ __('No movements found.') }}</td>
                                         </tr>
                                     @endif
                                 </tbody>

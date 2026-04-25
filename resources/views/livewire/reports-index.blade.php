@@ -137,6 +137,7 @@
                 <div class="ui-card-body">
                     <div class="text-sm text-slate-500">{{ __('Items Sold') }}</div>
                     <div class="mt-1 text-2xl font-semibold text-slate-900">{{ number_format((int) $itemsSold) }}</div>
+                    <div class="mt-1 text-lg font-bold text-slate-900 break-all">{{ number_format((int) $itemsSold) }}</div>
                     <div class="mt-2 text-sm text-slate-600">{{ __('Total quantity sold') }}</div>
                 </div>
             </div>
@@ -144,7 +145,7 @@
             <div class="ui-card">
                 <div class="ui-card-body">
                     <div class="text-sm text-slate-500">{{ __('Avg Transaction') }}</div>
-                    <div class="mt-1 text-2xl font-semibold text-slate-900">{{ number_format((float) $avgTransaction, 2) }}</div>
+                    <div class="mt-1 text-lg font-bold text-slate-900 break-all" title="{{ number_format((float) $avgTransaction, 2) }}">{{ number_format((float) $avgTransaction, 2) }}</div>
                     <div class="mt-2 text-sm text-slate-600">{{ __('Sales total / sales count') }}</div>
                 </div>
             </div>
@@ -152,32 +153,32 @@
             <div class="ui-card">
                 <div class="ui-card-body">
                     <div class="text-sm text-slate-500">{{ __('COGS') }}</div>
-                    <div class="mt-1 text-2xl font-semibold text-slate-900">{{ number_format((float) $cogsTotal, 2) }}</div>
-                    <div class="mt-2 text-sm text-slate-600">{{ __('Cost of goods sold') }}</div>
+                    <div class="mt-1 text-lg font-bold text-slate-900 break-all" title="{{ number_format((float) $cogsTotal, 2) }}">{{ number_format((float) $cogsTotal, 2) }}</div>
+                    <div class="mt-2 text-xs text-slate-600">{{ __('Cost of goods sold') }}</div>
                 </div>
             </div>
 
             <div class="ui-card">
                 <div class="ui-card-body">
                     <div class="text-sm text-slate-500">{{ __('Profit') }}</div>
-                    <div class="mt-1 text-2xl font-semibold text-slate-900">{{ number_format((float) $profitTotal, 2) }}</div>
-                    <div class="mt-2 text-sm text-slate-600">{{ __('Gross profit') }}</div>
+                    <div class="mt-1 text-lg font-bold text-slate-900 break-all" title="{{ number_format((float) $profitTotal, 2) }}">{{ number_format((float) $profitTotal, 2) }}</div>
+                    <div class="mt-2 text-xs text-slate-600">{{ __('Gross profit') }}</div>
                 </div>
             </div>
 
             <div class="ui-card">
                 <div class="ui-card-body">
                     <div class="text-sm text-slate-500">{{ __('Low Profit Lines') }}</div>
-                    <div class="mt-1 text-2xl font-semibold text-slate-900">{{ number_format((int) ($lowProfitLines ?? 0)) }}</div>
-                    <div class="mt-2 text-sm text-slate-600">{{ __('Sold below minimum price') }}</div>
+                    <div class="mt-1 text-lg font-bold text-slate-900 break-all" title="{{ number_format((int) ($lowProfitLines ?? 0)) }}">{{ number_format((int) ($lowProfitLines ?? 0)) }}</div>
+                    <div class="mt-2 text-xs text-slate-600">{{ __('Sold below minimum price') }}</div>
                 </div>
             </div>
 
             <div class="ui-card">
                 <div class="ui-card-body">
                     <div class="text-sm text-slate-500">{{ __('Loss Lines') }}</div>
-                    <div class="mt-1 text-2xl font-semibold text-slate-900">{{ number_format((int) ($lossLines ?? 0)) }}</div>
-                    <div class="mt-2 text-sm text-slate-600">{{ __('Sold below cost price') }}</div>
+                    <div class="mt-1 text-lg font-bold text-slate-900 break-all" title="{{ number_format((int) ($lossLines ?? 0)) }}">{{ number_format((int) ($lossLines ?? 0)) }}</div>
+                    <div class="mt-2 text-xs text-slate-600">{{ __('Sold below cost price') }}</div>
                 </div>
             </div>
         </div>
@@ -190,7 +191,7 @@
                 @endphp
                 <div class="mt-1 text-sm text-slate-600">{{ __('Revenue vs COGS vs Profit (by :period)', ['period' => $periodLabel]) }}</div>
 
-                <div class="mt-4">
+                <div class="mt-4" wire:ignore>
                     <canvas id="salesTrendChart" height="100"></canvas>
                 </div>
             </div>
@@ -209,7 +210,7 @@
                 @endphp
                 <div class="mt-1 text-sm text-slate-600">{{ __('Avg / Min / Max unit selling price (by :period) - :scope', ['period' => $periodLabel, 'scope' => $priceScopeLabel]) }}</div>
 
-                <div class="mt-4">
+                <div class="mt-4" wire:ignore>
                     <canvas id="priceTrendChart" height="90"></canvas>
                 </div>
             </div>
@@ -256,15 +257,11 @@
             }
         @endphp
 
-        @once
-            <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-        @endonce
+        <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
+        @script
         <script>
-            (function () {
-                const el = document.getElementById('salesTrendChart');
-                if (!el || !window.Chart) return;
-
+            function renderReportsCharts() {
                 const labels = @json($trendLabels);
                 const revenue = @json($trendRevenue);
                 const cogs = @json($trendCogs);
@@ -280,259 +277,115 @@
                 const hourSalesCount = @json($hourSalesCount);
                 const hourRevenue = @json($hourRevenue);
 
-                if (el._chart) {
-                    el._chart.destroy();
+                function destroyAndCreate(canvasId, config) {
+                    const el = document.getElementById(canvasId);
+                    if (!el || !window.Chart) return null;
+                    if (el._chart) { el._chart.destroy(); }
+                    el._chart = new Chart(el, config);
+                    return el._chart;
                 }
 
-                el._chart = new Chart(el, {
+                destroyAndCreate('salesTrendChart', {
                     type: 'line',
                     data: {
                         labels,
                         datasets: [
-                            {
-                                label: 'Revenue',
-                                data: revenue,
-                                borderColor: '#2563EB',
-                                backgroundColor: 'rgba(37, 99, 235, 0.12)',
-                                tension: 0.3,
-                                fill: true,
-                            },
-                            {
-                                label: 'COGS',
-                                data: cogs,
-                                borderColor: '#DC2626',
-                                backgroundColor: 'rgba(220, 38, 38, 0.10)',
-                                tension: 0.3,
-                                fill: true,
-                            },
-                            {
-                                label: 'Profit',
-                                data: profit,
-                                borderColor: '#16A34A',
-                                backgroundColor: 'rgba(22, 163, 74, 0.10)',
-                                tension: 0.3,
-                                fill: true,
-                            },
+                            { label: 'Revenue', data: revenue, borderColor: '#2563EB', backgroundColor: 'rgba(37, 99, 235, 0.12)', tension: 0.3, fill: true },
+                            { label: 'COGS', data: cogs, borderColor: '#DC2626', backgroundColor: 'rgba(220, 38, 38, 0.10)', tension: 0.3, fill: true },
+                            { label: 'Profit', data: profit, borderColor: '#16A34A', backgroundColor: 'rgba(22, 163, 74, 0.10)', tension: 0.3, fill: true },
                         ]
                     },
                     options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
+                        responsive: true, maintainAspectRatio: false,
                         interaction: { mode: 'index', intersect: false },
-                        plugins: {
-                            legend: { position: 'bottom' },
-                            tooltip: {
-                                callbacks: {
-                                    label: function (ctx) {
-                                        const v = (ctx.parsed.y ?? 0);
-                                        return ctx.dataset.label + ': ' + v.toFixed(2);
-                                    }
-                                }
-                            }
-                        },
-                        scales: {
-                            y: {
-                                ticks: {
-                                    callback: function (v) { return Number(v).toFixed(2); }
-                                }
-                            }
-                        }
+                        plugins: { legend: { position: 'bottom' }, tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': ' + (ctx.parsed.y ?? 0).toFixed(2) } } },
+                        scales: { y: { ticks: { callback: v => Number(v).toFixed(2) } } }
                     }
                 });
 
-                const barEl = document.getElementById('salesTrendBarChart');
-                if (barEl) {
-                    if (barEl._chart) {
-                        barEl._chart.destroy();
+                destroyAndCreate('salesTrendBarChart', {
+                    type: 'bar',
+                    data: {
+                        labels,
+                        datasets: [
+                            { label: 'Revenue', data: revenue, backgroundColor: 'rgba(37, 99, 235, 0.65)' },
+                            { label: 'COGS', data: cogs, backgroundColor: 'rgba(220, 38, 38, 0.55)' },
+                            { label: 'Profit', data: profit, backgroundColor: 'rgba(22, 163, 74, 0.55)' },
+                        ]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        interaction: { mode: 'index', intersect: false },
+                        plugins: { legend: { position: 'bottom' } },
+                        scales: { x: { stacked: false }, y: { beginAtZero: true, ticks: { callback: v => Number(v).toFixed(2) } } }
                     }
+                });
 
-                    barEl._chart = new Chart(barEl, {
-                        type: 'bar',
-                        data: {
-                            labels,
-                            datasets: [
-                                {
-                                    label: 'Revenue',
-                                    data: revenue,
-                                    backgroundColor: 'rgba(37, 99, 235, 0.65)',
-                                },
-                                {
-                                    label: 'COGS',
-                                    data: cogs,
-                                    backgroundColor: 'rgba(220, 38, 38, 0.55)',
-                                },
-                                {
-                                    label: 'Profit',
-                                    data: profit,
-                                    backgroundColor: 'rgba(22, 163, 74, 0.55)',
-                                },
-                            ]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            interaction: { mode: 'index', intersect: false },
-                            plugins: { legend: { position: 'bottom' } },
-                            scales: {
-                                x: { stacked: false },
-                                y: {
-                                    beginAtZero: true,
-                                    ticks: { callback: function (v) { return Number(v).toFixed(2); } }
-                                }
-                            }
-                        }
-                    });
-                }
+                destroyAndCreate('salesQtyBarChart', {
+                    type: 'bar',
+                    data: {
+                        labels,
+                        datasets: [{ label: 'Items Sold (Units)', data: soldQty, backgroundColor: 'rgba(37, 99, 235, 0.25)', borderColor: '#2563EB', borderWidth: 1 }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } }, scales: { y: { beginAtZero: true } } }
+                });
 
-                const qtyEl = document.getElementById('salesQtyBarChart');
-                if (qtyEl) {
-                    if (qtyEl._chart) {
-                        qtyEl._chart.destroy();
+                destroyAndCreate('priceTrendChart', {
+                    type: 'line',
+                    data: {
+                        labels: priceLabels,
+                        datasets: [
+                            { label: 'Avg Unit Price', data: priceAvg, borderColor: '#2563EB', backgroundColor: 'rgba(37, 99, 235, 0.12)', tension: 0.3, fill: true },
+                            { label: 'Min Unit Price', data: priceMin, borderColor: '#64748B', backgroundColor: 'rgba(100, 116, 139, 0.08)', tension: 0.3, fill: false },
+                            { label: 'Max Unit Price', data: priceMax, borderColor: '#16A34A', backgroundColor: 'rgba(22, 163, 74, 0.08)', tension: 0.3, fill: false },
+                        ]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        interaction: { mode: 'index', intersect: false },
+                        plugins: { legend: { position: 'bottom' }, tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': ' + (ctx.parsed.y ?? 0).toFixed(2) } } },
+                        scales: { y: { ticks: { callback: v => Number(v).toFixed(2) } } }
                     }
+                });
 
-                    qtyEl._chart = new Chart(qtyEl, {
-                        type: 'bar',
-                        data: {
-                            labels,
-                            datasets: [
-                                {
-                                    label: 'Items Sold (Units)',
-                                    data: soldQty,
-                                    backgroundColor: 'rgba(37, 99, 235, 0.25)',
-                                    borderColor: '#2563EB',
-                                    borderWidth: 1,
-                                }
-                            ]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: { legend: { position: 'bottom' } },
-                            scales: {
-                                y: { beginAtZero: true }
-                            }
-                        }
-                    });
-                }
-
-                const priceEl = document.getElementById('priceTrendChart');
-                if (priceEl) {
-                    if (priceEl._chart) {
-                        priceEl._chart.destroy();
+                destroyAndCreate('salesByHourChart', {
+                    data: {
+                        labels: hourLabels,
+                        datasets: [
+                            { type: 'bar', label: 'Revenue', data: hourRevenue, backgroundColor: 'rgba(37, 99, 235, 0.25)', borderColor: '#2563EB', borderWidth: 1, yAxisID: 'y' },
+                            { type: 'line', label: 'Sales Count', data: hourSalesCount, borderColor: '#0F172A', backgroundColor: 'rgba(15, 23, 42, 0.08)', tension: 0.3, yAxisID: 'y1' }
+                        ]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        interaction: { mode: 'index', intersect: false },
+                        plugins: { legend: { position: 'bottom' } },
+                        scales: { y: { beginAtZero: true, ticks: { callback: v => Number(v).toFixed(2) } }, y1: { beginAtZero: true, position: 'right', grid: { drawOnChartArea: false } } }
                     }
+                });
+            }
 
-                    priceEl._chart = new Chart(priceEl, {
-                        type: 'line',
-                        data: {
-                            labels: priceLabels,
-                            datasets: [
-                                {
-                                    label: 'Avg Unit Price',
-                                    data: priceAvg,
-                                    borderColor: '#2563EB',
-                                    backgroundColor: 'rgba(37, 99, 235, 0.12)',
-                                    tension: 0.3,
-                                    fill: true,
-                                },
-                                {
-                                    label: 'Min Unit Price',
-                                    data: priceMin,
-                                    borderColor: '#64748B',
-                                    backgroundColor: 'rgba(100, 116, 139, 0.08)',
-                                    tension: 0.3,
-                                    fill: false,
-                                },
-                                {
-                                    label: 'Max Unit Price',
-                                    data: priceMax,
-                                    borderColor: '#16A34A',
-                                    backgroundColor: 'rgba(22, 163, 74, 0.08)',
-                                    tension: 0.3,
-                                    fill: false,
-                                },
-                            ]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            interaction: { mode: 'index', intersect: false },
-                            plugins: {
-                                legend: { position: 'bottom' },
-                                tooltip: {
-                                    callbacks: {
-                                        label: function (ctx) {
-                                            const v = (ctx.parsed.y ?? 0);
-                                            return ctx.dataset.label + ': ' + v.toFixed(2);
-                                        }
-                                    }
-                                }
-                            },
-                            scales: {
-                                y: {
-                                    ticks: {
-                                        callback: function (v) { return Number(v).toFixed(2); }
-                                    }
-                                }
-                            }
-                        }
-                    });
+            // Initial render
+            function initCharts() {
+                if (typeof window.Chart === 'undefined') {
+                    setTimeout(initCharts, 100);
+                    return;
                 }
+                renderReportsCharts();
+            }
+            
+            initCharts();
 
-                const hourEl = document.getElementById('salesByHourChart');
-                if (hourEl) {
-                    if (hourEl._chart) {
-                        hourEl._chart.destroy();
-                    }
-
-                    hourEl._chart = new Chart(hourEl, {
-                        data: {
-                            labels: hourLabels,
-                            datasets: [
-                                {
-                                    type: 'bar',
-                                    label: 'Revenue',
-                                    data: hourRevenue,
-                                    backgroundColor: 'rgba(37, 99, 235, 0.25)',
-                                    borderColor: '#2563EB',
-                                    borderWidth: 1,
-                                    yAxisID: 'y',
-                                },
-                                {
-                                    type: 'line',
-                                    label: 'Sales Count',
-                                    data: hourSalesCount,
-                                    borderColor: '#0F172A',
-                                    backgroundColor: 'rgba(15, 23, 42, 0.08)',
-                                    tension: 0.3,
-                                    yAxisID: 'y1',
-                                }
-                            ]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            interaction: { mode: 'index', intersect: false },
-                            plugins: {
-                                legend: { position: 'bottom' },
-                            },
-                            scales: {
-                                y: {
-                                    beginAtZero: true,
-                                    ticks: {
-                                        callback: function (v) { return Number(v).toFixed(2); }
-                                    }
-                                },
-                                y1: {
-                                    beginAtZero: true,
-                                    position: 'right',
-                                    grid: { drawOnChartArea: false },
-                                }
-                            }
-                        }
-                    });
-                }
-            })();
+            // Re-render on Livewire updates
+            Livewire.hook('morph.updated', () => {
+                setTimeout(initCharts, 100);
+            });
+            
+            document.addEventListener('livewire:navigated', () => {
+                setTimeout(initCharts, 100);
+            });
         </script>
+        @endscript
 
         <div class="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div class="ui-card">

@@ -252,112 +252,176 @@ class StockAdjustmentsIndex extends Component
                     }
                 }
 
-                // If this is a stock_in_void adjustment, check if all adjustments for this receipt are approved
+                // If this is a stock_in_void adjustment, immediately apply it to the specific item
                 if ($adjustment->adjustment_type === StockAdjustment::TYPE_STOCK_IN_VOID && $adjustment->source_type === 'stock_in_receipt') {
                     $receiptId = (int) $adjustment->source_id;
-                    $allApproved = ! StockAdjustment::query()
+                    $productId = (int) $adjustment->product_id;
+
+                    // Set remaining_quantity to 0 for THIS specific item and deduct cost from receipt
+                    $stockInItem = StockInItem::query()
+                        ->where('stock_in_receipt_id', $receiptId)
+                        ->where('product_id', $productId)
+                        ->first();
+
+                    if ($stockInItem) {
+                        $deductedQty = (int) $stockInItem->quantity;
+                        $deductedCost = (float) $stockInItem->total_cost;
+                        
+                        $stockInItem->remaining_quantity = 0;
+                        $stockInItem->save();
+
+                        $receipt = StockInReceipt::query()->whereKey($receiptId)->first();
+                        if ($receipt) {
+                            $receipt->total_quantity = max(0, (int) $receipt->total_quantity - $deductedQty);
+                            $receipt->total_cost = max(0, (float) $receipt->total_cost - $deductedCost);
+                            $receipt->save();
+                        }
+                    }
+
+                    // Recalculate WAC for affected product
+                    $this->recalculateWac($productId, (int) $adjustment->branch_id);
+
+                    // Check if all adjustments for this receipt are processed (no longer pending)
+                    $anyPending = StockAdjustment::query()
                         ->where('source_type', 'stock_in_receipt')
                         ->where('source_id', $receiptId)
-                        ->where('status', '!=', StockAdjustment::STATUS_APPROVED)
+                        ->where('adjustment_type', StockAdjustment::TYPE_STOCK_IN_VOID)
+                        ->where('status', StockAdjustment::STATUS_PENDING)
                         ->exists();
 
-                    if ($allApproved) {
-                        // All adjustments approved - complete the void
+                    if (!$anyPending) {
+                        // All adjustments processed
                         $receipt = StockInReceipt::query()->whereKey($receiptId)->first();
                         if ($receipt && $receipt->void_requested_at && ! $receipt->voided_at) {
-                            // Set remaining_quantity to 0 for all items
-                            StockInItem::query()
-                                ->where('stock_in_receipt_id', $receiptId)
-                                ->update(['remaining_quantity' => 0]);
+                            // If ANY item was rejected (kept active), the receipt should not be fully voided
+                            $anyRejected = StockAdjustment::query()
+                                ->where('source_type', 'stock_in_receipt')
+                                ->where('source_id', $receiptId)
+                                ->where('adjustment_type', StockAdjustment::TYPE_STOCK_IN_VOID)
+                                ->where('status', StockAdjustment::STATUS_REJECTED)
+                                ->exists();
 
-                            // Mark receipt as voided
-                            $receipt->voided_at = now();
-                            $receipt->voided_by = auth()->id();
-                            $receipt->void_reviewed_by = auth()->id();
-                            $receipt->void_reviewed_at = now();
-                            $receipt->save();
+                            if (!$anyRejected) {
+                                // ALL were approved. Void the entire receipt.
+                                $receipt->voided_at = now();
+                                $receipt->voided_by = auth()->id();
+                                $receipt->void_reviewed_by = auth()->id();
+                                $receipt->void_reviewed_at = now();
+                                $receipt->save();
 
-                            // Recalculate WAC for affected products
-                            $items = StockInItem::query()->where('stock_in_receipt_id', $receiptId)->get();
-                            foreach ($items as $item) {
-                                $product = Product::query()->find($item->product_id);
-                                if ($product) {
-                                    $this->recalculateWac($item->product_id, (int) $receipt->branch_id);
-                                }
+                                ActivityLogger::log(
+                                    'stock_in.voided',
+                                    $receipt,
+                                    'Stock in receipt voided completely',
+                                    [
+                                        'branch_id' => (int) $receipt->branch_id,
+                                        'stock_in_receipt_id' => (int) $receipt->id,
+                                    ],
+                                    (int) $receipt->branch_id
+                                );
+                            } else {
+                                // Partial void (some rejected/kept). Return receipt to active state.
+                                $receipt->void_requested_at = null;
+                                $receipt->void_requested_by = null;
+                                $receipt->void_reason = null;
+                                $receipt->save();
                             }
-
-                            ActivityLogger::log(
-                                'stock_in.voided',
-                                $receipt,
-                                'Stock in receipt voided after approval',
-                                [
-                                    'branch_id' => (int) $receipt->branch_id,
-                                    'stock_in_receipt_id' => (int) $receipt->id,
-                                    'void_reason' => $receipt->void_reason,
-                                ],
-                                (int) $receipt->branch_id
-                            );
                         }
                     }
                 }
 
-                // If this is a sales_void adjustment, check if all adjustments for this receipt are approved
+                // If this is a sales_void adjustment, immediately restore stock for THIS product
                 if ($adjustment->adjustment_type === StockAdjustment::TYPE_SALES_VOID && $adjustment->source_type === 'sales_receipt') {
                     $receiptId = (int) $adjustment->source_id;
-                    $allApproved = ! StockAdjustment::query()
+                    $productId = (int) $adjustment->product_id;
+
+                    // Restore stock_in_item remaining_quantities via sales_item_allocations for THIS product
+                    $salesItems = SalesItem::query()
+                        ->where('sales_receipt_id', $receiptId)
+                        ->where('product_id', $productId)
+                        ->get();
+
+                    $deductedSubTotal = 0;
+                    $deductedCogs = 0;
+                    $deductedProfit = 0;
+
+                    foreach ($salesItems as $item) {
+                        $deductedSubTotal += (float) $item->line_total;
+                        $deductedCogs += (float) $item->line_cost;
+                        $deductedProfit += (float) $item->line_profit;
+
+                        $allocations = DB::table('sales_item_allocations')
+                            ->where('sales_item_id', (int) $item->id)
+                            ->get();
+
+                        foreach ($allocations as $alloc) {
+                            $batch = StockInItem::query()
+                                ->whereKey((int) $alloc->stock_in_item_id)
+                                ->lockForUpdate()
+                                ->first();
+
+                            if ($batch) {
+                                $batch->remaining_quantity = (int) $batch->remaining_quantity + (int) $alloc->quantity;
+                                $batch->save();
+                            }
+                        }
+
+                        // Delete allocations
+                        DB::table('sales_item_allocations')
+                            ->where('sales_item_id', (int) $item->id)
+                            ->delete();
+
+                        // Delete the sales item completely since it's voided individually
+                        $item->delete();
+                    }
+
+                    // Update Receipt Totals
+                    $receipt = SalesReceipt::query()->whereKey($receiptId)->first();
+                    if ($receipt) {
+                        $receipt->sub_total = max(0, (float) $receipt->sub_total - $deductedSubTotal);
+                        $receipt->grand_total = max(0, (float) $receipt->grand_total - $deductedSubTotal);
+                        $receipt->cogs_total = max(0, (float) $receipt->cogs_total - $deductedCogs);
+                        $receipt->profit_total = max(0, (float) $receipt->profit_total - $deductedProfit);
+                        $receipt->save();
+                    }
+
+                    // Check if all adjustments for this receipt are processed
+                    $anyPending = StockAdjustment::query()
                         ->where('source_type', 'sales_receipt')
                         ->where('source_id', $receiptId)
-                        ->where('status', '!=', StockAdjustment::STATUS_APPROVED)
+                        ->where('adjustment_type', StockAdjustment::TYPE_SALES_VOID)
+                        ->where('status', StockAdjustment::STATUS_PENDING)
                         ->exists();
 
-                    if ($allApproved) {
-                        // All adjustments approved - complete the void
-                        $receipt = SalesReceipt::query()->whereKey($receiptId)->first();
+                    if (!$anyPending) {
                         if ($receipt && $receipt->void_requested_at && ! $receipt->voided_at) {
-                            // Restore stock_in_item remaining_quantities via sales_item_allocations
-                            $salesItems = SalesItem::query()->where('sales_receipt_id', $receiptId)->get();
-                            foreach ($salesItems as $item) {
-                                $allocations = DB::table('sales_item_allocations')
-                                    ->where('sales_item_id', (int) $item->id)
-                                    ->get();
+                            $remainingItemsCount = SalesItem::query()->where('sales_receipt_id', $receiptId)->count();
 
-                                foreach ($allocations as $alloc) {
-                                    $batch = StockInItem::query()
-                                        ->whereKey((int) $alloc->stock_in_item_id)
-                                        ->lockForUpdate()
-                                        ->first();
+                            if ($remainingItemsCount === 0) {
+                                // ALL items were voided. Void the entire receipt.
+                                $receipt->voided_at = now();
+                                $receipt->voided_by = auth()->id();
+                                $receipt->void_reviewed_by = auth()->id();
+                                $receipt->void_reviewed_at = now();
+                                $receipt->save();
 
-                                    if ($batch) {
-                                        $batch->remaining_quantity = (int) $batch->remaining_quantity + (int) $alloc->quantity;
-                                        $batch->save();
-                                    }
-                                }
-
-                                // Delete allocations
-                                DB::table('sales_item_allocations')
-                                    ->where('sales_item_id', (int) $item->id)
-                                    ->delete();
+                                ActivityLogger::log(
+                                    'sale.voided',
+                                    $receipt,
+                                    'Sale voided completely',
+                                    [
+                                        'branch_id' => (int) $receipt->branch_id,
+                                        'sales_receipt_id' => (int) $receipt->id,
+                                    ],
+                                    (int) $receipt->branch_id
+                                );
+                            } else {
+                                // Partial void. Some items remain. Return receipt to active state.
+                                $receipt->void_requested_at = null;
+                                $receipt->void_requested_by = null;
+                                $receipt->void_reason = null;
+                                $receipt->save();
                             }
-
-                            // Mark receipt as voided
-                            $receipt->voided_at = now();
-                            $receipt->voided_by = auth()->id();
-                            $receipt->void_reviewed_by = auth()->id();
-                            $receipt->void_reviewed_at = now();
-                            $receipt->save();
-
-                            ActivityLogger::log(
-                                'sale.voided',
-                                $receipt,
-                                'Sale voided after approval',
-                                [
-                                    'branch_id' => (int) $receipt->branch_id,
-                                    'sales_receipt_id' => (int) $receipt->id,
-                                    'customer_name' => $receipt->customer_name,
-                                    'void_reason' => $receipt->void_reason,
-                                ],
-                                (int) $receipt->branch_id
-                            );
                         }
                     }
                 }
@@ -471,70 +535,78 @@ class StockAdjustmentsIndex extends Component
                     }
                 }
 
-                // If this is a stock_in_void adjustment, check if we need to reset the receipt
+                // If this is a stock_in_void adjustment, check if we need to finalize the receipt
                 if ($adjustment->adjustment_type === StockAdjustment::TYPE_STOCK_IN_VOID && $adjustment->source_type === 'stock_in_receipt') {
                     $receiptId = (int) $adjustment->source_id;
 
-                    // Delete all pending adjustments for this receipt
-                    StockAdjustment::query()
+                    // Check if all adjustments for this receipt are processed
+                    $anyPending = StockAdjustment::query()
                         ->where('source_type', 'stock_in_receipt')
                         ->where('source_id', $receiptId)
+                        ->where('adjustment_type', StockAdjustment::TYPE_STOCK_IN_VOID)
                         ->where('status', StockAdjustment::STATUS_PENDING)
-                        ->delete();
+                        ->exists();
 
-                    // Reset receipt to active
-                    $receipt = StockInReceipt::query()->whereKey($receiptId)->first();
-                    if ($receipt && $receipt->void_requested_at && ! $receipt->voided_at) {
-                        $receipt->void_requested_at = null;
-                        $receipt->void_requested_by = null;
-                        $receipt->void_reason = null;
-                        $receipt->save();
+                    if (!$anyPending) {
+                        $receipt = StockInReceipt::query()->whereKey($receiptId)->first();
+                        if ($receipt && $receipt->void_requested_at && ! $receipt->voided_at) {
+                            $anyRejected = StockAdjustment::query()
+                                ->where('source_type', 'stock_in_receipt')
+                                ->where('source_id', $receiptId)
+                                ->where('adjustment_type', StockAdjustment::TYPE_STOCK_IN_VOID)
+                                ->where('status', StockAdjustment::STATUS_REJECTED)
+                                ->exists();
 
-                        ActivityLogger::log(
-                            'stock_in.void_rejected',
-                            $receipt,
-                            'Stock in void request rejected',
-                            [
-                                'branch_id' => (int) $receipt->branch_id,
-                                'stock_in_receipt_id' => (int) $receipt->id,
-                                'rejection_reason' => $this->rejection_reason,
-                            ],
-                            (int) $receipt->branch_id
-                        );
+                            if (!$anyRejected) {
+                                // ALL were approved. Void the entire receipt.
+                                $receipt->voided_at = now();
+                                $receipt->voided_by = auth()->id();
+                                $receipt->void_reviewed_by = auth()->id();
+                                $receipt->void_reviewed_at = now();
+                                $receipt->save();
+                            } else {
+                                // Partial void (or fully rejected). Keep receipt active.
+                                $receipt->void_requested_at = null;
+                                $receipt->void_requested_by = null;
+                                $receipt->void_reason = null;
+                                $receipt->save();
+                            }
+                        }
                     }
                 }
 
-                // If this is a sales_void adjustment, check if we need to reset the receipt
+                // If this is a sales_void adjustment, check if we need to finalize the receipt
                 if ($adjustment->adjustment_type === StockAdjustment::TYPE_SALES_VOID && $adjustment->source_type === 'sales_receipt') {
                     $receiptId = (int) $adjustment->source_id;
 
-                    // Delete all pending adjustments for this receipt
-                    StockAdjustment::query()
+                    // Check if all adjustments for this receipt are processed
+                    $anyPending = StockAdjustment::query()
                         ->where('source_type', 'sales_receipt')
                         ->where('source_id', $receiptId)
+                        ->where('adjustment_type', StockAdjustment::TYPE_SALES_VOID)
                         ->where('status', StockAdjustment::STATUS_PENDING)
-                        ->delete();
+                        ->exists();
 
-                    // Reset receipt to active
-                    $receipt = SalesReceipt::query()->whereKey($receiptId)->first();
-                    if ($receipt && $receipt->void_requested_at && ! $receipt->voided_at) {
-                        $receipt->void_requested_at = null;
-                        $receipt->void_requested_by = null;
-                        $receipt->void_reason = null;
-                        $receipt->save();
+                    if (!$anyPending) {
+                        $receipt = SalesReceipt::query()->whereKey($receiptId)->first();
+                        if ($receipt && $receipt->void_requested_at && ! $receipt->voided_at) {
+                            $remainingItemsCount = SalesItem::query()->where('sales_receipt_id', $receiptId)->count();
 
-                        ActivityLogger::log(
-                            'sale.void_rejected',
-                            $receipt,
-                            'Sale void request rejected',
-                            [
-                                'branch_id' => (int) $receipt->branch_id,
-                                'sales_receipt_id' => (int) $receipt->id,
-                                'customer_name' => $receipt->customer_name,
-                                'rejection_reason' => $this->rejection_reason,
-                            ],
-                            (int) $receipt->branch_id
-                        );
+                            if ($remainingItemsCount === 0) {
+                                // ALL items were voided. Void the entire receipt.
+                                $receipt->voided_at = now();
+                                $receipt->voided_by = auth()->id();
+                                $receipt->void_reviewed_by = auth()->id();
+                                $receipt->void_reviewed_at = now();
+                                $receipt->save();
+                            } else {
+                                // Partial void (some items rejected void, so they are kept). Return receipt to active state.
+                                $receipt->void_requested_at = null;
+                                $receipt->void_requested_by = null;
+                                $receipt->void_reason = null;
+                                $receipt->save();
+                            }
+                        }
                     }
                 }
 

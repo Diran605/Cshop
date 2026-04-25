@@ -40,6 +40,8 @@ class StockInIndex extends Component
 
     public bool $isSuperAdmin = false;
 
+    public ?int $category_id = null;
+
     public int $auth_user_id = 0;
 
     public ?string $notes = null;
@@ -128,7 +130,7 @@ class StockInIndex extends Component
     {
         $product = Product::query()
             ->with(['bulkType'])
-            ->when($this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
+            ->when($this->branch_id > 0, fn($q) => $q->where('branch_id', $this->branch_id))
             ->find($this->product_id);
         if ($product && (bool) $product->bulk_enabled) {
             $this->entry_mode = 'bulk';
@@ -155,6 +157,7 @@ class StockInIndex extends Component
         $this->supplier_name = null;
         $this->batch_ref_no = null;
         $this->expiry_date = null;
+        $this->category_id = null;
     }
 
     public function addDraftLine(): void
@@ -194,7 +197,7 @@ class StockInIndex extends Component
 
         $product = Product::query()
             ->with(['bulkType'])
-            ->when((int) $data['branch_id'] > 0, fn ($q) => $q->where('branch_id', (int) $data['branch_id']))
+            ->when((int) $data['branch_id'] > 0, fn($q) => $q->where('branch_id', (int) $data['branch_id']))
             ->find((int) $data['product_id']);
         if (! $product) {
             return;
@@ -241,8 +244,6 @@ class StockInIndex extends Component
             'product_id' => (int) $product->id,
             'name' => (string) $product->name,
             'unit_type_name' => $product->unitType?->name,
-            'supplier_name' => ($data['supplier_name'] ?? null) ?: null,
-            'batch_ref_no' => ($data['batch_ref_no'] ?? null) ?: null,
             'entry_mode' => $mode,
             'bulk_quantity' => $bulkQty,
             'units_per_bulk' => $unitsPerBulk,
@@ -260,6 +261,42 @@ class StockInIndex extends Component
         $this->supplier_name = null;
         $this->batch_ref_no = null;
         $this->expiry_date = null;
+    }
+
+    public function setDraftQuantity(int $key, $qty): void
+    {
+        $qty = (int) $qty;
+        if ($qty < 1) {
+            $qty = 1;
+        }
+
+        if (isset($this->draft_lines[$key])) {
+            $line = $this->draft_lines[$key];
+            if ($line['entry_mode'] === 'bulk') {
+                $this->draft_lines[$key]['bulk_quantity'] = $qty;
+                $this->draft_lines[$key]['quantity'] = $qty * (int) ($line['units_per_bulk'] ?? 1);
+            } else {
+                $this->draft_lines[$key]['quantity'] = $qty;
+            }
+        }
+    }
+
+    public function setDraftCost(int $key, $cost): void
+    {
+        if (isset($this->draft_lines[$key])) {
+            if (trim((string) $cost) === '') {
+                $this->draft_lines[$key]['cost_price'] = null;
+            } else {
+                $line = $this->draft_lines[$key];
+                $incomingCost = (float) $cost;
+                if ($line['entry_mode'] === 'bulk') {
+                    $unitsPerBulk = (int) ($line['units_per_bulk'] ?? 1);
+                    $this->draft_lines[$key]['cost_price'] = $unitsPerBulk > 0 ? ($incomingCost / $unitsPerBulk) : $incomingCost;
+                } else {
+                    $this->draft_lines[$key]['cost_price'] = $incomingCost;
+                }
+            }
+        }
     }
 
     public function removeDraftLine(int $key): void
@@ -421,6 +458,11 @@ class StockInIndex extends Component
         }
     }
 
+    public function selectReceipt(int $receiptId): void
+    {
+        $this->selected_receipt_id = $receiptId;
+    }
+
     public function save(): void
     {
         $this->resetErrorBag();
@@ -504,7 +546,7 @@ class StockInIndex extends Component
                     $newCost = $incomingCost ?? $productWac;
                     $currentStock = (int) ($product->stock?->current_stock ?? 0);
                     $newStock = $currentStock + $qty;
-                    
+
                     if ($newStock > 0) {
                         $newWac = (($currentStock * $productWac) + ($qty * $newCost)) / $newStock;
                         $product->weighted_average_cost = number_format($newWac, 2, '.', '');
@@ -521,8 +563,8 @@ class StockInIndex extends Component
                 StockInItem::query()->create([
                     'stock_in_receipt_id' => (int) $receipt->id,
                     'product_id' => (int) $row['product_id'],
-                    'supplier_name' => ($row['supplier_name'] ?? null) ?: null,
-                    'batch_ref_no' => ($row['batch_ref_no'] ?? null) ?: null,
+                    'supplier_name' => $this->supplier_name ?: null,
+                    'batch_ref_no' => $this->batch_ref_no ?: null,
                     'entry_mode' => (string) ($row['entry_mode'] ?? 'unit'),
                     'bulk_quantity' => $row['bulk_quantity'] ?? null,
                     'units_per_bulk' => $row['units_per_bulk'] ?? null,
@@ -538,7 +580,7 @@ class StockInIndex extends Component
                     'branch_id' => (int) $this->branch_id,
                     'product_id' => (int) $row['product_id'],
                     'user_id' => auth()->id(),
-                    'movement_type' => 'IN',
+                    'movement_type' => 'stock_in',
                     'quantity' => $qty,
                     'before_stock' => $beforeStock,
                     'after_stock' => $afterStock,
@@ -548,6 +590,8 @@ class StockInIndex extends Component
                     'sales_receipt_id' => null,
                     'moved_at' => now(),
                     'notes' => $this->notes,
+                    'clearance_flag' => false,
+                    'created_by' => auth()->id(),
                 ]);
             }
 
@@ -579,6 +623,7 @@ class StockInIndex extends Component
         $this->batch_ref_no = null;
         $this->expiry_date = null;
         $this->notes = null;
+        $this->category_id = null;
         $this->selected_receipt_id = (int) $receiptId;
 
         session()->flash('status', 'Stock updated successfully.');
@@ -615,60 +660,53 @@ class StockInIndex extends Component
             $branches = Branch::query()->where('is_active', true)->orderBy('name')->get();
         }
 
-        $products = Product::query()
-            ->where('status', Product::STATUS_ACTIVE)
-            ->when($this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
-            ->when(trim($this->product_search) !== '', function ($q) {
-                $term = '%' . trim($this->product_search) . '%';
-                $q->where(function ($qq) use ($term) {
-                    $qq->where('name', 'like', $term)
-                        ->orWhere('description', 'like', $term)
-                        ->orWhereHas('category', fn ($qc) => $qc->where('name', 'like', $term));
-                });
-            })
-            ->with('category')
-            ->orderBy('name')
-            ->get();
-
         $selectedProduct = null;
         if ($this->product_id > 0) {
             $selectedProduct = Product::query()
                 ->with(['bulkType.bulkUnit', 'unitType'])
-                ->when($this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
+                ->when($this->branch_id > 0, fn($q) => $q->where('branch_id', $this->branch_id))
                 ->find($this->product_id);
         }
 
         $searchableProducts = [];
-        if ($this->branch_id > 0 && trim($this->product_search) !== '') {
-            $searchableProducts = Product::query()
+        $categories = [];
+        if ($this->branch_id > 0) {
+            $categories = \App\Models\Category::where('branch_id', $this->branch_id)->orderBy('name')->get();
+
+            $query = Product::query()
                 ->where('status', Product::STATUS_ACTIVE)
-                ->where('branch_id', $this->branch_id)
-                ->where(function ($q) {
-                    $term = '%' . trim($this->product_search) . '%';
+                ->where('branch_id', $this->branch_id);
+
+            if ($this->category_id) {
+                $query->where('category_id', $this->category_id);
+            }
+
+            if (trim($this->product_search) !== '') {
+                $term = '%' . trim($this->product_search) . '%';
+                $query->where(function ($q) use ($term) {
                     $q->where('name', 'like', $term)
                         ->orWhere('description', 'like', $term)
-                        ->orWhereHas('category', fn ($qc) => $qc->where('name', 'like', $term));
-                })
-                ->with('category')
-                ->orderBy('name')
-                ->limit(10)
-                ->get();
+                        ->orWhereHas('category', fn($qc) => $qc->where('name', 'like', $term));
+                });
+            }
+
+            $searchableProducts = $query->with('category')->orderBy('name')->limit(10)->get();
         }
 
         $selectedReceipt = null;
         if ($this->selected_receipt_id > 0) {
             $selectedReceipt = StockInReceipt::query()
                 ->with(['branch', 'user', 'items.product'])
-                ->when(! $this->isSuperAdmin, fn ($q) => $q->where('branch_id', (int) (auth()->user()?->branch_id ?? 0)))
-                ->when($this->isSuperAdmin && $this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
+                ->when(! $this->isSuperAdmin, fn($q) => $q->where('branch_id', (int) (auth()->user()?->branch_id ?? 0)))
+                ->when($this->isSuperAdmin && $this->branch_id > 0, fn($q) => $q->where('branch_id', $this->branch_id))
                 ->find($this->selected_receipt_id);
         }
 
         return view('livewire.stock-in-index', [
             'branches' => $branches,
-            'products' => $products,
             'selectedProduct' => $selectedProduct,
             'searchableProducts' => $searchableProducts,
+            'categories' => $categories,
             'selectedReceipt' => $selectedReceipt,
             'isSuperAdmin' => $this->isSuperAdmin,
         ]);

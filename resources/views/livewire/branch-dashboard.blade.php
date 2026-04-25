@@ -405,3 +405,54 @@
         </div>
     </div>
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+@script
+<script>
+    function renderDashboardCharts() {
+        const el = document.getElementById('salesTrendDashboardChart');
+        if (!el || !window.Chart) return;
+
+        const labels = @json($this->sales_trend['labels']);
+        const data = @json($this->sales_trend['data']);
+
+        if (el._chart) { el._chart.destroy(); }
+
+        el._chart = new Chart(el, {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [{
+                    label: 'Sales',
+                    data,
+                    backgroundColor: 'rgba(37, 99, 235, 0.25)',
+                    borderColor: '#2563EB',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { display: false },
+                    y: { display: false, beginAtZero: true }
+                }
+            }
+        });
+    }
+
+    function initDashboardCharts() {
+        if (typeof window.Chart === 'undefined') {
+            setTimeout(initDashboardCharts, 100);
+            return;
+        }
+        renderDashboardCharts();
+    }
+    
+    initDashboardCharts();
+    Livewire.hook('morph.updated', () => { setTimeout(initDashboardCharts, 100); });
+    document.addEventListener('livewire:navigated', () => { setTimeout(initDashboardCharts, 100); });
+</script>
+@endscript

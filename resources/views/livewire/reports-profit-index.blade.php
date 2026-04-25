@@ -251,16 +251,15 @@
                     }
                 @endphp
 
-                @once
-                    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-                @endonce
+                <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
-                <div class="mt-4">
+                <div class="mt-4" wire:ignore>
                     <canvas id="profitTrendChart" height="100"></canvas>
                 </div>
 
+                @script
                 <script>
-                    (function () {
+                    function renderProfitChart() {
                         const el = document.getElementById('profitTrendChart');
                         if (!el || !window.Chart) return;
 
@@ -269,55 +268,40 @@
                         const cogs = @json($trendCogs);
                         const profit = @json($trendProfit);
 
-                        if (el._chart) {
-                            el._chart.destroy();
-                        }
+                        if (el._chart) { el._chart.destroy(); }
 
                         el._chart = new Chart(el, {
                             type: 'line',
                             data: {
                                 labels,
                                 datasets: [
-                                    {
-                                        label: 'Revenue',
-                                        data: revenue,
-                                        borderColor: '#2563EB',
-                                        backgroundColor: 'rgba(37, 99, 235, 0.12)',
-                                        tension: 0.3,
-                                        fill: true,
-                                    },
-                                    {
-                                        label: 'COGS',
-                                        data: cogs,
-                                        borderColor: '#DC2626',
-                                        backgroundColor: 'rgba(220, 38, 38, 0.10)',
-                                        tension: 0.3,
-                                        fill: true,
-                                    },
-                                    {
-                                        label: 'Profit',
-                                        data: profit,
-                                        borderColor: '#16A34A',
-                                        backgroundColor: 'rgba(22, 163, 74, 0.10)',
-                                        tension: 0.3,
-                                        fill: true,
-                                    },
+                                    { label: 'Revenue', data: revenue, borderColor: '#2563EB', backgroundColor: 'rgba(37, 99, 235, 0.12)', tension: 0.3, fill: true },
+                                    { label: 'COGS', data: cogs, borderColor: '#DC2626', backgroundColor: 'rgba(220, 38, 38, 0.10)', tension: 0.3, fill: true },
+                                    { label: 'Profit', data: profit, borderColor: '#16A34A', backgroundColor: 'rgba(22, 163, 74, 0.10)', tension: 0.3, fill: true },
                                 ]
                             },
                             options: {
-                                responsive: true,
-                                maintainAspectRatio: false,
+                                responsive: true, maintainAspectRatio: false,
                                 interaction: { mode: 'index', intersect: false },
-                                plugins: {
-                                    legend: { position: 'bottom' },
-                                },
-                                scales: {
-                                    y: { beginAtZero: true }
-                                }
+                                plugins: { legend: { position: 'bottom' } },
+                                scales: { y: { beginAtZero: true } }
                             }
                         });
-                    })();
+                    }
+
+                    function initProfitChart() {
+                        if (typeof window.Chart === 'undefined') {
+                            setTimeout(initProfitChart, 100);
+                            return;
+                        }
+                        renderProfitChart();
+                    }
+                    
+                    initProfitChart();
+                    Livewire.hook('morph.updated', () => { setTimeout(initProfitChart, 100); });
+                    document.addEventListener('livewire:navigated', () => { setTimeout(initProfitChart, 100); });
                 </script>
+                @endscript
             </div>
         </div>
     </div>

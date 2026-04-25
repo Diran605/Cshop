@@ -92,16 +92,16 @@ class ClearanceManager extends Component
 
         return ClearanceItem::query()
             ->with(['product', 'discountRule', 'actionedBy', 'suggestedBy'])
-            ->when($branchId > 0, fn ($q) => $q->where('branch_id', $branchId))
-            ->when($this->filter_status !== 'all', fn ($q) => $q->where('status', $this->filter_status))
-            ->when($this->filter_action === 'pending', fn ($q) => $q->where('status', '!=', ClearanceItem::STATUS_ACTIONED))
-            ->when($this->filter_action === 'actioned', fn ($q) => $q->where('status', ClearanceItem::STATUS_ACTIONED))
+            ->when($branchId > 0, fn($q) => $q->where('branch_id', $branchId))
+            ->when($this->filter_status !== 'all', fn($q) => $q->where('status', $this->filter_status))
+            ->when($this->filter_action === 'pending', fn($q) => $q->where('status', '!=', ClearanceItem::STATUS_ACTIONED))
+            ->when($this->filter_action === 'actioned', fn($q) => $q->where('status', ClearanceItem::STATUS_ACTIONED))
             // NEW: Filter by approval status
-            ->when($this->filter_approval === 'pending_approval', fn ($q) => $q->pendingApproval())
-            ->when($this->filter_approval === 'manual', fn ($q) => $q->where('approval_status', ClearanceItem::APPROVAL_MANUAL))
-            ->when($this->filter_approval === 'approved', fn ($q) => $q->where('approval_status', ClearanceItem::APPROVAL_APPROVED))
+            ->when($this->filter_approval === 'pending_approval', fn($q) => $q->pendingApproval())
+            ->when($this->filter_approval === 'manual', fn($q) => $q->where('approval_status', ClearanceItem::APPROVAL_MANUAL))
+            ->when($this->filter_approval === 'approved', fn($q) => $q->where('approval_status', ClearanceItem::APPROVAL_APPROVED))
             ->when($this->search, function ($q) {
-                $q->whereHas('product', fn ($pq) => $pq->where('name', 'like', "%{$this->search}%"));
+                $q->whereHas('product', fn($pq) => $pq->where('name', 'like', "%{$this->search}%"));
             })
             ->orderBy('days_to_expiry')
             ->paginate(15);
@@ -113,17 +113,17 @@ class ClearanceManager extends Component
         $branchId = $this->isSuperAdmin && $this->filter_branch_id > 0 ? $this->filter_branch_id : $this->userBranchId;
 
         return [
-            'total_pending' => ClearanceItem::when($branchId > 0, fn ($q) => $q->where('branch_id', $branchId))
+            'total_pending' => ClearanceItem::when($branchId > 0, fn($q) => $q->where('branch_id', $branchId))
                 ->where('status', '!=', ClearanceItem::STATUS_ACTIONED)
                 ->count(),
-            'total_value_at_risk' => ClearanceItem::when($branchId > 0, fn ($q) => $q->where('branch_id', $branchId))
+            'total_value_at_risk' => ClearanceItem::when($branchId > 0, fn($q) => $q->where('branch_id', $branchId))
                 ->where('status', '!=', ClearanceItem::STATUS_ACTIONED)
                 ->sum(DB::raw('original_price * quantity')),
             'by_status' => [
-                'approaching' => ClearanceItem::when($branchId > 0, fn ($q) => $q->where('branch_id', $branchId))->where('status', 'approaching')->count(),
-                'urgent' => ClearanceItem::when($branchId > 0, fn ($q) => $q->where('branch_id', $branchId))->where('status', 'urgent')->count(),
-                'critical' => ClearanceItem::when($branchId > 0, fn ($q) => $q->where('branch_id', $branchId))->where('status', 'critical')->count(),
-                'expired' => ClearanceItem::when($branchId > 0, fn ($q) => $q->where('branch_id', $branchId))->where('status', 'expired')->count(),
+                'approaching' => ClearanceItem::when($branchId > 0, fn($q) => $q->where('branch_id', $branchId))->where('status', 'approaching')->count(),
+                'urgent' => ClearanceItem::when($branchId > 0, fn($q) => $q->where('branch_id', $branchId))->where('status', 'urgent')->count(),
+                'critical' => ClearanceItem::when($branchId > 0, fn($q) => $q->where('branch_id', $branchId))->where('status', 'critical')->count(),
+                'expired' => ClearanceItem::when($branchId > 0, fn($q) => $q->where('branch_id', $branchId))->where('status', 'expired')->count(),
             ],
         ];
     }
@@ -133,7 +133,7 @@ class ClearanceManager extends Component
     {
         $branchId = $this->isSuperAdmin && $this->filter_branch_id > 0 ? $this->filter_branch_id : $this->userBranchId;
 
-        return ClearanceDiscountRule::when($branchId > 0, fn ($q) => $q->where('branch_id', $branchId))
+        return ClearanceDiscountRule::when($branchId > 0, fn($q) => $q->where('branch_id', $branchId))
             ->orWhereNull('branch_id')
             ->where('is_active', true)
             ->orderBy('days_to_expiry_min')
@@ -343,6 +343,9 @@ class ClearanceManager extends Component
         if ($this->approval_action === 'approve') {
             $item->approve($this->approval_notes);
             session()->flash('success', "✅ {$item->product->name} approved for clearance");
+        } elseif ($this->approval_action === 'decline') {
+            $item->decline($this->approval_notes);
+            session()->flash('success', "⏸ {$item->product->name} temporarily declined");
         } else {
             $item->reject($this->approval_notes);
             session()->flash('success', "❌ {$item->product->name} rejected from clearance");
@@ -379,6 +382,21 @@ class ClearanceManager extends Component
         }
 
         session()->flash('success', "❌ {$count} items rejected from clearance");
+        $this->dispatch('clearance-updated');
+    }
+
+    public function declineBulk(array $itemIds): void
+    {
+        $count = 0;
+        foreach ($itemIds as $itemId) {
+            $item = ClearanceItem::find($itemId);
+            if ($item && $item->pendingApproval()->exists()) {
+                $item->decline('Bulk declined by ' . auth()->user()->name);
+                $count++;
+            }
+        }
+
+        session()->flash('success', "⏸ {$count} items temporarily declined");
         $this->dispatch('clearance-updated');
     }
 

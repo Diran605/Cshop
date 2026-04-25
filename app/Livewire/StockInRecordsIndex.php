@@ -51,6 +51,7 @@ class StockInRecordsIndex extends Component
     public ?string $edit_batch_ref_no = null;
     public ?string $edit_expiry_date = null;
     public ?string $edit_notes = null;
+    public ?string $edit_reason = null;
     public string $edit_received_at_date = '';
 
     // Void modal
@@ -247,6 +248,7 @@ class StockInRecordsIndex extends Component
         $this->edit_batch_ref_no = null;
         $this->edit_expiry_date = null;
         $this->edit_notes = null;
+        $this->edit_reason = null;
         $this->edit_received_at_date = '';
         $this->resetErrorBag();
     }
@@ -308,6 +310,11 @@ class StockInRecordsIndex extends Component
             return;
         }
 
+        if (! $this->edit_reason || trim($this->edit_reason) === '' || mb_strlen(trim($this->edit_reason)) < 5) {
+            $this->addError('edit_reason', 'A reason for this edit is required (minimum 5 characters).');
+            return;
+        }
+
         try {
             DB::transaction(function () use ($items) {
                 $receipt = StockInReceipt::query()
@@ -349,7 +356,7 @@ class StockInRecordsIndex extends Component
                             'unit_price' => null,
                             'stock_in_receipt_id' => (int) $receipt->id,
                             'moved_at' => now(),
-                            'notes' => 'STOCK IN EDIT REVERSE',
+                            'notes' => 'STOCK IN EDIT REVERSE: ' . trim($this->edit_reason),
                         ]);
                     }
                 }
@@ -400,7 +407,7 @@ class StockInRecordsIndex extends Component
                         'unit_price' => null,
                         'stock_in_receipt_id' => (int) $receipt->id,
                         'moved_at' => now(),
-                        'notes' => 'STOCK IN EDIT',
+                        'notes' => 'STOCK IN EDIT: ' . trim($this->edit_reason),
                     ]);
 
                     $totalQuantity += (int) $item['quantity'];
@@ -420,6 +427,7 @@ class StockInRecordsIndex extends Component
                     [
                         'branch_id' => (int) $receipt->branch_id,
                         'stock_in_receipt_id' => (int) $receipt->id,
+                        'edit_reason' => trim($this->edit_reason),
                     ],
                     (int) $receipt->branch_id
                 );

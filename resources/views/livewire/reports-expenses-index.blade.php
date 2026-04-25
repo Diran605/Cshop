@@ -138,54 +138,52 @@
                     }
                 @endphp
 
-                @once
-                    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-                @endonce
+                <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
-                <div class="mt-4">
+                <div class="mt-4" wire:ignore>
                     <canvas id="expenseTrendChart" height="100"></canvas>
                 </div>
 
+                @script
                 <script>
-                    (function () {
+                    function renderExpenseChart() {
                         const el = document.getElementById('expenseTrendChart');
                         if (!el || !window.Chart) return;
 
                         const labels = @json($trendLabels);
                         const amounts = @json($trendAmounts);
 
-                        if (el._chart) {
-                            el._chart.destroy();
-                        }
+                        if (el._chart) { el._chart.destroy(); }
 
                         el._chart = new Chart(el, {
                             type: 'line',
                             data: {
                                 labels,
                                 datasets: [
-                                    {
-                                        label: 'Expenses',
-                                        data: amounts,
-                                        borderColor: '#2563EB',
-                                        backgroundColor: 'rgba(37, 99, 235, 0.12)',
-                                        tension: 0.3,
-                                        fill: true,
-                                    }
+                                    { label: 'Expenses', data: amounts, borderColor: '#2563EB', backgroundColor: 'rgba(37, 99, 235, 0.12)', tension: 0.3, fill: true }
                                 ]
                             },
                             options: {
-                                responsive: true,
-                                maintainAspectRatio: false,
-                                plugins: {
-                                    legend: { position: 'bottom' },
-                                },
-                                scales: {
-                                    y: { beginAtZero: true }
-                                }
+                                responsive: true, maintainAspectRatio: false,
+                                plugins: { legend: { position: 'bottom' } },
+                                scales: { y: { beginAtZero: true } }
                             }
                         });
-                    })();
+                    }
+
+                    function initExpenseChart() {
+                        if (typeof window.Chart === 'undefined') {
+                            setTimeout(initExpenseChart, 100);
+                            return;
+                        }
+                        renderExpenseChart();
+                    }
+                    
+                    initExpenseChart();
+                    Livewire.hook('morph.updated', () => { setTimeout(initExpenseChart, 100); });
+                    document.addEventListener('livewire:navigated', () => { setTimeout(initExpenseChart, 100); });
                 </script>
+                @endscript
             </div>
         </div>
     </div>

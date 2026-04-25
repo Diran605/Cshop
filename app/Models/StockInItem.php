@@ -39,4 +39,9 @@ class StockInItem extends Model
     {
         return $this->belongsTo(Product::class);
     }
+
+    public function clearanceAllocations()
+    {
+        return $this->hasMany(StockClearanceAllocation::class);
+    }
 }

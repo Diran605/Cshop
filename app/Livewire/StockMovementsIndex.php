@@ -26,7 +26,7 @@ class StockMovementsIndex extends Component
     public int $auth_user_id = 0;
 
     public bool $show_detail_modal = false;
-    public $selected_movement = null;
+    public ?\App\Models\StockMovement $selected_movement = null;
 
     public function mount(): void
     {
@@ -129,7 +129,8 @@ class StockMovementsIndex extends Component
                 $term = '%' . $this->search . '%';
                 $q->where(function ($qq) use ($term) {
                     $qq->whereHas('product', fn ($qp) => $qp->where('name', 'like', $term))
-                        ->orWhereHas('user', fn ($qu) => $qu->where('name', 'like', $term));
+                        ->orWhereHas('user', fn ($qu) => $qu->where('name', 'like', $term))
+                        ->orWhere('notes', 'like', $term);
                 });
             })
             ->orderByDesc('moved_at')

@@ -24,6 +24,8 @@ class StockMovement extends Model
         'sales_receipt_id',
         'moved_at',
         'notes',
+        'clearance_flag',
+        'created_by',
     ];
 
     protected $casts = [
@@ -43,6 +45,11 @@ class StockMovement extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
     }
 
     public function stockInReceipt(): BelongsTo

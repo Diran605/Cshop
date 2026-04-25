@@ -19,7 +19,7 @@
     </button>
 
     <!-- Dropdown -->
-    <div x-show="open" 
+    <div x-show="open" style="display: none;"
          @click.away="open = false"
          x-transition:enter="transition ease-out duration-200"
          x-transition:enter-start="opacity-0 transform scale-95"

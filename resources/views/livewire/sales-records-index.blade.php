@@ -490,6 +490,11 @@
                             <label class="ui-label">{{ __('Notes') }}</label>
                             <input type="text" wire:model.live="edit_notes" class="mt-1 ui-input" />
                         </div>
+                        <div>
+                            <label class="ui-label">{{ __('Edit Reason') }} <span class="text-red-500">*</span></label>
+                            <textarea wire:model.defer="edit_reason" rows="2" class="mt-1 ui-input" placeholder="{{ __('Why are you editing this sale?') }}"></textarea>
+                            @error('edit_reason') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                        </div>
                     </div>
 
                     <!-- Totals -->

@@ -36,6 +36,12 @@ class ClearanceRecords extends Component
     public float $edit_clearance_price = 0;
     public ?string $edit_notes = null;
 
+    // Reversal modal
+    public bool $show_reversal_modal = false;
+    public ?int $reversal_item_id = null;
+    public string $reversal_reason = '';
+    public bool $reversal_restore_to_stock = true;
+
     protected $paginationTheme = 'tailwind';
 
     public function mount(): void
@@ -182,6 +188,118 @@ class ClearanceRecords extends Component
         session()->flash('status', 'Clearance record deleted.');
     }
 
+    public function openReversalModal(int $itemId): void
+    {
+        if (! auth()->user()?->can('clearance.reverse')) {
+            session()->flash('error', 'You do not have permission to reverse clearance actions.');
+            return;
+        }
+
+        $item = ClearanceItem::with('stockInItem', 'product')->findOrFail($itemId);
+
+        // Can only reverse actioned items
+        if ($item->status !== ClearanceItem::STATUS_ACTIONED) {
+            session()->flash('error', 'Only actioned clearance items can be reversed.');
+            return;
+        }
+
+        $this->reversal_item_id = $itemId;
+        $this->reversal_reason = '';
+        $this->reversal_restore_to_stock = true;
+        $this->show_reversal_modal = true;
+    }
+
+    public function closeReversalModal(): void
+    {
+        $this->show_reversal_modal = false;
+        $this->reversal_item_id = null;
+        $this->reversal_reason = '';
+        $this->reversal_restore_to_stock = true;
+    }
+
+    public function reverseAction(): void
+    {
+        $this->validate([
+            'reversal_reason' => 'required|string|min:3|max:500',
+        ]);
+
+        if (! auth()->user()?->can('clearance.reverse')) {
+            session()->flash('error', 'You do not have permission to reverse clearance actions.');
+            return;
+        }
+
+        $item = ClearanceItem::with(['stockInItem', 'product'])->findOrFail($this->reversal_item_id);
+
+        // Verify item is actioned
+        if ($item->status !== ClearanceItem::STATUS_ACTIONED) {
+            session()->flash('error', 'Cannot reverse non-actioned items.');
+            $this->closeReversalModal();
+            return;
+        }
+
+        try {
+            \Illuminate\Support\Facades\DB::beginTransaction();
+
+            // If restoring to stock, create stock movement
+            if ($this->reversal_restore_to_stock && $item->stockInItem) {
+                // Update ProductStock to reflect the returned inventory
+                $productStock = \App\Models\ProductStock::firstOrCreate(
+                    ['branch_id' => $item->branch_id, 'product_id' => $item->product_id],
+                    ['current_stock' => 0]
+                );
+                
+                $beforeStock = $productStock->current_stock;
+                $productStock->increment('current_stock', $item->quantity);
+                $afterStock = $productStock->current_stock;
+
+                \App\Models\StockMovement::create([
+                    'branch_id' => $item->branch_id,
+                    'product_id' => $item->product_id,
+                    'stock_in_receipt_id' => $item->stockInItem->stock_in_receipt_id ?? null,
+                    'user_id' => auth()->id(),
+                    'movement_type' => 'clearance_reversal',
+                    'quantity' => $item->quantity,
+                    'before_stock' => $beforeStock,
+                    'after_stock' => $afterStock,
+                    'unit_cost' => $item->original_price,
+                    'moved_at' => now(),
+                    'notes' => "Reversal: {$this->reversal_reason}",
+                ]);
+
+                // Restore quantity to stock batch
+                $item->stockInItem->increment('remaining_quantity', $item->quantity);
+            }
+
+            // Mark item as reversal pending
+            $item->update([
+                'approval_status' => 'reversed',
+                'approval_notes' => "Reversal by " . auth()->user()->name . ": {$this->reversal_reason}",
+            ]);
+
+            ActivityLogger::log(
+                'clearance.reversed',
+                $item,
+                "Reversed clearance action for {$item->product?->name}",
+                [
+                    'action_type' => $item->action_type,
+                    'quantity' => $item->quantity,
+                    'reason' => $this->reversal_reason,
+                    'restored_to_stock' => $this->reversal_restore_to_stock,
+                ],
+                $item->branch_id
+            );
+
+            \Illuminate\Support\Facades\DB::commit();
+
+            $this->closeReversalModal();
+            session()->flash('status', "✓ Clearance action reversed for {$item->product?->name}");
+            $this->dispatch('clearance-updated');
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\DB::rollBack();
+            session()->flash('error', "Failed to reverse clearance action: {$e->getMessage()}");
+        }
+    }
+
     public function getBranchesProperty()
     {
         if (!$this->isSuperAdmin) {
@@ -197,11 +315,11 @@ class ClearanceRecords extends Component
 
         return ClearanceItem::query()
             ->with(['product', 'branch', 'discountRule', 'actionedBy'])
-            ->when($branchId > 0, fn ($q) => $q->where('branch_id', $branchId))
-            ->when($this->filter_action_type !== 'all', fn ($q) => $q->where('action_type', $this->filter_action_type))
-            ->when($this->filter_status !== 'all', fn ($q) => $q->where('status', $this->filter_status))
+            ->when($branchId > 0, fn($q) => $q->where('branch_id', $branchId))
+            ->when($this->filter_action_type !== 'all', fn($q) => $q->where('action_type', $this->filter_action_type))
+            ->when($this->filter_status !== 'all', fn($q) => $q->where('status', $this->filter_status))
             ->when($this->search, function ($q) {
-                $q->whereHas('product', fn ($pq) => $pq->where('name', 'like', "%{$this->search}%"));
+                $q->whereHas('product', fn($pq) => $pq->where('name', 'like', "%{$this->search}%"));
             })
             ->orderByDesc('id')
             ->paginate(20);
@@ -212,10 +330,10 @@ class ClearanceRecords extends Component
         $branchId = $this->isSuperAdmin && $this->filter_branch_id > 0 ? $this->filter_branch_id : $this->userBranchId;
 
         return [
-            'total' => ClearanceItem::when($branchId > 0, fn ($q) => $q->where('branch_id', $branchId))->count(),
-            'pending' => ClearanceItem::when($branchId > 0, fn ($q) => $q->where('branch_id', $branchId))
+            'total' => ClearanceItem::when($branchId > 0, fn($q) => $q->where('branch_id', $branchId))->count(),
+            'pending' => ClearanceItem::when($branchId > 0, fn($q) => $q->where('branch_id', $branchId))
                 ->where('status', '!=', ClearanceItem::STATUS_ACTIONED)->count(),
-            'actioned' => ClearanceItem::when($branchId > 0, fn ($q) => $q->where('branch_id', $branchId))
+            'actioned' => ClearanceItem::when($branchId > 0, fn($q) => $q->where('branch_id', $branchId))
                 ->where('status', ClearanceItem::STATUS_ACTIONED)->count(),
         ];
     }

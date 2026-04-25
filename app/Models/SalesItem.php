@@ -25,6 +25,7 @@ class SalesItem extends Model
         'line_profit',
         'is_low_profit',
         'is_loss',
+        'clearance_flag',
     ];
 
     public function receipt(): BelongsTo

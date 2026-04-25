@@ -45,7 +45,9 @@ class ClearanceItem extends Model
     const APPROVAL_AUTO_SUGGESTED = 'auto_suggested';
     const APPROVAL_PENDING = 'pending_approval';
     const APPROVAL_APPROVED = 'approved';
+    const APPROVAL_DECLINED = 'declined';
     const APPROVAL_REJECTED = 'rejected';
+    const APPROVAL_REVERSED = 'reversed';
 
     // Status constants
     const STATUS_APPROACHING = 'approaching';
@@ -314,6 +316,24 @@ class ClearanceItem extends Model
             $this,
             "Rejected clearance for {$this->product->name}",
             ['notes' => $notes],
+            $this->branch_id
+        );
+    }
+
+    /**
+     * Decline a suggested item (temporary rejection, can be re-suggested later)
+     */
+    public function decline(?string $notes = null): void
+    {
+        $this->approval_status = self::APPROVAL_DECLINED;
+        $this->approval_notes = $notes;
+        $this->save();
+
+        ActivityLogger::log(
+            'clearance.declined',
+            $this,
+            "Declined clearance for {$this->product->name}",
+            ['notes' => $notes, 'temporary' => true],
             $this->branch_id
         );
     }

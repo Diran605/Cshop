@@ -123,9 +123,12 @@ class RbacSeeder extends Seeder
             'alerts.low_stock',
 
             'clearance.view',
+            'clearance.send',
+            'clearance.approve',
             'clearance.discount',
             'clearance.donate',
             'clearance.dispose',
+            'clearance.reverse',
             'clearance.rules.view',
             'clearance.rules.create',
             'clearance.rules.edit',
