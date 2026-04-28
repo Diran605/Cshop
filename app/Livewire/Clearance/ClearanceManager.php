@@ -227,8 +227,7 @@ class ClearanceManager extends Component
             $this->donate_notes
         );
 
-        // Decrease stock
-        $this->decreaseStock($item->stock_in_item_id, $this->donate_quantity);
+        // Stock was already deducted at approval/manual send — no need to decrease again
 
         ActivityLogger::log(
             'clearance_donation_recorded',
@@ -275,8 +274,7 @@ class ClearanceManager extends Component
             $this->dispose_notes
         );
 
-        // Decrease stock
-        $this->decreaseStock($item->stock_in_item_id, $this->dispose_quantity);
+        // Stock was already deducted at approval/manual send — no need to decrease again
 
         ActivityLogger::log(
             'clearance_disposal_recorded',
@@ -289,7 +287,7 @@ class ClearanceManager extends Component
         $this->reset(['dispose_item_id', 'dispose_quantity', 'dispose_reason', 'dispose_method', 'dispose_notes']);
 
         $this->dispatch('clearance-actioned');
-        session()->flash('success', 'Disposal recorded. Stock has been adjusted.');
+        session()->flash('success', 'Disposal recorded.');
     }
 
     protected function decreaseStock(int $stockInItemId, int $quantity): void
@@ -316,8 +314,23 @@ class ClearanceManager extends Component
     public function openApprovalModal(int $itemId, string $action = 'approve'): void
     {
         $item = ClearanceItem::find($itemId);
-        if (!$item || !$item->pendingApproval()->exists()) {
-            session()->flash('error', 'Item not available for approval');
+        if (!$item) {
+            session()->flash('error', 'Item not found');
+            return;
+        }
+
+        $status = $item->approval_status ?? 'manual';
+
+        // Approve & Reject: only for auto-suggested/pending items
+        // Decline: only for manual/approved/reversed items (stock was deducted)
+        if (in_array($action, ['approve', 'reject'])) {
+            $allowed = [ClearanceItem::APPROVAL_AUTO_SUGGESTED, ClearanceItem::APPROVAL_PENDING];
+        } else {
+            $allowed = [ClearanceItem::APPROVAL_APPROVED, ClearanceItem::APPROVAL_MANUAL, ClearanceItem::APPROVAL_REVERSED];
+        }
+
+        if (!in_array($status, $allowed)) {
+            session()->flash('error', 'Item not available for this action');
             return;
         }
 
@@ -337,22 +350,152 @@ class ClearanceManager extends Component
 
     public function submitApproval(): void
     {
-        $item = ClearanceItem::find($this->approval_item_id);
+        $item = ClearanceItem::with(['product', 'stockInItem'])->find($this->approval_item_id);
         if (!$item) return;
 
         if ($this->approval_action === 'approve') {
+            // Auto-suggested: approve and deduct stock from batch
+            if (in_array($item->approval_status, [ClearanceItem::APPROVAL_AUTO_SUGGESTED, ClearanceItem::APPROVAL_PENDING])) {
+                // Deduct stock from batch
+                if ($item->stockInItem) {
+                    $item->stockInItem->decrement('remaining_quantity', $item->quantity);
+
+                    // Deduct from ProductStock
+                    $productStock = \App\Models\ProductStock::where('branch_id', $item->branch_id)
+                        ->where('product_id', $item->product_id)
+                        ->first();
+                    if ($productStock) {
+                        $beforeStock = $productStock->current_stock;
+                        $productStock->decrement('current_stock', $item->quantity);
+
+                        \App\Models\StockMovement::create([
+                            'branch_id' => $item->branch_id,
+                            'product_id' => $item->product_id,
+                            'stock_in_receipt_id' => $item->stockInItem->stock_in_receipt_id ?? null,
+                            'user_id' => auth()->id(),
+                            'movement_type' => 'clearance_allocation',
+                            'quantity' => $item->quantity,
+                            'before_stock' => $beforeStock,
+                            'after_stock' => $beforeStock - $item->quantity,
+                            'unit_cost' => $item->original_price,
+                            'moved_at' => now(),
+                            'notes' => "Approved for clearance: {$item->product->name}",
+                        ]);
+                    }
+                }
+            }
             $item->approve($this->approval_notes);
             session()->flash('success', "✅ {$item->product->name} approved for clearance");
-        } elseif ($this->approval_action === 'decline') {
-            $item->decline($this->approval_notes);
-            session()->flash('success', "⏸ {$item->product->name} temporarily declined");
-        } else {
+
+        } elseif ($this->approval_action === 'reject') {
+            // Auto-suggested: just remove from list, no stock change
             $item->reject($this->approval_notes);
             session()->flash('success', "❌ {$item->product->name} rejected from clearance");
+
+        } else {
+            // Decline: restore stock back to batch
+            if ($item->stockInItem) {
+                $item->stockInItem->increment('remaining_quantity', $item->quantity);
+
+                $productStock = \App\Models\ProductStock::where('branch_id', $item->branch_id)
+                    ->where('product_id', $item->product_id)
+                    ->first();
+                if ($productStock) {
+                    $beforeStock = $productStock->current_stock;
+                    $productStock->increment('current_stock', $item->quantity);
+
+                    \App\Models\StockMovement::create([
+                        'branch_id' => $item->branch_id,
+                        'product_id' => $item->product_id,
+                        'stock_in_receipt_id' => $item->stockInItem->stock_in_receipt_id ?? null,
+                        'user_id' => auth()->id(),
+                        'movement_type' => 'clearance_reversal',
+                        'quantity' => $item->quantity,
+                        'before_stock' => $beforeStock,
+                        'after_stock' => $beforeStock + $item->quantity,
+                        'unit_cost' => $item->original_price,
+                        'moved_at' => now(),
+                        'notes' => "Declined from clearance, stock restored: {$item->product->name}",
+                    ]);
+                }
+            }
+            $item->decline($this->approval_notes);
+            session()->flash('success', "⏸ {$item->product->name} declined — stock restored to batch");
         }
 
         $this->closeApprovalModal();
-        $this->dispatch('clearance-updated');
+    }
+
+    /**
+     * Reverse a clearance action (approved/actioned back to pending)
+     */
+    public function reverseClearance(int $itemId): void
+    {
+        $item = ClearanceItem::with('product')->find($itemId);
+        if (!$item) return;
+
+        // If item was actioned (discount/donate/dispose), we can reverse it back
+        if ($item->status === ClearanceItem::STATUS_ACTIONED) {
+            // Restore the stock if it was reduced
+            if ($item->action_type === ClearanceItem::ACTION_DISCOUNT) {
+                // Discount didn't reduce stock, just reset price
+                $item->clearance_price = null;
+            }
+
+            $item->status = ClearanceDiscountRule::determineStatus($item->calculateDaysToExpiry());
+            $item->action_type = null;
+            $item->actioned_at = null;
+            $item->actioned_by = null;
+            $item->approval_status = ClearanceItem::APPROVAL_APPROVED;
+            $item->save();
+
+            ActivityLogger::log(
+                'clearance.reversed',
+                $item,
+                "Reversed clearance action for {$item->product->name}",
+                [],
+                $item->branch_id
+            );
+
+            session()->flash('success', "🔄 {$item->product->name} clearance action reversed");
+            return;
+        }
+
+        // If item was approved but not actioned, reverse to pending
+        if ($item->approval_status === ClearanceItem::APPROVAL_APPROVED) {
+            $item->approval_status = ClearanceItem::APPROVAL_PENDING;
+            $item->approval_notes = null;
+            $item->save();
+
+            ActivityLogger::log(
+                'clearance.approval_reversed',
+                $item,
+                "Reversed approval for {$item->product->name}",
+                [],
+                $item->branch_id
+            );
+
+            session()->flash('success', "🔄 {$item->product->name} approval reversed back to pending");
+            return;
+        }
+
+        // If item was declined/rejected, reverse to pending
+        if (in_array($item->approval_status, [ClearanceItem::APPROVAL_DECLINED, ClearanceItem::APPROVAL_REJECTED])) {
+            $item->approval_status = ClearanceItem::APPROVAL_PENDING;
+            $item->approval_notes = null;
+            $item->save();
+
+            ActivityLogger::log(
+                'clearance.rejection_reversed',
+                $item,
+                "Reversed rejection for {$item->product->name}",
+                [],
+                $item->branch_id
+            );
+
+            session()->flash('success', "🔄 {$item->product->name} reversed back to pending review");
+            return;
+        }
     }
 
     public function approveBulk(array $itemIds): void
@@ -360,29 +503,13 @@ class ClearanceManager extends Component
         $count = 0;
         foreach ($itemIds as $itemId) {
             $item = ClearanceItem::find($itemId);
-            if ($item && $item->pendingApproval()->exists()) {
+            if ($item && in_array($item->approval_status, [ClearanceItem::APPROVAL_AUTO_SUGGESTED, ClearanceItem::APPROVAL_PENDING])) {
                 $item->approve('Bulk approved by ' . auth()->user()->name);
                 $count++;
             }
         }
 
         session()->flash('success', "✅ {$count} items approved for clearance");
-        $this->dispatch('clearance-updated');
-    }
-
-    public function rejectBulk(array $itemIds): void
-    {
-        $count = 0;
-        foreach ($itemIds as $itemId) {
-            $item = ClearanceItem::find($itemId);
-            if ($item && $item->pendingApproval()->exists()) {
-                $item->reject('Bulk rejected by ' . auth()->user()->name);
-                $count++;
-            }
-        }
-
-        session()->flash('success', "❌ {$count} items rejected from clearance");
-        $this->dispatch('clearance-updated');
     }
 
     public function declineBulk(array $itemIds): void
@@ -390,14 +517,13 @@ class ClearanceManager extends Component
         $count = 0;
         foreach ($itemIds as $itemId) {
             $item = ClearanceItem::find($itemId);
-            if ($item && $item->pendingApproval()->exists()) {
+            if ($item && in_array($item->approval_status, [ClearanceItem::APPROVAL_AUTO_SUGGESTED, ClearanceItem::APPROVAL_PENDING])) {
                 $item->decline('Bulk declined by ' . auth()->user()->name);
                 $count++;
             }
         }
 
         session()->flash('success', "⏸ {$count} items temporarily declined");
-        $this->dispatch('clearance-updated');
     }
 
     public function render()

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\ActivityLogger;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -176,14 +177,11 @@ class ClearanceItem extends Model
             'expiry_date' => $this->expiry_date,
         ]);
 
-        // Update clearance item
-        $this->quantity -= $quantity;
-        if ($this->quantity <= 0) {
-            $this->action_type = self::ACTION_DONATE;
-            $this->status = self::STATUS_ACTIONED;
-            $this->actioned_at = now();
-            $this->actioned_by = auth()->id();
-        }
+        // Update clearance item — always mark as actioned (keep original quantity for records/reversal)
+        $this->action_type = self::ACTION_DONATE;
+        $this->status = self::STATUS_ACTIONED;
+        $this->actioned_at = now();
+        $this->actioned_by = auth()->id();
         $this->save();
 
         // Create action record
@@ -231,14 +229,11 @@ class ClearanceItem extends Model
             'expiry_date' => $this->expiry_date,
         ]);
 
-        // Update clearance item
-        $this->quantity -= $quantity;
-        if ($this->quantity <= 0) {
-            $this->action_type = self::ACTION_DISPOSE;
-            $this->status = self::STATUS_ACTIONED;
-            $this->actioned_at = now();
-            $this->actioned_by = auth()->id();
-        }
+        // Update clearance item — always mark as actioned (keep original quantity for records/reversal)
+        $this->action_type = self::ACTION_DISPOSE;
+        $this->status = self::STATUS_ACTIONED;
+        $this->actioned_at = now();
+        $this->actioned_by = auth()->id();
         $this->save();
 
         // Create action record
@@ -309,6 +304,10 @@ class ClearanceItem extends Model
     {
         $this->approval_status = self::APPROVAL_REJECTED;
         $this->approval_notes = $notes;
+        $this->action_type = 'rejected';
+        $this->status = self::STATUS_ACTIONED;
+        $this->actioned_at = now();
+        $this->actioned_by = auth()->id();
         $this->save();
 
         ActivityLogger::log(
@@ -327,6 +326,10 @@ class ClearanceItem extends Model
     {
         $this->approval_status = self::APPROVAL_DECLINED;
         $this->approval_notes = $notes;
+        $this->action_type = 'declined';
+        $this->status = self::STATUS_ACTIONED;
+        $this->actioned_at = now();
+        $this->actioned_by = auth()->id();
         $this->save();
 
         ActivityLogger::log(

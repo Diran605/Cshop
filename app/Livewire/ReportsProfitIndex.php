@@ -86,12 +86,12 @@ class ReportsProfitIndex extends Component
         $from = Carbon::parse($this->date_from)->startOfDay();
         $to = Carbon::parse($this->date_to)->endOfDay();
 
-        $categories = Category::query()
-            ->when($this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
-            ->orderBy('name')
-            ->get();
+        // Previous period calculation
+        $diff = $from->diffInDays($to);
+        $prevFrom = $from->copy()->subDays($diff + 1);
+        $prevTo = $from->copy()->subDay()->endOfDay();
 
-        $productsForFilter = Product::query()
+        $categories = Category::query()
             ->when($this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
             ->orderBy('name')
             ->get();
@@ -101,41 +101,21 @@ class ReportsProfitIndex extends Component
             ->join('products', 'products.id', '=', 'sales_items.product_id')
             ->when($this->branch_id > 0, fn ($q) => $q->where('sales_receipts.branch_id', $this->branch_id))
             ->whereNull('sales_receipts.voided_at')
-            ->whereBetween('sales_receipts.sold_at', [$from, $to]);
-
-        if ($this->category_id > 0) {
-            $salesItemsBase->where('products.category_id', $this->category_id);
-        }
-        if ($this->product_filter_id > 0) {
-            $salesItemsBase->where('sales_items.product_id', $this->product_filter_id);
-        }
-        if ($this->sale_mode === 'unit') {
-            $salesItemsBase->where('sales_items.entry_mode', 'unit');
-        } elseif ($this->sale_mode === 'bulk') {
-            $salesItemsBase->where('sales_items.entry_mode', 'bulk');
-        }
+            ->whereBetween('sales_receipts.sold_at', [$from, $to])
+            ->when($this->category_id > 0, fn ($q) => $q->where('products.category_id', $this->category_id));
 
         $summaryRow = (clone $salesItemsBase)
             ->select([
-                DB::raw('COUNT(DISTINCT sales_items.sales_receipt_id) as sales_count'),
                 DB::raw('SUM(sales_items.line_total) as sales_total'),
-                DB::raw('SUM(sales_items.line_cost) as cogs_total'),
                 DB::raw('SUM(sales_items.line_profit) as profit_total'),
-                DB::raw('SUM(CASE WHEN sales_items.is_low_profit = 1 THEN 1 ELSE 0 END) as low_profit_lines'),
-                DB::raw('SUM(CASE WHEN sales_items.is_loss = 1 THEN 1 ELSE 0 END) as loss_lines'),
             ])
             ->first();
 
-        $salesCount = (int) ($summaryRow?->sales_count ?? 0);
         $salesTotal = (float) ($summaryRow?->sales_total ?? 0);
-        $cogsTotal = (float) ($summaryRow?->cogs_total ?? 0);
-        $profitTotal = (float) ($summaryRow?->profit_total ?? 0);
-        $profitMargin = $salesTotal > 0 ? (($profitTotal / $salesTotal) * 100.0) : 0.0;
+        $grossProfit = (float) ($summaryRow?->profit_total ?? 0);
+        $grossMargin = $salesTotal > 0 ? (($grossProfit / $salesTotal) * 100) : 0;
 
-        $lowProfitLines = (int) ($summaryRow?->low_profit_lines ?? 0);
-        $lossLines = (int) ($summaryRow?->loss_lines ?? 0);
-
-        // Get expenses for the same period
+        // Expenses for current period
         $expenseTotal = Expense::query()
             ->when($this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
             ->whereNull('voided_at')
@@ -143,72 +123,124 @@ class ReportsProfitIndex extends Component
             ->sum('amount');
         $expenseTotal = (float) ($expenseTotal ?? 0);
 
-        // Calculate net profit (Gross Profit - Expenses)
-        $netProfit = $profitTotal - $expenseTotal;
-        $netProfitMargin = $salesTotal > 0 ? (($netProfit / $salesTotal) * 100.0) : 0.0;
+        $netProfit = $grossProfit - $expenseTotal;
+        $netMargin = $salesTotal > 0 ? (($netProfit / $salesTotal) * 100) : 0;
 
-        $profitByDay = (clone $salesItemsBase)
+        // Previous period summary
+        $prevSalesItemsBase = SalesItem::query()
+            ->join('sales_receipts', 'sales_receipts.id', '=', 'sales_items.sales_receipt_id')
+            ->join('products', 'products.id', '=', 'sales_items.product_id')
+            ->when($this->branch_id > 0, fn ($q) => $q->where('sales_receipts.branch_id', $this->branch_id))
+            ->whereNull('sales_receipts.voided_at')
+            ->whereBetween('sales_receipts.sold_at', [$prevFrom, $prevTo])
+            ->when($this->category_id > 0, fn ($q) => $q->where('products.category_id', $this->category_id));
+
+        $prevSummaryRow = $prevSalesItemsBase
+            ->select([
+                DB::raw('SUM(sales_items.line_total) as sales_total'),
+                DB::raw('SUM(sales_items.line_profit) as profit_total'),
+            ])
+            ->first();
+
+        $prevSalesTotal = (float) ($prevSummaryRow?->sales_total ?? 0);
+        $prevGrossProfit = (float) ($prevSummaryRow?->profit_total ?? 0);
+
+        // Previous expenses
+        $prevExpenseTotal = Expense::query()
+            ->when($this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
+            ->whereNull('voided_at')
+            ->whereBetween('expense_date', [$prevFrom->toDateString(), $prevTo->toDateString()])
+            ->sum('amount');
+        $prevExpenseTotal = (float) ($prevExpenseTotal ?? 0);
+
+        $prevNetProfit = $prevGrossProfit - $prevExpenseTotal;
+
+        // Changes
+        $grossProfitChange = $prevGrossProfit > 0 ? (($grossProfit - $prevGrossProfit) / $prevGrossProfit) * 100 : 0;
+        $netProfitChange = $prevNetProfit != 0 ? (($netProfit - $prevNetProfit) / abs($prevNetProfit)) * 100 : 0;
+        $expenseChange = $prevExpenseTotal > 0 ? (($expenseTotal - $prevExpenseTotal) / $prevExpenseTotal) * 100 : 0;
+        $marginChange = ($salesTotal > 0 && $prevSalesTotal > 0) ? ($grossMargin - ($prevGrossProfit / $prevSalesTotal * 100)) : 0;
+
+        // Profit Trend (Line Chart)
+        $profitByDayRaw = (clone $salesItemsBase)
             ->groupBy(DB::raw('DATE(sales_receipts.sold_at)'))
-            ->orderBy(DB::raw('DATE(sales_receipts.sold_at)'))
             ->get([
                 DB::raw('DATE(sales_receipts.sold_at) as day'),
+                DB::raw('SUM(sales_items.line_profit) as profit_total'),
                 DB::raw('SUM(sales_items.line_total) as sales_total'),
-                DB::raw('SUM(sales_items.line_cost) as cogs_total'),
+            ]);
+
+        $prevProfitByDayRaw = SalesItem::query()
+            ->join('sales_receipts', 'sales_receipts.id', '=', 'sales_items.sales_receipt_id')
+            ->join('products', 'products.id', '=', 'sales_items.product_id')
+            ->when($this->branch_id > 0, fn ($q) => $q->where('sales_receipts.branch_id', $this->branch_id))
+            ->whereNull('sales_receipts.voided_at')
+            ->whereBetween('sales_receipts.sold_at', [$prevFrom, $prevTo])
+            ->when($this->category_id > 0, fn ($q) => $q->where('products.category_id', $this->category_id))
+            ->groupBy(DB::raw('DATE(sales_receipts.sold_at)'))
+            ->get([
+                DB::raw('DATE(sales_receipts.sold_at) as day'),
                 DB::raw('SUM(sales_items.line_profit) as profit_total'),
             ]);
 
+        $profitByDay = [];
+        $daysCount = $from->diffInDays($to) + 1;
+        for ($i = 0; $i < $daysCount; $i++) {
+            $currentDay = $from->copy()->addDays($i)->toDateString();
+            $prevDay = $prevFrom->copy()->addDays($i)->toDateString();
+
+            $profitByDay[] = [
+                'day' => Carbon::parse($currentDay)->format('M d'),
+                'profit' => $profitByDayRaw->firstWhere('day', $currentDay)->profit_total ?? 0,
+                'revenue' => $profitByDayRaw->firstWhere('day', $currentDay)->sales_total ?? 0,
+                'prev_profit' => $prevProfitByDayRaw->firstWhere('day', $prevDay)->profit_total ?? 0,
+            ];
+        }
+
+        // Category Profitability (Bar Chart)
+        $categoryProfit = SalesItem::query()
+            ->join('sales_receipts', 'sales_receipts.id', '=', 'sales_items.sales_receipt_id')
+            ->join('products', 'products.id', '=', 'sales_items.product_id')
+            ->join('categories', 'categories.id', '=', 'products.category_id')
+            ->when($this->branch_id > 0, fn ($q) => $q->where('sales_receipts.branch_id', $this->branch_id))
+            ->whereNull('sales_receipts.voided_at')
+            ->whereBetween('sales_receipts.sold_at', [$from, $to])
+            ->groupBy('categories.id', 'categories.name')
+            ->orderByDesc('profit_total')
+            ->limit(10)
+            ->get([
+                'categories.name',
+                DB::raw('SUM(sales_items.line_profit) as profit_total'),
+                DB::raw('SUM(sales_items.line_total) as sales_total'),
+                DB::raw('(SUM(sales_items.line_profit) / SUM(sales_items.line_total) * 100) as margin'),
+            ]);
+
+        // Top Products by Profit (Table)
         $topProductsByProfit = (clone $salesItemsBase)
             ->groupBy('sales_items.product_id', 'products.name')
             ->orderByDesc('profit_total')
-            ->limit(15)
+            ->limit(10)
             ->get([
                 'products.name as product_name',
                 DB::raw('SUM(sales_items.quantity) as qty_sold'),
-                DB::raw('SUM(sales_items.line_total) as sales_total'),
-                DB::raw('SUM(sales_items.line_cost) as cogs_total'),
                 DB::raw('SUM(sales_items.line_profit) as profit_total'),
+                DB::raw('(SUM(sales_items.line_profit) / SUM(sales_items.line_total) * 100) as margin'),
             ]);
-
-        if (trim($this->search) !== '') {
-            $term = strtolower(trim($this->search));
-            $topProductsByProfit = $topProductsByProfit->filter(fn ($r) => str_contains(strtolower((string) $r->product_name), $term));
-        }
-
-        $branchesByProfit = collect();
-        if ($this->isSuperAdmin && $this->branch_id <= 0) {
-            $branchesByProfit = SalesItem::query()
-                ->join('sales_receipts', 'sales_receipts.id', '=', 'sales_items.sales_receipt_id')
-                ->join('branches', 'branches.id', '=', 'sales_receipts.branch_id')
-                ->whereNull('sales_receipts.voided_at')
-                ->whereBetween('sales_receipts.sold_at', [$from, $to])
-                ->groupBy('sales_receipts.branch_id', 'branches.name')
-                ->orderByDesc('profit_total')
-                ->limit(15)
-                ->get([
-                    'branches.name as branch_name',
-                    DB::raw('SUM(sales_items.line_total) as sales_total'),
-                    DB::raw('SUM(sales_items.line_cost) as cogs_total'),
-                    DB::raw('SUM(sales_items.line_profit) as profit_total'),
-                ]);
-        }
 
         return view('livewire.reports-profit-index', [
             'branches' => $branches,
             'categories' => $categories,
-            'productsForFilter' => $productsForFilter,
-            'salesCount' => $salesCount,
-            'salesTotal' => $salesTotal,
-            'cogsTotal' => $cogsTotal,
-            'profitTotal' => $profitTotal,
-            'profitMargin' => $profitMargin,
-            'expenseTotal' => $expenseTotal,
+            'grossProfit' => $grossProfit,
+            'grossProfitChange' => $grossProfitChange,
             'netProfit' => $netProfit,
-            'netProfitMargin' => $netProfitMargin,
-            'lowProfitLines' => $lowProfitLines,
-            'lossLines' => $lossLines,
+            'netProfitChange' => $netProfitChange,
+            'expenseTotal' => $expenseTotal,
+            'expenseChange' => $expenseChange,
+            'grossMargin' => $grossMargin,
+            'marginChange' => $marginChange,
             'profitByDay' => $profitByDay,
+            'categoryProfit' => $categoryProfit,
             'topProductsByProfit' => $topProductsByProfit,
-            'branchesByProfit' => $branchesByProfit,
             'isSuperAdmin' => $this->isSuperAdmin,
         ]);
     }

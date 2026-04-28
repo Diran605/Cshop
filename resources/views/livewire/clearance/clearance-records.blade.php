@@ -76,6 +76,8 @@
                             <option value="discount">{{ __('Discount') }}</option>
                             <option value="donate">{{ __('Donate') }}</option>
                             <option value="dispose">{{ __('Dispose') }}</option>
+                            <option value="declined">{{ __('Declined') }}</option>
+                            <option value="rejected">{{ __('Rejected') }}</option>
                         </select>
                     </div>
                     <div>
@@ -142,32 +144,51 @@
                                                 'discount' => 'bg-blue-100 text-blue-800',
                                                 'donate' => 'bg-purple-100 text-purple-800',
                                                 'dispose' => 'bg-red-100 text-red-800',
+                                                'declined' => 'bg-yellow-100 text-yellow-800',
+                                                'rejected' => 'bg-gray-100 text-gray-800',
                                                 default => 'bg-gray-100 text-gray-800',
                                             } }}">
                                                 {{ ucfirst($item->action_type) }}
                                             </span>
+                                            @if($item->actionedBy)
+                                                <div class="text-xs text-slate-400 mt-0.5">
+                                                    {{ $item->actionedBy->name }}
+                                                    @if($item->actioned_at)
+                                                        · {{ $item->actioned_at->format('d M H:i') }}
+                                                    @endif
+                                                </div>
+                                            @endif
                                         @else
                                             <span class="text-slate-400">-</span>
                                         @endif
                                     </td>
                                     <td class="text-center">
-                                        @can('clearance.records.view')
-                                            <button type="button" wire:click="openViewModal({{ $item->id }})" class="ui-btn-link text-xs">
-                                                {{ __('View') }}
-                                            </button>
-                                        @endcan
-                                        @if($item->status !== 'actioned')
-                                            @can('clearance.records.edit')
-                                                <button type="button" wire:click="openEditModal({{ $item->id }})" class="ui-btn-link text-xs">
-                                                    {{ __('Edit') }}
+                                        <div class="flex items-center justify-center gap-1">
+                                            @can('clearance.records.view')
+                                                <button type="button" wire:click="openViewModal({{ $item->id }})" class="ui-btn-link text-xs">
+                                                    {{ __('View') }}
                                                 </button>
                                             @endcan
-                                            @can('clearance.records.delete')
-                                                <button type="button" wire:click="delete({{ $item->id }})" class="ui-btn-link text-xs text-red-600" onclick="return confirm('Delete this record?')">
-                                                    {{ __('Delete') }}
-                                                </button>
-                                            @endcan
-                                        @endif
+                                            @if($item->status !== 'actioned')
+                                                @can('clearance.records.edit')
+                                                    <button type="button" wire:click="openEditModal({{ $item->id }})" class="ui-btn-link text-xs">
+                                                        {{ __('Edit') }}
+                                                    </button>
+                                                @endcan
+                                                @can('clearance.records.delete')
+                                                    <button type="button" wire:click="delete({{ $item->id }})" class="ui-btn-link text-xs text-red-600" onclick="return confirm('Delete this record?')">
+                                                        {{ __('Delete') }}
+                                                    </button>
+                                                @endcan
+                                            @endif
+                                            @if($item->status === 'actioned')
+                                                @can('clearance.reverse')
+                                                    <button type="button" wire:click="openReversalModal({{ $item->id }})" class="btn-xs bg-amber-100 text-amber-700 hover:bg-amber-200">
+                                                        🔄 {{ __('Reverse') }}
+                                                    </button>
+                                                @endcan
+                                            @endif
+                                        </div>
                                     </td>
                                 </tr>
                             @empty
@@ -312,6 +333,41 @@
                     </button>
                     <button type="button" wire:click="saveEdit" class="ui-btn-primary">
                         {{ __('Save') }}
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- Reversal Modal --}}
+    @if ($show_reversal_modal)
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-4" data-modal-root>
+            <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" wire:click="closeReversalModal" data-modal-overlay></div>
+            <div class="relative w-full max-w-md ui-card">
+                <div class="p-4 border-b border-slate-200">
+                    <div class="font-semibold text-slate-900">🔄 {{ __('Reverse Clearance Action') }}</div>
+                    <p class="text-sm text-slate-500 mt-1">{{ __('This will undo the clearance action and optionally restore stock.') }}</p>
+                </div>
+
+                <div class="p-4 space-y-4">
+                    <div>
+                        <label class="ui-label">{{ __('Reason for Reversal') }} *</label>
+                        <textarea wire:model="reversal_reason" class="mt-1 ui-input" rows="3" placeholder="{{ __('Why is this clearance action being reversed?') }}"></textarea>
+                        @error('reversal_reason') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <input type="checkbox" wire:model="reversal_restore_to_stock" id="restore_stock" class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
+                        <label for="restore_stock" class="text-sm text-slate-700">{{ __('Restore quantity back to stock') }}</label>
+                    </div>
+                </div>
+
+                <div class="p-4 border-t border-slate-200 flex justify-end gap-3">
+                    <button type="button" wire:click="closeReversalModal" class="ui-btn-secondary" data-modal-close>
+                        {{ __('Cancel') }}
+                    </button>
+                    <button type="button" wire:click="reverseAction" class="ui-btn-primary bg-amber-600 hover:bg-amber-700">
+                        🔄 {{ __('Reverse Action') }}
                     </button>
                 </div>
             </div>

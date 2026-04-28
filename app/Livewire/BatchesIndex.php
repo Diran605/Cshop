@@ -158,12 +158,17 @@ class BatchesIndex extends Component
             ]);
 
             // Create ClearanceItem
+            $expiryDate = $stockInItem->expiry_date ?? Carbon::today()->addDays(30)->toDateString();
+            $daysToExpiry = $stockInItem->expiry_date
+                ? (int) Carbon::today()->diffInDays(Carbon::parse($stockInItem->expiry_date), false)
+                : 30;
+
             $clearanceItem = ClearanceItem::create([
                 'branch_id' => $branchId,
                 'stock_in_item_id' => $this->selected_stock_in_item_id,
                 'product_id' => $stockInItem->product_id,
-                'expiry_date' => $stockInItem->expiry_date,
-                'days_to_expiry' => $stockInItem->expiry_date ? Carbon::today()->diffInDays(Carbon::parse($stockInItem->expiry_date), false) : null,
+                'expiry_date' => $expiryDate,
+                'days_to_expiry' => $daysToExpiry,
                 'status' => 'approaching',
                 'quantity' => $allocatedQty,
                 'original_price' => $sellingPrice,

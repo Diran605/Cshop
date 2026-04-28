@@ -149,7 +149,7 @@
                                 <td class="max-w-[120px] truncate">{{ $receipt->customer_name ?? '-' }}</td>
                                 <td class="text-center">{{ $receipt->items->count() }}</td>
                                 <td class="text-right font-mono text-green-700 whitespace-nowrap">
-                                    {{ number_format((float) $receipt->grand_total, 0) }}
+                                    XAF {{ number_format((float) $receipt->grand_total, 0) }}
                                 </td>
                                 <td class="text-center">
                                     @if ($receipt->voided_at)

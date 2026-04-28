@@ -113,6 +113,15 @@
                             <option value="all">{{ __('All') }}</option>
                         </select>
                     </div>
+                    <div class="w-48">
+                        <label class="block text-xs font-medium text-slate-600 mb-1">{{ __('Approval') }}</label>
+                        <select wire:model.live="filter_approval" class="ui-input">
+                            <option value="all">{{ __('All Approvals') }}</option>
+                            <option value="pending_approval">{{ __('⏳ Pending Review') }}</option>
+                            <option value="approved">{{ __('✅ Approved') }}</option>
+                            <option value="manual">{{ __('👤 Manual') }}</option>
+                        </select>
+                    </div>
                 </div>
             </div>
         </div>
@@ -129,6 +138,7 @@
                                     <th>{{ __('Expiry') }}</th>
                                     <th>{{ __('Days Left') }}</th>
                                     <th>{{ __('Status') }}</th>
+                                    <th>{{ __('Approval') }}</th>
                                     <th class="text-right">{{ __('Qty') }}</th>
                                     <th class="text-right">{{ __('Original Price') }}</th>
                                     <th class="text-right">{{ __('Suggested Discount') }}</th>
@@ -157,6 +167,25 @@
                                                 {{ ucfirst($item->status) }}
                                             </span>
                                         </td>
+                                        <td>
+                                            @php $as = $item->approval_status ?? 'manual'; @endphp
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
+                                                {{ $as === 'approved' ? 'bg-green-100 text-green-700' : '' }}
+                                                {{ $as === 'auto_suggested' || $as === 'pending_approval' ? 'bg-amber-100 text-amber-700' : '' }}
+                                                {{ $as === 'declined' ? 'bg-yellow-100 text-yellow-700' : '' }}
+                                                {{ $as === 'rejected' ? 'bg-red-100 text-red-700' : '' }}
+                                                {{ $as === 'manual' ? 'bg-blue-100 text-blue-700' : '' }}
+                                                {{ $as === 'reversed' ? 'bg-purple-100 text-purple-700' : '' }}
+                                            ">
+                                                {{ $as === 'auto_suggested' ? '🤖 Auto-Suggested' : '' }}
+                                                {{ $as === 'pending_approval' ? '⏳ Pending' : '' }}
+                                                {{ $as === 'approved' ? '✅ Approved' : '' }}
+                                                {{ $as === 'declined' ? '⏸ Declined' : '' }}
+                                                {{ $as === 'rejected' ? '❌ Rejected' : '' }}
+                                                {{ $as === 'manual' ? '👤 Manual' : '' }}
+                                                {{ $as === 'reversed' ? '🔄 Reversed' : '' }}
+                                            </span>
+                                        </td>
                                         <td class="text-right font-medium">{{ $item->quantity }}</td>
                                         <td class="text-right">XAF {{ number_format($item->original_price, 0, ',', ' ') }}</td>
                                         <td class="text-right">
@@ -174,36 +203,43 @@
                                             @endif
                                         </td>
                                         <td>
-                                            @if ($item->status !== 'actioned')
-                                                <div class="flex items-center gap-2">
+                                            <div class="flex flex-wrap items-center gap-1">
+                                                {{-- Approval actions for pending items --}}
+                                                @if (in_array($as, ['auto_suggested', 'pending_approval']))
+                                                    @can('clearance.approve')
+                                                        <button wire:click="openApprovalModal({{ $item->id }}, 'approve')" class="btn-xs bg-green-100 text-green-700 hover:bg-green-200" title="{{ __('Approve') }}">
+                                                            ✅ {{ __('Approve') }}
+                                                        </button>
+                                                        <button wire:click="openApprovalModal({{ $item->id }}, 'reject')" class="btn-xs bg-red-100 text-red-700 hover:bg-red-200" title="{{ __('Reject') }}">
+                                                            ❌ {{ __('Reject') }}
+                                                        </button>
+                                                    @endcan
+                                                @elseif ($item->status !== 'actioned' && in_array($as, ['approved', 'manual', 'reversed']))
+                                                    {{-- Clearance actions for approved/manual items --}}
                                                     @can('clearance.discount')
                                                         <button wire:click="openDiscountModal({{ $item->id }})" class="btn-xs bg-green-100 text-green-700 hover:bg-green-200" title="{{ __('Discount') }}">
-                                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                                                            </svg>
-                                                            {{ __('Discount') }}
+                                                            🏷️ {{ __('Discount') }}
                                                         </button>
                                                     @endcan
                                                     @can('clearance.donate')
                                                         <button wire:click="openDonateModal({{ $item->id }})" class="btn-xs bg-purple-100 text-purple-700 hover:bg-purple-200" title="{{ __('Donate') }}">
-                                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                                                            </svg>
-                                                            {{ __('Donate') }}
+                                                            💜 {{ __('Donate') }}
                                                         </button>
                                                     @endcan
                                                     @can('clearance.dispose')
                                                         <button wire:click="openDisposeModal({{ $item->id }})" class="btn-xs bg-red-100 text-red-700 hover:bg-red-200" title="{{ __('Dispose') }}">
-                                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                            </svg>
-                                                            {{ __('Dispose') }}
+                                                            🗑️ {{ __('Dispose') }}
                                                         </button>
                                                     @endcan
-                                                </div>
-                                            @else
-                                                <span class="text-xs text-green-600">{{ __('Completed') }}</span>
-                                            @endif
+                                                    @can('clearance.approve')
+                                                        <button wire:click="openApprovalModal({{ $item->id }}, 'decline')" class="btn-xs bg-yellow-100 text-yellow-700 hover:bg-yellow-200" title="{{ __('Decline & Restore Stock') }}">
+                                                            ⏸ {{ __('Decline') }}
+                                                        </button>
+                                                    @endcan
+                                                @elseif ($item->status === 'actioned')
+                                                    <span class="text-xs text-green-600">{{ __('Completed') }}</span>
+                                                @endif
+                                            </div>
                                         </td>
                                     </tr>
                                 @endforeach
@@ -362,9 +398,60 @@
         </div>
     @endif
 
+    {{-- Approval Modal --}}
+    @if ($show_approval_modal)
+        <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" wire:click.self="closeApprovalModal">
+            <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4">
+                <div class="p-6 border-b border-slate-200">
+                    <h3 class="text-lg font-semibold text-slate-900">
+                        @if ($approval_action === 'approve')
+                            ✅ {{ __('Approve for Clearance') }}
+                        @elseif ($approval_action === 'reject')
+                            ❌ {{ __('Reject from Clearance') }}
+                        @else
+                            ⏸ {{ __('Decline & Restore Stock') }}
+                        @endif
+                    </h3>
+                    <p class="text-sm text-slate-500 mt-1">
+                        @if ($approval_action === 'approve')
+                            {{ __('This item will be available for discount, donation, or disposal actions.') }}
+                        @elseif ($approval_action === 'reject')
+                            {{ __('This auto-suggested item will be removed from the clearance list. No stock changes.') }}
+                        @else
+                            {{ __('This item will be removed from clearance and stock will be restored back to the batch.') }}
+                        @endif
+                    </p>
+                </div>
+                <div class="p-6 space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">{{ __('Notes (optional)') }}</label>
+                        <textarea wire:model="approval_notes" class="ui-input" rows="3" placeholder="{{ __('Add any notes about this decision...') }}"></textarea>
+                    </div>
+                </div>
+                <div class="p-6 border-t border-slate-200 flex justify-end gap-3">
+                    <button wire:click="closeApprovalModal" class="ui-btn-secondary">{{ __('Cancel') }}</button>
+                    <button wire:click="submitApproval" class="{{ $approval_action === 'approve' ? 'ui-btn-primary' : ($approval_action === 'reject' ? 'ui-btn-primary bg-red-600 hover:bg-red-700' : 'ui-btn-primary bg-yellow-500 hover:bg-yellow-600') }}">
+                        @if ($approval_action === 'approve')
+                            ✅ {{ __('Approve') }}
+                        @elseif ($approval_action === 'reject')
+                            ❌ {{ __('Reject') }}
+                        @else
+                            ⏸ {{ __('Decline & Restore') }}
+                        @endif
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
+
     @if (session()->has('success'))
-        <div class="fixed bottom-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50">
+        <div class="fixed bottom-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50" x-data="{ show: true }" x-init="setTimeout(() => show = false, 4000)" x-show="show" x-transition>
             {{ session('success') }}
+        </div>
+    @endif
+    @if (session()->has('error'))
+        <div class="fixed bottom-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg z-50" x-data="{ show: true }" x-init="setTimeout(() => show = false, 4000)" x-show="show" x-transition>
+            {{ session('error') }}
         </div>
     @endif
 </div>

@@ -212,7 +212,7 @@
                                                 <td>{{ $expense->branch?->name ?? '-' }}</td>
                                                 <td>{{ strtoupper($expense->payment_method) }}</td>
                                                 <td>{{ $expense->expense_type ?: '-' }}</td>
-                                                <td class="text-right text-slate-900">{{ number_format((float) $expense->amount, 2) }}</td>
+                                                <td class="text-right text-slate-900">XAF {{ number_format((float) $expense->amount, 2) }}</td>
                                                 <td>{{ $expense->description ?: '-' }}</td>
                                                 <td>
                                                     @if ($expense->voided_at)
@@ -280,7 +280,7 @@
                         <div class="ui-muted-panel space-y-1">
                             <div class="flex items-center justify-between">
                                 <div>{{ __('Amount') }}</div>
-                                <div class="font-semibold text-slate-900">{{ number_format((float) $selectedExpense->amount, 2) }}</div>
+                                <div class="font-semibold text-slate-900">XAF {{ number_format((float) $selectedExpense->amount, 2) }}</div>
                             </div>
                             <div class="flex items-center justify-between">
                                 <div>{{ __('Method') }}</div>

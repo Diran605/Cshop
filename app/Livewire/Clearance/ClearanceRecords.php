@@ -270,10 +270,19 @@ class ClearanceRecords extends Component
                 $item->stockInItem->increment('remaining_quantity', $item->quantity);
             }
 
-            // Mark item as reversal pending
+            // Fully reset the clearance item back to a pending state
+            $daysToExpiry = $item->calculateDaysToExpiry();
+            $newStatus = \App\Models\ClearanceDiscountRule::determineStatus($daysToExpiry);
+
             $item->update([
+                'status' => $newStatus,
+                'action_type' => null,
+                'actioned_at' => null,
+                'actioned_by' => null,
+                'clearance_price' => null,
                 'approval_status' => 'reversed',
                 'approval_notes' => "Reversal by " . auth()->user()->name . ": {$this->reversal_reason}",
+                'days_to_expiry' => $daysToExpiry,
             ]);
 
             ActivityLogger::log(

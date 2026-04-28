@@ -1,289 +1,350 @@
 <div class="ui-page">
-    <div class="ui-page-container print-container">
-        <div class="mb-6">
-            <h2 class="ui-page-title">{{ __('Stock Report') }}</h2>
-            <div class="ui-page-subtitle">{{ __('Stock levels, low stock alerts, and movement summary.') }}</div>
+    <div class="ui-page-container">
+        <!-- Header Section -->
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+            <div>
+                <h1 class="ui-page-title">{{ __('Stock Report') }}</h1>
+                <p class="ui-page-subtitle">{{ __('Monitor inventory levels and movement.') }}</p>
+            </div>
+            <div class="flex items-center gap-3 no-print">
+                <div class="ui-tabs">
+                    <a href="{{ route('reports.index') }}" class="ui-tab">{{ __('Sales') }}</a>
+                    <a href="{{ route('reports.profit') }}" class="ui-tab">{{ __('Profit') }}</a>
+                    <a href="{{ route('reports.stock') }}" class="ui-tab ui-tab-active">{{ __('Stock') }}</a>
+                    <a href="{{ route('reports.expenses') }}" class="ui-tab">{{ __('Expenses') }}</a>
+                    <a href="{{ route('reports.expiry') }}" class="ui-tab">{{ __('Expiry') }}</a>
+                    <a href="{{ route('clearance.reports') }}" class="ui-tab">{{ __('Clearance') }}</a>
+                    <a href="{{ route('daily_summary.index') }}" class="ui-tab">{{ __('Summary') }}</a>
+                    <a href="{{ route('stock_valuation.index') }}" class="ui-tab">{{ __('Valuation') }}</a>
+                </div>
+                <button onclick="window.print()" class="ui-btn-primary">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                    </svg>
+                    {{ __('Print') }}
+                </button>
+            </div>
         </div>
 
-        <style>
-            @media print {
-                .no-print {
-                    display: none !important;
-                }
-
-                .print-container {
-                    max-width: 100% !important;
-                    margin: 0 !important;
-                    padding: 0 !important;
-                }
-            }
-        </style>
-
-        <div class="ui-card no-print">
+        <!-- Filters Section -->
+        <div class="ui-card mb-8 no-print">
             <div class="ui-card-body">
-                <div class="flex flex-wrap items-center justify-between gap-3">
-                    <div class="inline-flex items-center gap-2">
-                        <a href="{{ route('reports.index') }}" class="ui-btn-secondary">{{ __('Sales') }}</a>
-                        <a href="{{ route('reports.profit') }}" class="ui-btn-secondary">{{ __('Profit') }}</a>
-                        <a href="{{ route('reports.stock') }}" class="ui-btn-primary">{{ __('Stock') }}</a>
-                        <a href="{{ route('reports.expenses') }}" class="ui-btn-secondary">{{ __('Expenses') }}</a>
-                        <a href="{{ route('reports.expiry') }}" class="ui-btn-secondary">{{ __('Expiry') }}</a>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <!-- Date Range -->
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="ui-label mb-1">{{ __('From') }}</label>
+                            <input type="date" wire:model.live="date_from" class="ui-input">
+                        </div>
+                        <div>
+                            <label class="ui-label mb-1">{{ __('To') }}</label>
+                            <input type="date" wire:model.live="date_to" class="ui-input">
+                        </div>
                     </div>
-                    <button type="button" onclick="window.print()" class="ui-btn-primary">{{ __('Print') }}</button>
-                </div>
 
-                <div class="mt-4 grid grid-cols-1 lg:grid-cols-6 gap-4">
+                    <!-- Branch Selection -->
                     <div>
-                        <label class="ui-label">{{ __('Branch') }}</label>
+                        <label class="ui-label mb-1">{{ __('Branch') }}</label>
                         @if ($isSuperAdmin)
-                            <select wire:model="branch_id" class="mt-1 ui-select">
-                                <option value="0">{{ __('All') }}</option>
+                            <select wire:model.live="branch_id" class="ui-select">
+                                <option value="0">{{ __('All Branches') }}</option>
                                 @foreach ($branches as $branch)
                                     <option value="{{ $branch->id }}">{{ $branch->name }}</option>
                                 @endforeach
                             </select>
                         @else
-                            <div class="mt-1 rounded-lg border border-slate-300/80 bg-white/60 px-3 py-2 text-sm text-slate-700">
-                                {{ $branches->first()?->name ?? '-' }}
+                            <div class="ui-input bg-slate-50 text-slate-600">
+                                {{ $branches->first()?->name ?? __('My Branch') }}
                             </div>
                         @endif
                     </div>
 
+                    <!-- Category Selection -->
                     <div>
-                        <label class="ui-label">{{ __('From') }}</label>
-                        <input type="date" wire:model="date_from" class="mt-1 ui-input" />
-                    </div>
-
-                    <div>
-                        <label class="ui-label">{{ __('To') }}</label>
-                        <input type="date" wire:model="date_to" class="mt-1 ui-input" />
-                    </div>
-
-                    <div class="flex items-end">
-                        <label class="inline-flex items-center">
-                            <input type="checkbox" wire:model="low_stock_only" class="ui-checkbox" />
-                            <span class="ms-2 text-sm text-slate-700">{{ __('Low stock only') }}</span>
-                        </label>
-                    </div>
-
-                    <div class="lg:col-span-2">
-                        <label class="ui-label">{{ __('Search') }}</label>
-                        <input type="text" wire:model.live.debounce.300ms="search" class="mt-1 ui-input" placeholder="Search product name..." />
+                        <label class="ui-label mb-1">{{ __('Category') }}</label>
+                        <select wire:model.live="category_id" class="ui-select">
+                            <option value="0">{{ __('All Categories') }}</option>
+                            @foreach ($categories as $cat)
+                                <option value="{{ $cat->id }}">{{ $cat->name }}</option>
+                            @endforeach
+                        </select>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div class="ui-card">
-                <div class="ui-card-body">
-                    <div class="text-sm text-slate-500">{{ __('Products') }}</div>
-                    <div class="mt-1 text-2xl font-semibold text-slate-900">{{ number_format((int) $totalProducts) }}</div>
+        <!-- Metrics Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+            <!-- Stock In -->
+            <div class="ui-kpi-card">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="ui-kpi-title">{{ __('Stock In') }}</div>
+                    <div class="flex items-center gap-1 {{ $stockInChange >= 0 ? 'text-emerald-600' : 'text-rose-600' }} text-xs font-bold bg-slate-50 px-2 py-1 rounded-full">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $stockInChange >= 0 ? 'M5 10l7-7m0 0l7 7m-7-7v18' : 'M19 14l-7 7m0 0l-7-7m7 7V3' }}" />
+                        </svg>
+                        {{ abs(round($stockInChange, 1)) }}%
+                    </div>
+                </div>
+                <div class="ui-kpi-value">{{ number_format($currentStockIn) }}</div>
+                <div class="text-xs text-slate-400 mt-1">{{ __('vs previous period') }}</div>
+            </div>
+
+            <!-- Sold Qty -->
+            <div class="ui-kpi-card">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="ui-kpi-title">{{ __('Items Sold') }}</div>
+                    <div class="flex items-center gap-1 {{ $soldChange >= 0 ? 'text-emerald-600' : 'text-rose-600' }} text-xs font-bold bg-slate-50 px-2 py-1 rounded-full">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $soldChange >= 0 ? 'M5 10l7-7m0 0l7 7m-7-7v18' : 'M19 14l-7 7m0 0l-7-7m7 7V3' }}" />
+                        </svg>
+                        {{ abs(round($soldChange, 1)) }}%
+                    </div>
+                </div>
+                <div class="ui-kpi-value">{{ number_format($currentSold) }}</div>
+                <div class="text-xs text-slate-400 mt-1">{{ __('vs previous period') }}</div>
+            </div>
+
+            <!-- Current Value -->
+            <div class="ui-kpi-card">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="ui-kpi-title">{{ __('Current Stock Value') }}</div>
+                </div>
+                <div class="ui-kpi-value text-green-600">XAF {{ number_format($metrics->total_value, 2) }}</div>
+                <div class="text-xs text-slate-400 mt-1">{{ __('Based on cost price') }}</div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+            <!-- Total Items -->
+            <div class="ui-kpi-card border-l-4 border-l-blue-500">
+                <div class="ui-kpi-title">{{ __('Total Unique Items') }}</div>
+                <div class="ui-kpi-value mt-2">{{ number_format($metrics->total_items) }}</div>
+            </div>
+
+            <!-- Low Stock -->
+            <div class="ui-kpi-card border-l-4 border-l-amber-500">
+                <div class="ui-kpi-title">{{ __('Low Stock') }}</div>
+                <div class="mt-2 flex items-center justify-between">
+                    <div class="ui-kpi-value text-amber-600">{{ number_format($metrics->low_stock) }}</div>
+                    @if($metrics->low_stock > 0)
+                        <span class="flex h-3 w-3 rounded-full bg-amber-500 animate-pulse"></span>
+                    @endif
                 </div>
             </div>
-            <div class="ui-card">
-                <div class="ui-card-body">
-                    <div class="text-sm text-slate-500">{{ __('Low Stock') }}</div>
-                    <div class="mt-1 text-2xl font-semibold text-slate-900">{{ number_format((int) $lowStockCount) }}</div>
+
+            <!-- Out of Stock -->
+            <div class="ui-kpi-card border-l-4 border-l-rose-500">
+                <div class="ui-kpi-title">{{ __('Out of Stock') }}</div>
+                <div class="mt-2 flex items-center justify-between">
+                    <div class="ui-kpi-value text-rose-600">{{ number_format($metrics->out_of_stock) }}</div>
+                    @if($metrics->out_of_stock > 0)
+                        <span class="flex h-3 w-3 rounded-full bg-rose-500 animate-pulse"></span>
+                    @endif
                 </div>
             </div>
         </div>
 
-        <div class="mt-6 ui-card">
-            <div class="ui-card-body">
-                <h3 class="ui-card-title">{{ __('Stock Levels') }}</h3>
+        <!-- Charts Section -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            <!-- Stock Movement -->
+            <div class="ui-card">
+                <div class="ui-card-body">
+                    <h3 class="ui-card-title mb-6">{{ __('Stock Movement') }}</h3>
+                    <div class="h-80" wire:ignore>
+                        <canvas id="stockMovementChart"></canvas>
+                    </div>
+                </div>
+            </div>
 
-                <div class="mt-4 overflow-x-auto">
-                    <div class="ui-table-wrap">
-                        <table class="ui-table">
-                            <thead>
-                                <tr>
-                                    <th>{{ __('Product') }}</th>
-                                    <th class="text-right">{{ __('Current') }}</th>
-                                    <th class="text-right">{{ __('Min') }}</th>
-                                    <th class="text-right">{{ __('Stock In Qty') }}</th>
-                                    <th class="text-right">{{ __('Sold Qty') }}</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach ($movementRows as $row)
-                                    <tr>
-                                        <td class="font-medium text-slate-900">{{ $row['product_name'] }}</td>
-                                        <td class="text-right {{ (int) $row['current_stock'] <= (int) $row['minimum_stock'] ? 'text-red-700 font-semibold' : '' }}">
-                                            {{ number_format((int) $row['current_stock']) }}
-                                            @if (!empty($row['unit_type_name']))
-                                                <span class="text-xs text-slate-500 ml-1">{{ $row['unit_type_name'] }}</span>
-                                            @endif
-                                        </td>
-                                        <td class="text-right">{{ number_format((int) $row['minimum_stock']) }}</td>
-                                        <td class="text-right">{{ number_format((int) $row['stock_in_qty']) }}</td>
-                                        <td class="text-right">{{ number_format((int) $row['sold_qty']) }}</td>
-                                    </tr>
-                                @endforeach
-
-                                @if (count($movementRows) === 0)
-                                    <tr>
-                                        <td colspan="5" class="ui-table-empty">{{ __('No stock records found.') }}</td>
-                                    </tr>
-                                @endif
-                            </tbody>
-                        </table>
+            <!-- Category Breakdown -->
+            <div class="ui-card">
+                <div class="ui-card-body">
+                    <h3 class="ui-card-title mb-6">{{ __('Stock by Category') }}</h3>
+                    <div class="h-80" wire:ignore>
+                        <canvas id="stockCategoryChart"></canvas>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="mt-6 ui-card no-print">
-            <div class="ui-card-body">
-                <h3 class="ui-card-title">{{ __('Stock Trend') }}</h3>
-                <div class="mt-1 text-sm text-slate-600">{{ __('Stock-in vs Sold (by day)') }}</div>
-
-                @php
-                    $trendMap = [];
-                    foreach ($stockInByDay as $row) {
-                        $trendMap[(string) $row->day] = [
-                            'day' => (string) $row->day,
-                            'stock_in_qty' => (int) ($row->stock_in_qty ?? 0),
-                            'sold_qty' => 0,
-                        ];
-                    }
-                    foreach ($soldByDay as $row) {
-                        $day = (string) $row->day;
-                        if (! isset($trendMap[$day])) {
-                            $trendMap[$day] = [
-                                'day' => $day,
-                                'stock_in_qty' => 0,
-                                'sold_qty' => (int) ($row->sold_qty ?? 0),
-                            ];
-                        } else {
-                            $trendMap[$day]['sold_qty'] = (int) ($row->sold_qty ?? 0);
-                        }
-                    }
-                    ksort($trendMap);
-                    $trend = array_values($trendMap);
-
-                    $trendLabels = array_map(fn ($r) => (string) $r['day'], $trend);
-                    $trendIn = array_map(fn ($r) => (int) $r['stock_in_qty'], $trend);
-                    $trendSold = array_map(fn ($r) => (int) $r['sold_qty'], $trend);
-                @endphp
-
-                <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-
-                <div class="mt-4" wire:ignore>
-                    <canvas id="stockTrendChart" height="100"></canvas>
-                </div>
-
-                @script
-                <script>
-                    function renderStockChart() {
-                        const el = document.getElementById('stockTrendChart');
-                        if (!el || !window.Chart) return;
-
-                        const labels = @json($trendLabels);
-                        const stockIn = @json($trendIn);
-                        const sold = @json($trendSold);
-
-                        if (el._chart) { el._chart.destroy(); }
-
-                        el._chart = new Chart(el, {
-                            type: 'bar',
-                            data: {
-                                labels,
-                                datasets: [
-                                    { label: 'Stock In', data: stockIn, backgroundColor: 'rgba(37, 99, 235, 0.25)', borderColor: '#2563EB', borderWidth: 1 },
-                                    { label: 'Sold', data: sold, backgroundColor: 'rgba(220, 38, 38, 0.20)', borderColor: '#DC2626', borderWidth: 1 },
-                                ]
-                            },
-                            options: {
-                                responsive: true, maintainAspectRatio: false,
-                                plugins: { legend: { position: 'bottom' } },
-                                scales: { y: { beginAtZero: true } }
-                            }
-                        });
-                    }
-
-                    function initStockChart() {
-                        if (typeof window.Chart === 'undefined') {
-                            setTimeout(initStockChart, 100);
-                            return;
-                        }
-                        renderStockChart();
-                    }
-                    
-                    initStockChart();
-                    Livewire.hook('morph.updated', () => { setTimeout(initStockChart, 100); });
-                    document.addEventListener('livewire:navigated', () => { setTimeout(initStockChart, 100); });
-                </script>
-                @endscript
+        <!-- Attention List Table -->
+        <div class="ui-card overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                <h3 class="ui-card-title">{{ __('Low Stock Attention List') }}</h3>
+                <span class="ui-badge-warning">
+                    {{ __('Top 10 Critical Items') }}
+                </span>
             </div>
-        </div>
-
-        <div class="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div class="ui-card">
-                <div class="ui-card-body">
-                    <h3 class="ui-card-title">{{ __('Fast Moving Products') }}</h3>
-                    <div class="mt-1 text-sm text-slate-600">{{ __('Top 10 by sold quantity') }}</div>
-
-                    <div class="mt-4 overflow-x-auto">
-                        <div class="ui-table-wrap">
-                            <table class="ui-table">
-                                <thead>
-                                    <tr>
-                                        <th>{{ __('Product') }}</th>
-                                        <th class="text-right">{{ __('Sold Qty') }}</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach ($fastMoving as $row)
-                                        <tr>
-                                            <td class="font-medium text-slate-900">{{ $row['product_name'] }}</td>
-                                            <td class="text-right">{{ number_format((int) $row['sold_qty']) }}</td>
-                                        </tr>
-                                    @endforeach
-                                    @if (count($fastMoving) === 0)
-                                        <tr>
-                                            <td colspan="2" class="ui-table-empty">{{ __('No data found.') }}</td>
-                                        </tr>
-                                    @endif
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="ui-card">
-                <div class="ui-card-body">
-                    <h3 class="ui-card-title">{{ __('Slow Moving Products') }}</h3>
-                    <div class="mt-1 text-sm text-slate-600">{{ __('Bottom 10 (excluding zero sales)') }}</div>
-
-                    <div class="mt-4 overflow-x-auto">
-                        <div class="ui-table-wrap">
-                            <table class="ui-table">
-                                <thead>
-                                    <tr>
-                                        <th>{{ __('Product') }}</th>
-                                        <th class="text-right">{{ __('Sold Qty') }}</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach ($slowMoving as $row)
-                                        <tr>
-                                            <td class="font-medium text-slate-900">{{ $row['product_name'] }}</td>
-                                            <td class="text-right">{{ number_format((int) $row['sold_qty']) }}</td>
-                                        </tr>
-                                    @endforeach
-                                    @if (count($slowMoving) === 0)
-                                        <tr>
-                                            <td colspan="2" class="ui-table-empty">{{ __('No data found.') }}</td>
-                                        </tr>
-                                    @endif
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
+            <div class="ui-table-wrap border-0 rounded-none shadow-none">
+                <table class="ui-table">
+                    <thead>
+                        <tr>
+                            <th>{{ __('Product') }}</th>
+                            <th>{{ __('Category') }}</th>
+                            <th class="text-right">{{ __('Min') }}</th>
+                            <th class="text-right">{{ __('Current') }}</th>
+                            <th class="text-right">{{ __('Status') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($attentionList as $item)
+                        <tr>
+                            <td>
+                                <div class="font-medium text-slate-900">{{ $item->product_name }}</div>
+                            </td>
+                            <td>{{ $item->product?->category?->name }}</td>
+                            <td class="text-right">{{ number_format($item->minimum_stock) }}</td>
+                            <td class="text-right font-semibold {{ $item->current_stock <= 0 ? 'text-rose-600' : 'text-amber-600' }}">
+                                {{ number_format($item->current_stock) }} {{ $item->product?->unitType?->name }}
+                            </td>
+                            <td class="text-right">
+                                <span class="{{ $item->current_stock <= 0 ? 'ui-badge-danger' : 'ui-badge-warning' }}">
+                                    {{ $item->current_stock <= 0 ? __('Out of Stock') : __('Low Stock') }}
+                                </span>
+                            </td>
+                        </tr>
+                        @endforeach
+                        @if($attentionList->isEmpty())
+                        <tr>
+                            <td colspan="5" class="ui-table-empty">
+                                {{ __('All items are above minimum stock levels.') }}
+                            </td>
+                        </tr>
+                        @endif
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+    @script
+    <script>
+        let movementChart = null;
+        let categoryChart = null;
+
+        function initCharts() {
+            const movementCtx = document.getElementById('stockMovementChart');
+            const categoryCtx = document.getElementById('stockCategoryChart');
+
+            if (movementChart) movementChart.destroy();
+            if (categoryChart) categoryChart.destroy();
+
+            // Movement Chart (Trend)
+            const trendData = @json($trendData);
+            movementChart = new Chart(movementCtx, {
+                type: 'bar',
+                data: {
+                    labels: trendData.map(d => d.day),
+                    datasets: [
+                        {
+                            label: 'Stock In',
+                            data: trendData.map(d => d.in),
+                            backgroundColor: '#3b82f6',
+                            borderRadius: 4
+                        },
+                        {
+                            label: 'Sold',
+                            data: trendData.map(d => d.out),
+                            backgroundColor: '#f43f5e',
+                            borderRadius: 4
+                        },
+                        {
+                            label: 'Prev. Stock In',
+                            data: trendData.map(d => d.prev_in),
+                            backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                            borderRadius: 4,
+                            hidden: true
+                        },
+                        {
+                            label: 'Prev. Sold',
+                            data: trendData.map(d => d.prev_out),
+                            backgroundColor: 'rgba(244, 63, 94, 0.2)',
+                            borderRadius: 4,
+                            hidden: true
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { 
+                            position: 'top',
+                            align: 'end',
+                            labels: {
+                                boxWidth: 10,
+                                usePointStyle: true,
+                                pointStyle: 'circle'
+                            }
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ' + context.parsed.y.toLocaleString();
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: { 
+                            beginAtZero: true, 
+                            grid: { borderDash: [2, 2], color: '#f1f5f9' },
+                            ticks: {
+                                callback: value => value.toLocaleString()
+                            }
+                        },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+
+            // Category Chart (Breakdown)
+            const catData = @json($categoryStock);
+            categoryChart = new Chart(categoryCtx, {
+                type: 'pie',
+                data: {
+                    labels: catData.map(d => d.name),
+                    datasets: [{
+                        data: catData.map(d => d.stock_value),
+                        backgroundColor: [
+                            '#6366f1', '#10b981', '#f59e0b', '#ef4444', '#3b82f6',
+                            '#8b5cf6', '#ec4899', '#06b6d4', '#f97316', '#14b8a6'
+                        ],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { 
+                            position: 'right',
+                            labels: {
+                                boxWidth: 10,
+                                usePointStyle: true,
+                                pointStyle: 'circle'
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.label + ': XAF ' + context.parsed.toLocaleString();
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        initCharts();
+        Livewire.on('updated', () => { setTimeout(initCharts, 100); });
+    </script>
+    @endscript
 </div>
+

@@ -1,190 +1,308 @@
 <div class="ui-page">
-    <div class="ui-page-container print-container">
-        <div class="mb-6">
-            <h2 class="ui-page-title">{{ __('Expense Report') }}</h2>
-            <div class="ui-page-subtitle">{{ __('Expense breakdown and monthly operational costs.') }}</div>
+    <div class="ui-page-container">
+        <!-- Header Section -->
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+            <div>
+                <h1 class="ui-page-title">{{ __('Expense Report') }}</h1>
+                <p class="ui-page-subtitle">{{ __('Monitor operational costs and expense trends.') }}</p>
+            </div>
+            <div class="flex items-center gap-3 no-print">
+                <div class="ui-tabs">
+                    <a href="{{ route('reports.index') }}" class="ui-tab">{{ __('Sales') }}</a>
+                    <a href="{{ route('reports.profit') }}" class="ui-tab">{{ __('Profit') }}</a>
+                    <a href="{{ route('reports.stock') }}" class="ui-tab">{{ __('Stock') }}</a>
+                    <a href="{{ route('reports.expenses') }}" class="ui-tab ui-tab-active">{{ __('Expenses') }}</a>
+                    <a href="{{ route('reports.expiry') }}" class="ui-tab">{{ __('Expiry') }}</a>
+                    <a href="{{ route('clearance.reports') }}" class="ui-tab">{{ __('Clearance') }}</a>
+                    <a href="{{ route('daily_summary.index') }}" class="ui-tab">{{ __('Summary') }}</a>
+                    <a href="{{ route('stock_valuation.index') }}" class="ui-tab">{{ __('Valuation') }}</a>
+                </div>
+                <button onclick="window.print()" class="ui-btn-primary">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                    </svg>
+                    {{ __('Print') }}
+                </button>
+            </div>
         </div>
 
-        <style>
-            @media print {
-                .no-print {
-                    display: none !important;
-                }
-
-                .print-container {
-                    max-width: 100% !important;
-                    margin: 0 !important;
-                    padding: 0 !important;
-                }
-            }
-        </style>
-
-        <div class="ui-card no-print">
+        <!-- Filters Section -->
+        <div class="ui-card mb-8 no-print">
             <div class="ui-card-body">
-                <div class="flex flex-wrap items-center justify-between gap-3">
-                    <div class="inline-flex items-center gap-2">
-                        <a href="{{ route('reports.index') }}" class="ui-btn-secondary">{{ __('Sales') }}</a>
-                        <a href="{{ route('reports.profit') }}" class="ui-btn-secondary">{{ __('Profit') }}</a>
-                        <a href="{{ route('reports.stock') }}" class="ui-btn-secondary">{{ __('Stock') }}</a>
-                        <a href="{{ route('reports.expenses') }}" class="ui-btn-primary">{{ __('Expenses') }}</a>
-                        <a href="{{ route('reports.expiry') }}" class="ui-btn-secondary">{{ __('Expiry') }}</a>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <!-- Date Range -->
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="ui-label mb-1">{{ __('From') }}</label>
+                            <input type="date" wire:model.live="date_from" class="ui-input">
+                        </div>
+                        <div>
+                            <label class="ui-label mb-1">{{ __('To') }}</label>
+                            <input type="date" wire:model.live="date_to" class="ui-input">
+                        </div>
                     </div>
-                    <button type="button" onclick="window.print()" class="ui-btn-primary">{{ __('Print') }}</button>
-                </div>
 
-                <div class="mt-4 grid grid-cols-1 lg:grid-cols-5 gap-4">
+                    <!-- Branch Selection -->
                     <div>
-                        <label class="ui-label">{{ __('Branch') }}</label>
+                        <label class="ui-label mb-1">{{ __('Branch') }}</label>
                         @if ($isSuperAdmin)
-                            <select wire:model="branch_id" class="mt-1 ui-select">
-                                <option value="0">{{ __('All') }}</option>
+                            <select wire:model.live="branch_id" class="ui-select">
+                                <option value="0">{{ __('All Branches') }}</option>
                                 @foreach ($branches as $branch)
                                     <option value="{{ $branch->id }}">{{ $branch->name }}</option>
                                 @endforeach
                             </select>
                         @else
-                            <div class="mt-1 rounded-lg border border-slate-300/80 bg-white/60 px-3 py-2 text-sm text-slate-700">
-                                {{ $branches->first()?->name ?? '-' }}
+                            <div class="ui-input bg-slate-50 text-slate-600">
+                                {{ $branches->first()?->name ?? __('My Branch') }}
                             </div>
                         @endif
                     </div>
 
+                    <!-- Search -->
                     <div>
-                        <label class="ui-label">{{ __('From') }}</label>
-                        <input type="date" wire:model="date_from" class="mt-1 ui-input" />
-                    </div>
-
-                    <div>
-                        <label class="ui-label">{{ __('To') }}</label>
-                        <input type="date" wire:model="date_to" class="mt-1 ui-input" />
-                    </div>
-
-                    <div>
-                        <label class="ui-label">{{ __('Status') }}</label>
-                        <select wire:model="expense_status" class="mt-1 ui-select">
-                            <option value="active">{{ __('Active') }}</option>
-                            <option value="voided">{{ __('Voided') }}</option>
-                            <option value="all">{{ __('All') }}</option>
-                        </select>
-                    </div>
-
-                    <div>
-                        <label class="ui-label">{{ __('Search') }}</label>
-                        <input type="text" wire:model.live.debounce.300ms="search" class="mt-1 ui-input" placeholder="Search expense..." />
+                        <label class="ui-label mb-1">{{ __('Search Expenses') }}</label>
+                        <div class="relative">
+                            <input type="text" wire:model.live.debounce.300ms="search" placeholder="Search by description, type..." class="ui-input pl-10">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <svg class="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                </svg>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-6">
+        <!-- Metrics Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <!-- Total Expense Amount -->
+            <div class="ui-kpi-card">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="ui-kpi-title">{{ __('Total Expenses') }}</div>
+                    <div class="flex items-center gap-1 {{ $expenseTotalChange <= 0 ? 'text-emerald-600' : 'text-rose-600' }} text-xs font-bold bg-slate-50 px-2 py-1 rounded-full">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $expenseTotalChange <= 0 ? 'M19 14l-7 7m0 0l-7-7m7 7V3' : 'M5 10l7-7m0 0l7 7m-7-7v18' }}" />
+                        </svg>
+                        {{ abs(round($expenseTotalChange, 1)) }}%
+                    </div>
+                </div>
+                <div class="ui-kpi-value">XAF {{ number_format($expenseTotal, 2) }}</div>
+                <div class="text-xs text-slate-400 mt-1">{{ __('vs previous period') }}</div>
+            </div>
+
+            <!-- Expense Count -->
+            <div class="ui-kpi-card">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="ui-kpi-title">{{ __('Transaction Count') }}</div>
+                    <div class="flex items-center gap-1 {{ $expenseCountChange <= 0 ? 'text-emerald-600' : 'text-rose-600' }} text-xs font-bold bg-slate-50 px-2 py-1 rounded-full">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $expenseCountChange <= 0 ? 'M19 14l-7 7m0 0l-7-7m7 7V3' : 'M5 10l7-7m0 0l7 7m-7-7v18' }}" />
+                        </svg>
+                        {{ abs(round($expenseCountChange, 1)) }}%
+                    </div>
+                </div>
+                <div class="ui-kpi-value">{{ number_format($expenseCount) }}</div>
+                <div class="text-xs text-slate-400 mt-1">{{ __('vs previous period') }}</div>
+            </div>
+        </div>
+
+        <!-- Charts Section -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            <!-- Expense Trend -->
             <div class="ui-card">
                 <div class="ui-card-body">
-                    <div class="text-sm text-slate-500">{{ __('Expense Count') }}</div>
-                    <div class="mt-1 text-2xl font-semibold text-slate-900">{{ number_format((int) $expenseCount) }}</div>
+                    <h3 class="ui-card-title mb-6">{{ __('Expense Trend') }}</h3>
+                    <div class="h-80" wire:ignore>
+                        <canvas id="expenseTrendChart"></canvas>
+                    </div>
                 </div>
             </div>
+
+            <!-- Expense by Type -->
             <div class="ui-card">
                 <div class="ui-card-body">
-                    <div class="text-sm text-slate-500">{{ __('Expense Total') }}</div>
-                    <div class="mt-1 text-2xl font-semibold text-slate-900">{{ number_format((float) $expenseTotal, 2) }}</div>
-                </div>
-            </div>
-        </div>
-
-        <div class="mt-6 ui-card">
-            <div class="ui-card-body">
-                <h3 class="ui-card-title">{{ __('Expense Breakdown by Category') }}</h3>
-
-                <div class="mt-4 overflow-x-auto">
-                    <div class="ui-table-wrap">
-                        <table class="ui-table">
-                            <thead>
-                                <tr>
-                                    <th>{{ __('Type') }}</th>
-                                    <th class="text-right">{{ __('Count') }}</th>
-                                    <th class="text-right">{{ __('Total') }}</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach ($expensesByType as $row)
-                                    <tr>
-                                        <td class="font-medium text-slate-900">{{ $row->expense_type }}</td>
-                                        <td class="text-right">{{ number_format((int) $row->expense_count) }}</td>
-                                        <td class="text-right">{{ number_format((float) $row->amount_total, 2) }}</td>
-                                    </tr>
-                                @endforeach
-                                @if ($expensesByType->isEmpty())
-                                    <tr>
-                                        <td colspan="3" class="ui-table-empty">{{ __('No data found.') }}</td>
-                                    </tr>
-                                @endif
-                            </tbody>
-                        </table>
+                    <h3 class="ui-card-title mb-6">{{ __('Expenses by Category') }}</h3>
+                    <div class="h-80" wire:ignore>
+                        <canvas id="expenseCategoryChart"></canvas>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="mt-6 ui-card no-print">
-            <div class="ui-card-body">
-                <h3 class="ui-card-title">{{ __('Expense Trend (by day)') }}</h3>
-
-                @php
-                    $trendLabels = [];
-                    $trendAmounts = [];
-                    foreach ($expensesByDay as $row) {
-                        $trendLabels[] = (string) $row->day;
-                        $trendAmounts[] = (float) ($row->amount_total ?? 0);
-                    }
-                @endphp
-
-                <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-
-                <div class="mt-4" wire:ignore>
-                    <canvas id="expenseTrendChart" height="100"></canvas>
-                </div>
-
-                @script
-                <script>
-                    function renderExpenseChart() {
-                        const el = document.getElementById('expenseTrendChart');
-                        if (!el || !window.Chart) return;
-
-                        const labels = @json($trendLabels);
-                        const amounts = @json($trendAmounts);
-
-                        if (el._chart) { el._chart.destroy(); }
-
-                        el._chart = new Chart(el, {
-                            type: 'line',
-                            data: {
-                                labels,
-                                datasets: [
-                                    { label: 'Expenses', data: amounts, borderColor: '#2563EB', backgroundColor: 'rgba(37, 99, 235, 0.12)', tension: 0.3, fill: true }
-                                ]
-                            },
-                            options: {
-                                responsive: true, maintainAspectRatio: false,
-                                plugins: { legend: { position: 'bottom' } },
-                                scales: { y: { beginAtZero: true } }
-                            }
-                        });
-                    }
-
-                    function initExpenseChart() {
-                        if (typeof window.Chart === 'undefined') {
-                            setTimeout(initExpenseChart, 100);
-                            return;
-                        }
-                        renderExpenseChart();
-                    }
-                    
-                    initExpenseChart();
-                    Livewire.hook('morph.updated', () => { setTimeout(initExpenseChart, 100); });
-                    document.addEventListener('livewire:navigated', () => { setTimeout(initExpenseChart, 100); });
-                </script>
-                @endscript
+        <!-- Expense Log Table -->
+        <div class="ui-card overflow-hidden mb-8">
+            <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                <h3 class="ui-card-title">{{ __('Recent Expense Log') }}</h3>
+                <span class="ui-badge bg-blue-50 text-blue-700 ring-blue-200">
+                    {{ __('Last 10 Transactions') }}
+                </span>
+            </div>
+            <div class="ui-table-wrap border-0 rounded-none shadow-none">
+                <table class="ui-table">
+                    <thead>
+                        <tr>
+                            <th>{{ __('Date') }}</th>
+                            <th>{{ __('Reference') }}</th>
+                            <th>{{ __('Category') }}</th>
+                            <th>{{ __('Description') }}</th>
+                            <th class="text-right">{{ __('Amount') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($expenseLog as $expense)
+                        <tr>
+                            <td class="text-slate-600">{{ $expense->expense_date->format('M d, Y') }}</td>
+                            <td class="font-medium text-slate-900">{{ $expense->expense_no }}</td>
+                            <td>
+                                <span class="ui-badge bg-slate-100 text-slate-700 ring-slate-200">
+                                    {{ $expense->expense_type }}
+                                </span>
+                            </td>
+                            <td class="text-slate-500">{{ Str::limit($expense->description, 40) }}</td>
+                            <td class="text-right font-bold text-slate-900">XAF {{ number_format($expense->amount, 2) }}</td>
+                        </tr>
+                        @endforeach
+                        @if($expenseLog->isEmpty())
+                        <tr>
+                            <td colspan="5" class="ui-table-empty">
+                                {{ __('No expenses found for this period.') }}
+                            </td>
+                        </tr>
+                        @endif
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+    @script
+    <script>
+        let trendChart = null;
+        let categoryChart = null;
+
+        function initCharts() {
+            const trendCtx = document.getElementById('expenseTrendChart');
+            const categoryCtx = document.getElementById('expenseCategoryChart');
+
+            if (trendChart) trendChart.destroy();
+            if (categoryChart) categoryChart.destroy();
+
+            // Trend Chart
+            const trendData = @json($expensesByDay);
+            trendChart = new Chart(trendCtx, {
+                type: 'line',
+                data: {
+                    labels: trendData.map(d => d.day),
+                    datasets: [
+                        {
+                            label: 'Current Period',
+                            data: trendData.map(d => d.amount),
+                            borderColor: '#ef4444',
+                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                            fill: true,
+                            tension: 0.4,
+                            borderWidth: 2,
+                            pointRadius: 3,
+                            pointBackgroundColor: '#ef4444'
+                        },
+                        {
+                            label: 'Previous Period',
+                            data: trendData.map(d => d.prev_amount),
+                            borderColor: '#94a3b8',
+                            backgroundColor: 'transparent',
+                            borderDash: [5, 5],
+                            fill: false,
+                            tension: 0.4,
+                            borderWidth: 2,
+                            pointRadius: 3,
+                            pointBackgroundColor: '#94a3b8'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { 
+                        legend: { 
+                            position: 'top',
+                            align: 'end',
+                            labels: {
+                                boxWidth: 10,
+                                usePointStyle: true,
+                                pointStyle: 'circle'
+                            }
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': XAF ' + context.parsed.y.toLocaleString();
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: { 
+                            beginAtZero: true, 
+                            grid: { borderDash: [2, 2], color: '#f1f5f9' },
+                            ticks: {
+                                callback: value => 'XAF ' + value.toLocaleString()
+                            }
+                        },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+
+            // Category Chart
+            const catData = @json($expensesByType);
+            categoryChart = new Chart(categoryCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: catData.map(d => d.expense_type),
+                    datasets: [{
+                        data: catData.map(d => d.amount_total),
+                        backgroundColor: [
+                            '#6366f1', '#10b981', '#f59e0b', '#ef4444', '#3b82f6',
+                            '#8b5cf6', '#ec4899', '#06b6d4', '#f97316', '#14b8a6'
+                        ],
+                        borderWidth: 0,
+                        hoverOffset: 20
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { 
+                            position: 'right',
+                            labels: {
+                                boxWidth: 10,
+                                usePointStyle: true,
+                                pointStyle: 'circle'
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.label + ': XAF ' + context.parsed.toLocaleString();
+                                }
+                            }
+                        }
+                    },
+                    cutout: '60%'
+                }
+            });
+        }
+
+        initCharts();
+        Livewire.on('updated', () => { setTimeout(initCharts, 100); });
+    </script>
+    @endscript
 </div>
+

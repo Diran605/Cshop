@@ -96,12 +96,12 @@ class ReportsIndex extends Component
         $from = Carbon::parse($this->date_from)->startOfDay();
         $to = Carbon::parse($this->date_to)->endOfDay();
 
-        $categories = Category::query()
-            ->when($this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
-            ->orderBy('name')
-            ->get();
+        // Previous period calculation
+        $diff = $from->diffInDays($to);
+        $prevFrom = $from->copy()->subDays($diff + 1);
+        $prevTo = $from->copy()->subDay()->endOfDay();
 
-        $productsForFilter = Product::query()
+        $categories = Category::query()
             ->when($this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
             ->orderBy('name')
             ->get();
@@ -116,262 +116,130 @@ class ReportsIndex extends Component
         if ($this->category_id > 0) {
             $salesItemsBase->where('products.category_id', $this->category_id);
         }
-        if ($this->product_filter_id > 0) {
-            $salesItemsBase->where('sales_items.product_id', $this->product_filter_id);
-        }
-        if ($this->sale_mode === 'unit') {
-            $salesItemsBase->where('sales_items.entry_mode', 'unit');
-        } elseif ($this->sale_mode === 'bulk') {
-            $salesItemsBase->where('sales_items.entry_mode', 'bulk');
-        }
 
         $summaryRow = (clone $salesItemsBase)
             ->select([
                 DB::raw('COUNT(DISTINCT sales_items.sales_receipt_id) as sales_count'),
                 DB::raw('SUM(sales_items.line_total) as sales_total'),
-                DB::raw('SUM(sales_items.line_cost) as cogs_total'),
-                DB::raw('SUM(sales_items.line_profit) as profit_total'),
                 DB::raw('SUM(sales_items.quantity) as items_sold'),
-                DB::raw('SUM(CASE WHEN sales_items.is_low_profit = 1 THEN 1 ELSE 0 END) as low_profit_lines'),
-                DB::raw('SUM(CASE WHEN sales_items.is_loss = 1 THEN 1 ELSE 0 END) as loss_lines'),
             ])
             ->first();
 
         $salesCount = (int) ($summaryRow?->sales_count ?? 0);
         $salesTotal = (float) ($summaryRow?->sales_total ?? 0);
-        $cogsTotal = (float) ($summaryRow?->cogs_total ?? 0);
-        $profitTotal = (float) ($summaryRow?->profit_total ?? 0);
         $itemsSold = (int) ($summaryRow?->items_sold ?? 0);
         $avgTransaction = $salesCount > 0 ? ($salesTotal / $salesCount) : 0.0;
 
-        $lowProfitLines = (int) ($summaryRow?->low_profit_lines ?? 0);
-        $lossLines = (int) ($summaryRow?->loss_lines ?? 0);
-
-        $salesPeriodGroup = DB::raw('DATE(sales_receipts.sold_at)');
-        $salesPeriodOrder = DB::raw('DATE(sales_receipts.sold_at)');
-        $salesPeriodLabel = DB::raw('DATE(sales_receipts.sold_at) as day');
-
-        if ($this->trend_granularity === 'week') {
-            $salesPeriodGroup = DB::raw('YEARWEEK(sales_receipts.sold_at, 1)');
-            $salesPeriodOrder = DB::raw('YEARWEEK(sales_receipts.sold_at, 1)');
-            $salesPeriodLabel = DB::raw('CONCAT(YEAR(sales_receipts.sold_at), "-W", LPAD(WEEK(sales_receipts.sold_at, 1), 2, "0")) as day');
-        } elseif ($this->trend_granularity === 'month') {
-            $salesPeriodGroup = DB::raw('DATE_FORMAT(sales_receipts.sold_at, "%Y-%m")');
-            $salesPeriodOrder = DB::raw('DATE_FORMAT(sales_receipts.sold_at, "%Y-%m")');
-            $salesPeriodLabel = DB::raw('DATE_FORMAT(sales_receipts.sold_at, "%Y-%m") as day');
-        }
-
-        $salesByDay = (clone $salesItemsBase)
-            ->groupBy($salesPeriodGroup)
-            ->orderBy($salesPeriodOrder)
-            ->get([
-                $salesPeriodLabel,
-                DB::raw('COUNT(DISTINCT sales_items.sales_receipt_id) as sales_count'),
-                DB::raw('SUM(sales_items.line_total) as sales_total'),
-                DB::raw('SUM(sales_items.line_cost) as cogs_total'),
-                DB::raw('SUM(sales_items.line_profit) as profit_total'),
-                DB::raw('SUM(sales_items.quantity) as sold_qty'),
-            ]);
-
-        $priceByDay = (clone $salesItemsBase)
-            ->groupBy($salesPeriodGroup)
-            ->orderBy($salesPeriodOrder)
-            ->get([
-                $salesPeriodLabel,
-                DB::raw('SUM(sales_items.unit_price * sales_items.quantity) / NULLIF(SUM(sales_items.quantity), 0) as avg_unit_price'),
-                DB::raw('MIN(sales_items.unit_price) as min_unit_price'),
-                DB::raw('MAX(sales_items.unit_price) as max_unit_price'),
-            ]);
-
-        $salesByHour = (clone $salesItemsBase)
-            ->groupBy(DB::raw('HOUR(sales_receipts.sold_at)'))
-            ->orderBy(DB::raw('HOUR(sales_receipts.sold_at)'))
-            ->get([
-                DB::raw('HOUR(sales_receipts.sold_at) as hour'),
+        // Previous period summary
+        $prevSummaryRow = SalesItem::query()
+            ->join('sales_receipts', 'sales_receipts.id', '=', 'sales_items.sales_receipt_id')
+            ->join('products', 'products.id', '=', 'sales_items.product_id')
+            ->when($this->branch_id > 0, fn ($q) => $q->where('sales_receipts.branch_id', $this->branch_id))
+            ->whereNull('sales_receipts.voided_at')
+            ->whereBetween('sales_receipts.sold_at', [$prevFrom, $prevTo])
+            ->when($this->category_id > 0, fn ($q) => $q->where('products.category_id', $this->category_id))
+            ->select([
                 DB::raw('COUNT(DISTINCT sales_items.sales_receipt_id) as sales_count'),
                 DB::raw('SUM(sales_items.line_total) as sales_total'),
                 DB::raw('SUM(sales_items.quantity) as items_sold'),
-                DB::raw('SUM(sales_items.line_profit) as profit_total'),
-            ]);
+            ])
+            ->first();
 
-        $branchSales = collect();
-        if ($this->isSuperAdmin && $this->branch_id <= 0) {
-            $branchSales = (clone $salesItemsBase)
-                ->join('branches', 'branches.id', '=', 'sales_receipts.branch_id')
-                ->groupBy('sales_receipts.branch_id', 'branches.name')
-                ->orderByDesc('sales_total')
-                ->limit(25)
-                ->get([
-                    'sales_receipts.branch_id',
-                    'branches.name as branch_name',
-                    DB::raw('COUNT(DISTINCT sales_items.sales_receipt_id) as sales_count'),
-                    DB::raw('SUM(sales_items.quantity) as items_sold'),
-                    DB::raw('SUM(sales_items.line_total) as sales_total'),
-                    DB::raw('SUM(sales_items.line_cost) as cogs_total'),
-                    DB::raw('SUM(sales_items.line_profit) as profit_total'),
-                ]);
+        $prevSalesTotal = (float) ($prevSummaryRow?->sales_total ?? 0);
+        $prevSalesCount = (int) ($prevSummaryRow?->sales_count ?? 0);
+        $prevItemsSold = (int) ($prevSummaryRow?->items_sold ?? 0);
+        $prevAvgTransaction = $prevSalesCount > 0 ? ($prevSalesTotal / $prevSalesCount) : 0.0;
+
+        $salesChange = $prevSalesTotal > 0 ? (($salesTotal - $prevSalesTotal) / $prevSalesTotal) * 100 : 0;
+        $countChange = $prevSalesCount > 0 ? (($salesCount - $prevSalesCount) / $prevSalesCount) * 100 : 0;
+        $itemsChange = $prevItemsSold > 0 ? (($itemsSold - $prevItemsSold) / $prevItemsSold) * 100 : 0;
+        $avgChange = $prevAvgTransaction > 0 ? (($avgTransaction - $prevAvgTransaction) / $prevAvgTransaction) * 100 : 0;
+
+        $salesPeriodLabel = DB::raw('DATE(sales_receipts.sold_at) as day');
+        if ($this->trend_granularity === 'week') {
+            $salesPeriodLabel = DB::raw('CONCAT(YEAR(sales_receipts.sold_at), "-W", LPAD(WEEK(sales_receipts.sold_at, 1), 2, "0")) as day');
+        } elseif ($this->trend_granularity === 'month') {
+            $salesPeriodLabel = DB::raw('DATE_FORMAT(sales_receipts.sold_at, "%Y-%m") as day');
         }
 
-        $stockInByDay = StockInReceipt::query()
-            ->when($this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
-            ->whereNull('voided_at')
-            ->whereBetween('received_at', [$from, $to])
-            ->groupBy(
-                $this->trend_granularity === 'week'
-                    ? DB::raw('YEARWEEK(received_at, 1)')
-                    : ($this->trend_granularity === 'month'
-                        ? DB::raw('DATE_FORMAT(received_at, "%Y-%m")')
-                        : DB::raw('DATE(received_at)')
-                    )
-            )
-            ->orderBy(
-                $this->trend_granularity === 'week'
-                    ? DB::raw('YEARWEEK(received_at, 1)')
-                    : ($this->trend_granularity === 'month'
-                        ? DB::raw('DATE_FORMAT(received_at, "%Y-%m")')
-                        : DB::raw('DATE(received_at)')
-                    )
-            )
-            ->get([
-                $this->trend_granularity === 'week'
-                    ? DB::raw('CONCAT(YEAR(received_at), "-W", LPAD(WEEK(received_at, 1), 2, "0")) as day')
-                    : ($this->trend_granularity === 'month'
-                        ? DB::raw('DATE_FORMAT(received_at, "%Y-%m") as day')
-                        : DB::raw('DATE(received_at) as day')
-                    ),
-                DB::raw('SUM(total_quantity) as stock_in_qty'),
-                DB::raw('SUM(total_cost) as stock_in_cost'),
-            ]);
-
-        $salesQtyByDay = (clone $salesItemsBase)
-            ->groupBy($salesPeriodGroup)
-            ->orderBy($salesPeriodOrder)
+        $salesByDayRaw = (clone $salesItemsBase)
+            ->groupBy(DB::raw('day'))
             ->get([
                 $salesPeriodLabel,
-                DB::raw('SUM(sales_items.quantity) as sold_qty'),
+                DB::raw('SUM(sales_items.line_total) as sales_total'),
             ]);
 
-        $movementByDay = [];
-        foreach ($stockInByDay as $row) {
-            $movementByDay[(string) $row->day] = [
-                'day' => (string) $row->day,
-                'stock_in_qty' => (int) ($row->stock_in_qty ?? 0),
-                'sold_qty' => 0,
+        $prevSalesByDayRaw = SalesItem::query()
+            ->join('sales_receipts', 'sales_receipts.id', '=', 'sales_items.sales_receipt_id')
+            ->join('products', 'products.id', '=', 'sales_items.product_id')
+            ->when($this->branch_id > 0, fn ($q) => $q->where('sales_receipts.branch_id', $this->branch_id))
+            ->whereNull('sales_receipts.voided_at')
+            ->whereBetween('sales_receipts.sold_at', [$prevFrom, $prevTo])
+            ->when($this->category_id > 0, fn ($q) => $q->where('products.category_id', $this->category_id))
+            ->groupBy(DB::raw('day'))
+            ->get([
+                $salesPeriodLabel,
+                DB::raw('SUM(sales_items.line_total) as sales_total'),
+            ]);
+
+        $salesByDay = [];
+        $daysCount = $from->diffInDays($to) + 1;
+        for ($i = 0; $i < $daysCount; $i++) {
+            $currentDay = $from->copy()->addDays($i)->toDateString();
+            $prevDay = $prevFrom->copy()->addDays($i)->toDateString();
+
+            // Handle labels based on granularity
+            $label = Carbon::parse($currentDay)->format('M d');
+            $cKey = $currentDay;
+            $pKey = $prevDay;
+
+            if ($this->trend_granularity === 'week') {
+                $cKey = $from->copy()->addDays($i)->format('Y-\WW');
+                $pKey = $prevFrom->copy()->addDays($i)->format('Y-\WW');
+                $label = "Week " . $from->copy()->addDays($i)->format('W');
+            } elseif ($this->trend_granularity === 'month') {
+                $cKey = $from->copy()->addDays($i)->format('Y-m');
+                $pKey = $prevFrom->copy()->addDays($i)->format('Y-m');
+                $label = $from->copy()->addDays($i)->format('M Y');
+            }
+
+            $salesByDay[] = [
+                'label' => $label,
+                'total' => $salesByDayRaw->firstWhere('day', $cKey)->sales_total ?? 0,
+                'prev_total' => $prevSalesByDayRaw->firstWhere('day', $pKey)->sales_total ?? 0,
             ];
         }
-        foreach ($salesQtyByDay as $row) {
-            $day = (string) $row->day;
-            if (! isset($movementByDay[$day])) {
-                $movementByDay[$day] = [
-                    'day' => $day,
-                    'stock_in_qty' => 0,
-                    'sold_qty' => (int) ($row->sold_qty ?? 0),
-                ];
-            } else {
-                $movementByDay[$day]['sold_qty'] = (int) ($row->sold_qty ?? 0);
-            }
+
+        // Distinct entries for weekly/monthly
+        if ($this->trend_granularity !== 'day') {
+            $salesByDay = collect($salesByDay)->unique('label')->values()->all();
         }
-        ksort($movementByDay);
-        $movementByDay = array_values($movementByDay);
 
         $topProducts = (clone $salesItemsBase)
-            ->groupBy('sales_items.product_id', 'products.name')
-            ->orderByDesc('qty_sold')
+            ->join('categories', 'categories.id', '=', 'products.category_id')
+            ->groupBy('sales_items.product_id', 'products.name', 'categories.name')
+            ->orderByDesc('revenue')
             ->limit(10)
             ->get([
                 'products.name as product_name',
-                DB::raw('SUM(sales_items.quantity) as qty_sold'),
-                DB::raw('SUM(sales_items.line_total) as amount_sold'),
-                DB::raw('SUM(sales_items.line_profit) as profit_total'),
+                'categories.name as category_name',
+                DB::raw('SUM(sales_items.quantity) as units_sold'),
+                DB::raw('SUM(sales_items.line_total) as revenue'),
             ]);
-
-        if (trim($this->search) !== '') {
-            $term = strtolower(trim($this->search));
-            $topProducts = $topProducts->filter(fn ($r) => str_contains(strtolower((string) $r->product_name), $term));
-        }
-
-        $inventoryQuery = ProductStock::query()
-            ->with(['product'])
-            ->when($this->branch_id > 0, fn ($q) => $q->where('product_stocks.branch_id', $this->branch_id))
-            ->join('products', 'products.id', '=', 'product_stocks.product_id')
-            ->when(trim($this->search) !== '', function ($q) {
-                $term = '%' . trim($this->search) . '%';
-                $q->where('products.name', 'like', $term);
-            })
-            ->orderBy('products.name')
-            ->select('product_stocks.*');
-
-        if ($this->low_stock_only) {
-            $inventoryQuery->whereColumn('product_stocks.current_stock', '<=', 'product_stocks.minimum_stock');
-        }
-
-        $inventory = $inventoryQuery->get();
-
-        $productMovement = StockInItem::query()
-            ->join('stock_in_receipts', 'stock_in_receipts.id', '=', 'stock_in_items.stock_in_receipt_id')
-            ->join('products', 'products.id', '=', 'stock_in_items.product_id')
-            ->when($this->branch_id > 0, fn ($q) => $q->where('stock_in_receipts.branch_id', $this->branch_id))
-            ->whereNull('stock_in_receipts.voided_at')
-            ->whereBetween('stock_in_receipts.received_at', [$from, $to])
-            ->groupBy('stock_in_items.product_id', 'products.name')
-            ->select([
-                'stock_in_items.product_id',
-                'products.name as product_name',
-                DB::raw('SUM(stock_in_items.quantity) as stock_in_qty'),
-            ])
-            ->get()
-            ->keyBy('product_id');
-
-        $soldByProduct = (clone $salesItemsBase)
-            ->groupBy('sales_items.product_id', 'products.name')
-            ->select([
-                'sales_items.product_id',
-                'products.name as product_name',
-                DB::raw('SUM(sales_items.quantity) as sold_qty'),
-            ])
-            ->get()
-            ->keyBy('product_id');
-
-        $movementRows = [];
-        $allProductIds = array_unique(array_merge($productMovement->keys()->all(), $soldByProduct->keys()->all()));
-        foreach ($allProductIds as $productId) {
-            $inRow = $productMovement->get($productId);
-            $soldRow = $soldByProduct->get($productId);
-
-            $movementRows[] = [
-                'product_name' => (string) ($inRow?->product_name ?? $soldRow?->product_name ?? '-'),
-                'stock_in_qty' => (int) ($inRow?->stock_in_qty ?? 0),
-                'sold_qty' => (int) ($soldRow?->sold_qty ?? 0),
-            ];
-        }
-
-        if (trim($this->search) !== '') {
-            $term = strtolower(trim($this->search));
-            $movementRows = array_values(array_filter($movementRows, fn ($r) => str_contains(strtolower((string) $r['product_name']), $term)));
-        }
-
-        usort($movementRows, fn ($a, $b) => strcmp($a['product_name'], $b['product_name']));
 
         return view('livewire.reports-index', [
             'branches' => $branches,
             'categories' => $categories,
-            'productsForFilter' => $productsForFilter,
             'salesCount' => $salesCount,
             'salesTotal' => $salesTotal,
-            'cogsTotal' => $cogsTotal,
-            'profitTotal' => $profitTotal,
             'itemsSold' => $itemsSold,
             'avgTransaction' => $avgTransaction,
-            'lowProfitLines' => $lowProfitLines,
-            'lossLines' => $lossLines,
+            'salesChange' => $salesChange,
+            'countChange' => $countChange,
+            'itemsChange' => $itemsChange,
+            'avgChange' => $avgChange,
             'salesByDay' => $salesByDay,
-            'priceByDay' => $priceByDay,
-            'salesByHour' => $salesByHour,
-            'branchSales' => $branchSales,
-            'movementByDay' => $movementByDay,
             'topProducts' => $topProducts,
-            'inventory' => $inventory,
-            'movementRows' => $movementRows,
             'isSuperAdmin' => $this->isSuperAdmin,
         ]);
     }

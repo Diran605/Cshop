@@ -1,44 +1,58 @@
 <div class="ui-page">
     <div class="ui-page-container">
         {{-- Header --}}
-        <div class="flex items-center justify-between mb-6">
-            <div>
-                <h1 class="text-2xl font-bold text-slate-900">{{ __('Clearance Performance Report') }}</h1>
-                <p class="text-sm text-slate-500 mt-1">{{ __('Track clearance sales, recovery rates, and losses') }}</p>
-            </div>
-            <div class="flex items-center gap-3">
-                @if ($this->isSuperAdmin)
-                    <div class="flex items-center gap-2">
-                        <label class="text-sm text-slate-600">{{ __('Branch:') }}</label>
-                        <select wire:model.live="filter_branch_id" class="ui-input w-48">
-                            <option value="0">{{ __('All Branches') }}</option>
-                            @foreach ($this->branches as $branch)
-                                <option value="{{ $branch->id }}">{{ $branch->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                @endif
-                <a href="{{ route('clearance.index') }}" class="ui-btn-secondary">
-                    {{ __('Back to Manager') }}
-                </a>
-            </div>
+        <div class="mb-6">
+            <h2 class="ui-page-title text-2xl font-bold text-slate-900">{{ __('Clearance Performance Report') }}</h2>
+            <p class="ui-page-subtitle text-slate-500">{{ __('Track clearance sales, recovery rates, and losses') }}</p>
         </div>
 
-        {{-- Date Filters --}}
-        <div class="ui-card mb-6">
+        <div class="ui-card no-print mb-6">
             <div class="ui-card-body">
-                <div class="flex flex-wrap gap-4 items-end">
+                <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+                    <div class="ui-tabs">
+                        <a href="{{ route('reports.index') }}" class="ui-tab">{{ __('Sales') }}</a>
+                        <a href="{{ route('reports.profit') }}" class="ui-tab">{{ __('Profit') }}</a>
+                        <a href="{{ route('reports.stock') }}" class="ui-tab">{{ __('Stock') }}</a>
+                        <a href="{{ route('reports.expenses') }}" class="ui-tab">{{ __('Expenses') }}</a>
+                        <a href="{{ route('reports.expiry') }}" class="ui-tab">{{ __('Expiry') }}</a>
+                        <a href="{{ route('clearance.reports') }}" class="ui-tab ui-tab-active">{{ __('Clearance') }}</a>
+                        <a href="{{ route('daily_summary.index') }}" class="ui-tab">{{ __('Summary') }}</a>
+                        <a href="{{ route('stock_valuation.index') }}" class="ui-tab">{{ __('Valuation') }}</a>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <button type="button" onclick="window.print()" class="ui-btn-primary">
+                            {{ __('Print') }}
+                        </button>
+                        <a href="{{ route('clearance.index') }}" class="ui-btn-secondary">
+                            {{ __('Back to Manager') }}
+                        </a>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
-                        <label class="block text-xs font-medium text-slate-600 mb-1">{{ __('From') }}</label>
-                        <input type="date" wire:model.live="date_from" class="ui-input">
+                        <label class="ui-label text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1 block">{{ __('Period') }}</label>
+                        <div class="flex gap-2">
+                            <input type="date" wire:model.live="date_from" class="ui-input flex-1">
+                            <input type="date" wire:model.live="date_to" class="ui-input flex-1">
+                        </div>
                     </div>
                     <div>
-                        <label class="block text-xs font-medium text-slate-600 mb-1">{{ __('To') }}</label>
-                        <input type="date" wire:model.live="date_to" class="ui-input">
+                        <label class="ui-label text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1 block">{{ __('Branch') }}</label>
+                        @if ($this->isSuperAdmin)
+                            <select wire:model.live="filter_branch_id" class="ui-select w-full">
+                                <option value="0">{{ __('All Branches') }}</option>
+                                @foreach ($this->branches as $branch)
+                                    <option value="{{ $branch->id }}">{{ $branch->name }}</option>
+                                @endforeach
+                            </select>
+                        @else
+                            <div class="ui-input bg-slate-50 text-slate-500">{{ $this->branches->firstWhere('id', $filter_branch_id)?->name ?? '-' }}</div>
+                        @endif
                     </div>
                     <div>
-                        <label class="block text-xs font-medium text-slate-600 mb-1">{{ __('Action Type') }}</label>
-                        <select wire:model.live="filter_action" class="ui-input">
+                        <label class="ui-label text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1 block">{{ __('Action Type') }}</label>
+                        <select wire:model.live="filter_action" class="ui-select w-full">
                             <option value="all">{{ __('All Actions') }}</option>
                             <option value="sold">{{ __('Sold') }}</option>
                             <option value="discount">{{ __('Discounted') }}</option>
@@ -53,28 +67,28 @@
         {{-- KPI Cards --}}
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
             <div class="ui-kpi-card">
-                <div class="text-xs text-slate-500">{{ __('Items Processed') }}</div>
-                <div class="text-2xl font-bold text-slate-900">{{ $this->stats['total_items'] }}</div>
+                <div class="ui-kpi-title">{{ __('Items Processed') }}</div>
+                <div class="ui-kpi-value">{{ $this->stats['total_items'] }}</div>
             </div>
 
             <div class="ui-kpi-card">
-                <div class="text-xs text-slate-500">{{ __('Original Value') }}</div>
-                <div class="text-xl font-bold text-slate-900">XAF {{ number_format($this->stats['total_original_value'], 0, ',', ' ') }}</div>
-            </div>
-
-            <div class="ui-kpi-card bg-green-50 border-green-200">
-                <div class="text-xs text-green-600">{{ __('Recovered Value') }}</div>
-                <div class="text-xl font-bold text-green-700">XAF {{ number_format($this->stats['total_recovered_value'], 0, ',', ' ') }}</div>
-            </div>
-
-            <div class="ui-kpi-card bg-red-50 border-red-200">
-                <div class="text-xs text-red-600">{{ __('Loss Value') }}</div>
-                <div class="text-xl font-bold text-red-700">XAF {{ number_format($this->stats['total_loss_value'], 0, ',', ' ') }}</div>
+                <div class="ui-kpi-title">{{ __('Original Value') }}</div>
+                <div class="ui-kpi-value">XAF {{ number_format($this->stats['total_original_value'], 0, ',', ' ') }}</div>
             </div>
 
             <div class="ui-kpi-card">
-                <div class="text-xs text-slate-500">{{ __('Recovery Rate') }}</div>
-                <div class="text-2xl font-bold {{ $this->stats['recovery_rate'] >= 50 ? 'text-green-600' : 'text-amber-600' }}">{{ $this->stats['recovery_rate'] }}%</div>
+                <div class="ui-kpi-title text-emerald-600">{{ __('Recovered Value') }}</div>
+                <div class="ui-kpi-value text-emerald-600">XAF {{ number_format($this->stats['total_recovered_value'], 0, ',', ' ') }}</div>
+            </div>
+
+            <div class="ui-kpi-card">
+                <div class="ui-kpi-title text-rose-600">{{ __('Loss Value') }}</div>
+                <div class="ui-kpi-value text-rose-600">XAF {{ number_format($this->stats['total_loss_value'], 0, ',', ' ') }}</div>
+            </div>
+
+            <div class="ui-kpi-card">
+                <div class="ui-kpi-title">{{ __('Recovery Rate') }}</div>
+                <div class="ui-kpi-value {{ $this->stats['recovery_rate'] >= 50 ? 'text-emerald-600' : 'text-amber-600' }}">{{ $this->stats['recovery_rate'] }}%</div>
             </div>
         </div>
 

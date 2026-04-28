@@ -1,8 +1,26 @@
 <div class="ui-page">
     <div class="ui-page-container">
-        <div class="mb-6">
-            <h2 class="ui-page-title">{{ __('Daily Sales Summary') }}</h2>
-            <div class="ui-page-subtitle">{{ __('Overview of sales performance and statistics.') }}</div>
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+            <div>
+                <h2 class="ui-page-title">{{ __('Daily Sales Summary') }}</h2>
+                <div class="ui-page-subtitle">{{ __('Overview of sales performance and statistics.') }}</div>
+            </div>
+            <div class="flex items-center gap-3 no-print">
+                <div class="ui-tabs">
+                    <a href="{{ route('reports.index') }}" class="ui-tab">{{ __('Sales') }}</a>
+                    <a href="{{ route('reports.profit') }}" class="ui-tab">{{ __('Profit') }}</a>
+                    <a href="{{ route('reports.stock') }}" class="ui-tab">{{ __('Stock') }}</a>
+                    <a href="{{ route('reports.expenses') }}" class="ui-tab">{{ __('Expenses') }}</a>
+                    <a href="{{ route('reports.expiry') }}" class="ui-tab">{{ __('Expiry') }}</a>
+                    <a href="{{ route('clearance.reports') }}" class="ui-tab">{{ __('Clearance') }}</a>
+                    <a href="{{ route('daily_summary.index') }}" class="ui-tab ui-tab-active">{{ __('Summary') }}</a>
+                    <a href="{{ route('stock_valuation.index') }}" class="ui-tab">{{ __('Valuation') }}</a>
+                </div>
+                <button onclick="window.print()" class="ui-btn-primary gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
+                    {{ __('Print') }}
+                </button>
+            </div>
         </div>
 
         <!-- Date Selector -->
@@ -48,51 +66,39 @@
 
         <!-- Key Metrics -->
         <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-6">
-            <div class="ui-card">
-                <div class="ui-card-body text-center">
-                    <div class="text-sm text-slate-500">{{ __('Total Sales') }}</div>
-                    <div class="mt-2 text-3xl font-bold text-blue-600">{{ $totalSales }}</div>
-                </div>
+            <div class="ui-kpi-card text-center">
+                <div class="ui-kpi-title">{{ __('Total Sales') }}</div>
+                <div class="ui-kpi-value text-blue-600 mt-2">{{ $totalSales }}</div>
             </div>
 
-            <div class="ui-card">
-                <div class="ui-card-body text-center">
-                    <div class="text-sm text-slate-500">{{ __('Voided') }}</div>
-                    <div class="mt-2 text-3xl font-bold text-red-600">{{ $voidedSales }}</div>
-                </div>
+            <div class="ui-kpi-card text-center">
+                <div class="ui-kpi-title">{{ __('Voided') }}</div>
+                <div class="ui-kpi-value text-red-600 mt-2">{{ $voidedSales }}</div>
             </div>
 
-            <div class="ui-card">
-                <div class="ui-card-body text-center">
-                    <div class="text-sm text-slate-500">{{ __('Revenue') }}</div>
-                    <div class="mt-2 text-xl font-bold text-green-600">XAF {{ number_format((float) $totalRevenue, 2) }}</div>
-                </div>
+            <div class="ui-kpi-card text-center">
+                <div class="ui-kpi-title">{{ __('Revenue') }}</div>
+                <div class="ui-kpi-value text-green-600 mt-2 text-xl">XAF {{ number_format((float) $totalRevenue, 2) }}</div>
             </div>
 
-            <div class="ui-card">
-                <div class="ui-card-body text-center">
-                    <div class="text-sm text-slate-500">{{ __('Cost') }}</div>
-                    <div class="mt-2 text-xl font-bold text-orange-600">XAF {{ number_format((float) $totalCost, 2) }}</div>
-                </div>
+            <div class="ui-kpi-card text-center">
+                <div class="ui-kpi-title">{{ __('Cost') }}</div>
+                <div class="ui-kpi-value text-orange-600 mt-2 text-xl">XAF {{ number_format((float) $totalCost, 2) }}</div>
             </div>
 
-            <div class="ui-card">
-                <div class="ui-card-body text-center">
-                    <div class="text-sm text-slate-500">{{ __('Profit') }}</div>
-                    <div class="mt-2 text-xl font-bold {{ $totalProfit >= 0 ? 'text-emerald-600' : 'text-red-600' }}">XAF {{ number_format((float) $totalProfit, 2) }}</div>
-                </div>
+            <div class="ui-kpi-card text-center">
+                <div class="ui-kpi-title">{{ __('Profit') }}</div>
+                <div class="ui-kpi-value {{ $totalProfit >= 0 ? 'text-emerald-600' : 'text-red-600' }} mt-2 text-xl">XAF {{ number_format((float) $totalProfit, 2) }}</div>
             </div>
 
-            <div class="ui-card">
-                <div class="ui-card-body text-center">
-                    <div class="text-sm text-slate-500">{{ __('Profit Margin') }}</div>
-                    <div class="mt-2 text-xl font-bold {{ $totalRevenue > 0 && ($totalProfit / $totalRevenue * 100) >= 10 ? 'text-emerald-600' : 'text-orange-600' }}">
-                        @if ($totalRevenue > 0)
-                            {{ number_format($totalProfit / $totalRevenue * 100, 1) }}%
-                        @else
-                            0%
-                        @endif
-                    </div>
+            <div class="ui-kpi-card text-center">
+                <div class="ui-kpi-title">{{ __('Profit Margin') }}</div>
+                <div class="ui-kpi-value {{ $totalRevenue > 0 && ($totalProfit / $totalRevenue * 100) >= 10 ? 'text-emerald-600' : 'text-orange-600' }} mt-2 text-xl">
+                    @if ($totalRevenue > 0)
+                        {{ number_format($totalProfit / $totalRevenue * 100, 1) }}%
+                    @else
+                        0%
+                    @endif
                 </div>
             </div>
         </div>

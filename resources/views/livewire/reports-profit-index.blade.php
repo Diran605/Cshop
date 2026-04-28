@@ -1,308 +1,304 @@
 <div class="ui-page">
     <div class="ui-page-container print-container">
-        <div class="mb-6">
-            <h2 class="ui-page-title">{{ __('Profit Report') }}</h2>
-            <div class="ui-page-subtitle">{{ __('Profit performance and margin overview.') }}</div>
+        <!-- Header Section -->
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+            <div>
+                <h1 class="ui-page-title">{{ __('Profit Report') }}</h1>
+                <p class="ui-page-subtitle">{{ __('Monitor profitability and margin performance.') }}</p>
+            </div>
+            <div class="flex items-center gap-3 no-print">
+                <div class="ui-tabs">
+                    <a href="{{ route('reports.index') }}" class="ui-tab">{{ __('Sales') }}</a>
+                    <a href="{{ route('reports.profit') }}" class="ui-tab ui-tab-active">{{ __('Profit') }}</a>
+                    <a href="{{ route('reports.stock') }}" class="ui-tab">{{ __('Stock') }}</a>
+                    <a href="{{ route('reports.expenses') }}" class="ui-tab">{{ __('Expenses') }}</a>
+                    <a href="{{ route('reports.expiry') }}" class="ui-tab">{{ __('Expiry') }}</a>
+                    <a href="{{ route('clearance.reports') }}" class="ui-tab">{{ __('Clearance') }}</a>
+                    <a href="{{ route('daily_summary.index') }}" class="ui-tab">{{ __('Summary') }}</a>
+                    <a href="{{ route('stock_valuation.index') }}" class="ui-tab">{{ __('Valuation') }}</a>
+                </div>
+                <button onclick="window.print()" class="ui-btn-primary gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
+                    {{ __('Print') }}
+                </button>
+            </div>
         </div>
 
-        <style>
-            @media print {
-                .no-print {
-                    display: none !important;
-                }
-
-                .print-container {
-                    max-width: 100% !important;
-                    margin: 0 !important;
-                    padding: 0 !important;
-                }
-            }
-        </style>
-
-        <div class="ui-card no-print">
+        <!-- Filters Section -->
+        <div class="ui-card no-print mb-8">
             <div class="ui-card-body">
-                <div class="flex flex-wrap items-center justify-between gap-3">
-                    <div class="inline-flex items-center gap-2">
-                        <a href="{{ route('reports.index') }}" class="ui-btn-secondary">{{ __('Sales') }}</a>
-                        <a href="{{ route('reports.profit') }}" class="ui-btn-primary">{{ __('Profit') }}</a>
-                        <a href="{{ route('reports.stock') }}" class="ui-btn-secondary">{{ __('Stock') }}</a>
-                        <a href="{{ route('reports.expenses') }}" class="ui-btn-secondary">{{ __('Expenses') }}</a>
-                        <a href="{{ route('reports.expiry') }}" class="ui-btn-secondary">{{ __('Expiry') }}</a>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <!-- Date Range -->
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="ui-label text-xs uppercase tracking-wider text-slate-500 mb-1">{{ __('From') }}</label>
+                            <input type="date" wire:model.live="date_from" class="ui-input">
+                        </div>
+                        <div>
+                            <label class="ui-label text-xs uppercase tracking-wider text-slate-500 mb-1">{{ __('To') }}</label>
+                            <input type="date" wire:model.live="date_to" class="ui-input">
+                        </div>
                     </div>
-                    <button type="button" onclick="window.print()" class="ui-btn-primary">{{ __('Print') }}</button>
-                </div>
 
-                <div class="mt-4 grid grid-cols-1 lg:grid-cols-7 gap-4">
+                    <!-- Branch Selection -->
                     <div>
-                        <label class="ui-label">{{ __('Branch') }}</label>
+                        <label class="ui-label text-xs uppercase tracking-wider text-slate-500 mb-1">{{ __('Branch') }}</label>
                         @if ($isSuperAdmin)
-                            <select wire:model="branch_id" class="mt-1 ui-select">
-                                <option value="0">{{ __('All') }}</option>
+                            <select wire:model.live="branch_id" class="ui-select">
+                                <option value="0">{{ __('All Branches') }}</option>
                                 @foreach ($branches as $branch)
                                     <option value="{{ $branch->id }}">{{ $branch->name }}</option>
                                 @endforeach
                             </select>
                         @else
-                            <div class="mt-1 rounded-lg border border-slate-300/80 bg-white/60 px-3 py-2 text-sm text-slate-700">
-                                {{ $branches->first()?->name ?? '-' }}
+                            <div class="ui-input bg-slate-50 text-slate-500">
+                                {{ $branches->first()?->name ?? __('My Branch') }}
                             </div>
                         @endif
                     </div>
 
+                    <!-- Category Selection -->
                     <div>
-                        <label class="ui-label">{{ __('From') }}</label>
-                        <input type="date" wire:model="date_from" class="mt-1 ui-input" />
-                    </div>
-
-                    <div>
-                        <label class="ui-label">{{ __('To') }}</label>
-                        <input type="date" wire:model="date_to" class="mt-1 ui-input" />
-                    </div>
-
-                    <div>
-                        <label class="ui-label">{{ __('Category') }}</label>
-                        <select wire:model="category_id" class="mt-1 ui-select">
-                            <option value="0">{{ __('All') }}</option>
+                        <label class="ui-label text-xs uppercase tracking-wider text-slate-500 mb-1">{{ __('Category') }}</label>
+                        <select wire:model.live="category_id" class="ui-select">
+                            <option value="0">{{ __('All Categories') }}</option>
                             @foreach ($categories as $cat)
                                 <option value="{{ $cat->id }}">{{ $cat->name }}</option>
                             @endforeach
                         </select>
                     </div>
+                </div>
+            </div>
+        </div>
 
-                    <div>
-                        <label class="ui-label">{{ __('Product') }}</label>
-                        <select wire:model="product_filter_id" class="mt-1 ui-select">
-                            <option value="0">{{ __('All') }}</option>
-                            @foreach ($productsForFilter as $p)
-                                <option value="{{ $p->id }}">{{ $p->name }}</option>
+        <!-- Metrics Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            @php
+                $metrics = [
+                    ['label' => __('Gross Profit'), 'value' => number_format($grossProfit, 2), 'change' => $grossProfitChange, 'prefix' => 'XAF ', 'color' => 'emerald'],
+                    ['label' => __('Net Profit'), 'value' => number_format($netProfit, 2), 'change' => $netProfitChange, 'prefix' => 'XAF ', 'color' => 'blue'],
+                    ['label' => __('Gross Margin'), 'value' => number_format($grossMargin, 1), 'change' => $marginChange, 'suffix' => '%', 'color' => 'indigo'],
+                    ['label' => __('Expenses'), 'value' => number_format($expenseTotal, 2), 'change' => $expenseChange, 'prefix' => 'XAF ', 'color' => 'rose', 'inverse' => true],
+                ];
+            @endphp
+            @foreach($metrics as $metric)
+            <div class="ui-kpi-card">
+                <div class="ui-kpi-title">{{ $metric['label'] }}</div>
+                <div class="mt-2 flex items-baseline justify-between">
+                    <div class="ui-kpi-value">
+                        {{ ($metric['prefix'] ?? '') . $metric['value'] . ($metric['suffix'] ?? '') }}
+                    </div>
+                    <div class="inline-flex items-center text-sm font-semibold {{ ($metric['inverse'] ?? false) ? ($metric['change'] <= 0 ? 'text-emerald-600' : 'text-rose-600') : ($metric['change'] >= 0 ? 'text-emerald-600' : 'text-rose-600') }}">
+                        @if($metric['change'] >= 0)
+                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>
+                        @else
+                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>
+                        @endif
+                        {{ abs(round($metric['change'], 1)) }}{{ isset($metric['suffix']) && $metric['label'] === __('Gross Margin') ? 'pp' : '%' }}
+                    </div>
+                </div>
+            </div>
+            @endforeach
+        </div>
+
+        <!-- Charts Section -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            <!-- Profit Trend -->
+            <div class="ui-card">
+                <div class="ui-card-body">
+                    <h3 class="text-lg font-bold text-slate-900 mb-6">{{ __('Profit Trend') }}</h3>
+                    <div class="h-80" wire:ignore>
+                        <canvas id="profitTrendChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Category Profitability -->
+            <div class="ui-card">
+                <div class="ui-card-body">
+                    <h3 class="text-lg font-bold text-slate-900 mb-6">{{ __('Category Profitability') }}</h3>
+                    <div class="h-80" wire:ignore>
+                        <canvas id="categoryProfitChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tables Section -->
+        <div class="ui-card">
+            <div class="ui-card-body p-0">
+                <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                    <h3 class="text-lg font-bold text-slate-900">{{ __('Top Products by Profit') }}</h3>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="ui-table">
+                        <thead>
+                            <tr>
+                                <th>{{ __('Product') }}</th>
+                                <th class="text-right">{{ __('Qty Sold') }}</th>
+                                <th class="text-right">{{ __('Profit') }}</th>
+                                <th class="text-right">{{ __('Margin') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($topProductsByProfit as $product)
+                            <tr>
+                                <td>
+                                    <div class="font-medium text-slate-900">{{ $product->product_name }}</div>
+                                </td>
+                                <td class="text-right text-slate-600">{{ number_format($product->qty_sold) }}</td>
+                                <td class="text-right font-semibold text-emerald-600">XAF {{ number_format($product->profit_total, 2) }}</td>
+                                <td class="text-right">
+                                    <span class="ui-badge {{ $product->margin >= 20 ? 'ui-badge-success' : ($product->margin >= 10 ? 'ui-badge-warning' : 'ui-badge-danger') }}">
+                                        {{ number_format($product->margin, 1) }}%
+                                    </span>
+                                </td>
+                            </tr>
                             @endforeach
-                        </select>
-                    </div>
-
-                    <div>
-                        <label class="ui-label">{{ __('Sale Mode') }}</label>
-                        <select wire:model="sale_mode" class="mt-1 ui-select">
-                            <option value="all">{{ __('All') }}</option>
-                            <option value="unit">{{ __('Units') }}</option>
-                            <option value="bulk">{{ __('Bulk') }}</option>
-                        </select>
-                    </div>
-
-                    <div>
-                        <label class="ui-label">{{ __('Search') }}</label>
-                        <input type="text" wire:model.live.debounce.300ms="search" class="mt-1 ui-input" placeholder="Search product name..." />
-                    </div>
+                        </tbody>
+                    </table>
                 </div>
-            </div>
-        </div>
-
-        <div class="mt-6 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-4">
-            <div class="ui-card">
-                <div class="ui-card-body">
-                    <div class="text-xs text-slate-500">{{ __('Sales Total') }}</div>
-                    <div class="mt-1 text-lg font-semibold text-slate-900">{{ number_format((float) $salesTotal, 2) }}</div>
-                </div>
-            </div>
-
-            <div class="ui-card">
-                <div class="ui-card-body">
-                    <div class="text-xs text-slate-500">{{ __('COGS') }}</div>
-                    <div class="mt-1 text-lg font-semibold text-slate-900">{{ number_format((float) $cogsTotal, 2) }}</div>
-                </div>
-            </div>
-
-            <div class="ui-card">
-                <div class="ui-card-body">
-                    <div class="text-xs text-slate-500">{{ __('Gross Profit') }}</div>
-                    <div class="mt-1 text-lg font-semibold text-emerald-600">{{ number_format((float) $profitTotal, 2) }}</div>
-                    <div class="text-xs text-slate-500">{{ number_format((float) $profitMargin, 1) }}% margin</div>
-                </div>
-            </div>
-
-            <div class="ui-card">
-                <div class="ui-card-body">
-                    <div class="text-xs text-slate-500">{{ __('Expenses') }}</div>
-                    <div class="mt-1 text-lg font-semibold text-orange-600">{{ number_format((float) $expenseTotal, 2) }}</div>
-                </div>
-            </div>
-
-            <div class="ui-card">
-                <div class="ui-card-body">
-                    <div class="text-xs text-slate-500">{{ __('Net Profit') }}</div>
-                    <div class="mt-1 text-lg font-semibold {{ $netProfit >= 0 ? 'text-emerald-600' : 'text-red-600' }}">{{ number_format((float) $netProfit, 2) }}</div>
-                    <div class="text-xs text-slate-500">{{ number_format((float) $netProfitMargin, 1) }}% margin</div>
-                </div>
-            </div>
-
-            <div class="ui-card">
-                <div class="ui-card-body">
-                    <div class="text-xs text-slate-500">{{ __('Sales Count') }}</div>
-                    <div class="mt-1 text-lg font-semibold text-slate-900">{{ number_format((int) $salesCount) }}</div>
-                </div>
-            </div>
-
-            <div class="ui-card">
-                <div class="ui-card-body">
-                    <div class="text-xs text-slate-500">{{ __('Low Profit Lines') }}</div>
-                    <div class="mt-1 text-lg font-semibold text-amber-600">{{ number_format((int) $lowProfitLines) }}</div>
-                </div>
-            </div>
-
-            <div class="ui-card">
-                <div class="ui-card-body">
-                    <div class="text-xs text-slate-500">{{ __('Loss Lines') }}</div>
-                    <div class="mt-1 text-lg font-semibold text-red-600">{{ number_format((int) $lossLines) }}</div>
-                </div>
-            </div>
-        </div>
-
-        @if ($isSuperAdmin && $branch_id <= 0)
-            <div class="mt-6 ui-card">
-                <div class="ui-card-body">
-                    <h3 class="ui-card-title">{{ __('Profit by Branch') }}</h3>
-
-                    <div class="mt-4 overflow-x-auto">
-                        <div class="ui-table-wrap">
-                            <table class="ui-table">
-                                <thead>
-                                    <tr>
-                                        <th>{{ __('Branch') }}</th>
-                                        <th class="text-right">{{ __('Sales') }}</th>
-                                        <th class="text-right">{{ __('COGS') }}</th>
-                                        <th class="text-right">{{ __('Profit') }}</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach ($branchesByProfit as $row)
-                                        <tr>
-                                            <td class="font-medium text-slate-900">{{ $row->branch_name }}</td>
-                                            <td class="text-right">{{ number_format((float) $row->sales_total, 2) }}</td>
-                                            <td class="text-right">{{ number_format((float) $row->cogs_total, 2) }}</td>
-                                            <td class="text-right">{{ number_format((float) $row->profit_total, 2) }}</td>
-                                        </tr>
-                                    @endforeach
-                                    @if ($branchesByProfit->isEmpty())
-                                        <tr>
-                                            <td colspan="4" class="ui-table-empty">{{ __('No data found.') }}</td>
-                                        </tr>
-                                    @endif
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        @endif
-
-        <div class="mt-6 ui-card">
-            <div class="ui-card-body">
-                <h3 class="ui-card-title">{{ __('Top Products by Profit') }}</h3>
-
-                <div class="mt-4 overflow-x-auto">
-                    <div class="ui-table-wrap">
-                        <table class="ui-table">
-                            <thead>
-                                <tr>
-                                    <th>{{ __('Product') }}</th>
-                                    <th class="text-right">{{ __('Qty Sold') }}</th>
-                                    <th class="text-right">{{ __('Sales') }}</th>
-                                    <th class="text-right">{{ __('COGS') }}</th>
-                                    <th class="text-right">{{ __('Profit') }}</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach ($topProductsByProfit as $row)
-                                    <tr>
-                                        <td class="font-medium text-slate-900">{{ $row->product_name }}</td>
-                                        <td class="text-right">{{ number_format((int) $row->qty_sold) }}</td>
-                                        <td class="text-right">{{ number_format((float) $row->sales_total, 2) }}</td>
-                                        <td class="text-right">{{ number_format((float) $row->cogs_total, 2) }}</td>
-                                        <td class="text-right">{{ number_format((float) $row->profit_total, 2) }}</td>
-                                    </tr>
-                                @endforeach
-                                @if ($topProductsByProfit->isEmpty())
-                                    <tr>
-                                        <td colspan="5" class="ui-table-empty">{{ __('No data found.') }}</td>
-                                    </tr>
-                                @endif
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="mt-6 ui-card no-print">
-            <div class="ui-card-body">
-                <h3 class="ui-card-title">{{ __('Profit Trend') }}</h3>
-                <div class="mt-1 text-sm text-slate-600">{{ __('Revenue vs COGS vs Profit (by day)') }}</div>
-
-                @php
-                    $trendLabels = [];
-                    $trendRevenue = [];
-                    $trendCogs = [];
-                    $trendProfit = [];
-
-                    foreach ($profitByDay as $row) {
-                        $trendLabels[] = (string) $row->day;
-                        $trendRevenue[] = (float) ($row->sales_total ?? 0);
-                        $trendCogs[] = (float) ($row->cogs_total ?? 0);
-                        $trendProfit[] = (float) ($row->profit_total ?? 0);
-                    }
-                @endphp
-
-                <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-
-                <div class="mt-4" wire:ignore>
-                    <canvas id="profitTrendChart" height="100"></canvas>
-                </div>
-
-                @script
-                <script>
-                    function renderProfitChart() {
-                        const el = document.getElementById('profitTrendChart');
-                        if (!el || !window.Chart) return;
-
-                        const labels = @json($trendLabels);
-                        const revenue = @json($trendRevenue);
-                        const cogs = @json($trendCogs);
-                        const profit = @json($trendProfit);
-
-                        if (el._chart) { el._chart.destroy(); }
-
-                        el._chart = new Chart(el, {
-                            type: 'line',
-                            data: {
-                                labels,
-                                datasets: [
-                                    { label: 'Revenue', data: revenue, borderColor: '#2563EB', backgroundColor: 'rgba(37, 99, 235, 0.12)', tension: 0.3, fill: true },
-                                    { label: 'COGS', data: cogs, borderColor: '#DC2626', backgroundColor: 'rgba(220, 38, 38, 0.10)', tension: 0.3, fill: true },
-                                    { label: 'Profit', data: profit, borderColor: '#16A34A', backgroundColor: 'rgba(22, 163, 74, 0.10)', tension: 0.3, fill: true },
-                                ]
-                            },
-                            options: {
-                                responsive: true, maintainAspectRatio: false,
-                                interaction: { mode: 'index', intersect: false },
-                                plugins: { legend: { position: 'bottom' } },
-                                scales: { y: { beginAtZero: true } }
-                            }
-                        });
-                    }
-
-                    function initProfitChart() {
-                        if (typeof window.Chart === 'undefined') {
-                            setTimeout(initProfitChart, 100);
-                            return;
-                        }
-                        renderProfitChart();
-                    }
-                    
-                    initProfitChart();
-                    Livewire.hook('morph.updated', () => { setTimeout(initProfitChart, 100); });
-                    document.addEventListener('livewire:navigated', () => { setTimeout(initProfitChart, 100); });
-                </script>
-                @endscript
             </div>
         </div>
     </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+    @script
+    <script>
+        let trendChart = null;
+        let categoryChart = null;
+
+        function initCharts() {
+            const trendCtx = document.getElementById('profitTrendChart');
+            const categoryCtx = document.getElementById('categoryProfitChart');
+
+            if (trendChart) trendChart.destroy();
+            if (categoryChart) categoryChart.destroy();
+
+            // Trend Chart
+            const trendData = @json($profitByDay);
+            trendChart = new Chart(trendCtx, {
+                type: 'line',
+                data: {
+                    labels: trendData.map(d => d.day),
+                    datasets: [
+                        {
+                            label: 'Gross Profit',
+                            data: trendData.map(d => d.profit),
+                            borderColor: '#10b981',
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            fill: true,
+                            tension: 0.4,
+                            borderWidth: 2,
+                            pointRadius: 3,
+                            pointBackgroundColor: '#10b981'
+                        },
+                        {
+                            label: 'Prev. Gross Profit',
+                            data: trendData.map(d => d.prev_profit),
+                            borderColor: '#94a3b8',
+                            borderDash: [5, 5],
+                            fill: false,
+                            tension: 0.4,
+                            borderWidth: 2,
+                            pointRadius: 3,
+                            pointBackgroundColor: '#94a3b8',
+                            hidden: true
+                        },
+                        {
+                            label: 'Revenue',
+                            data: trendData.map(d => d.revenue),
+                            borderColor: '#3b82f6',
+                            borderDash: [2, 2],
+                            fill: false,
+                            tension: 0.4,
+                            borderWidth: 1.5,
+                            pointRadius: 0,
+                            hidden: true
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { 
+                            position: 'top',
+                            align: 'end',
+                            labels: {
+                                boxWidth: 10,
+                                usePointStyle: true,
+                                pointStyle: 'circle'
+                            }
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': XAF ' + context.parsed.y.toLocaleString();
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: { 
+                            beginAtZero: true, 
+                            grid: { borderDash: [2, 2], color: '#f1f5f9' },
+                            ticks: {
+                                callback: value => 'XAF ' + value.toLocaleString()
+                            }
+                        },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+
+            // Category Chart
+            const catData = @json($categoryProfit);
+            categoryChart = new Chart(categoryCtx, {
+                type: 'bar',
+                data: {
+                    labels: catData.map(d => d.name),
+                    datasets: [{
+                        label: 'Profit by Category',
+                        data: catData.map(d => d.profit_total),
+                        backgroundColor: '#6366f1',
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return 'Profit: XAF ' + context.parsed.x.toLocaleString();
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { 
+                            beginAtZero: true, 
+                            grid: { borderDash: [2, 2], color: '#f1f5f9' },
+                            ticks: {
+                                callback: value => 'XAF ' + value.toLocaleString()
+                            }
+                        },
+                        y: { grid: { display: false } }
+                    }
+                }
+            });
+        }
+
+        initCharts();
+        Livewire.on('updated', () => { setTimeout(initCharts, 100); });
+        Livewire.on('updateCharts', () => { setTimeout(initCharts, 100); });
+    </script>
+    @endscript
 </div>

@@ -17,7 +17,7 @@ class ReportsStockIndex extends Component
     public string $date_from;
     public string $date_to;
 
-    public bool $low_stock_only = false;
+    public int $category_id = 0;
     public string $search = '';
 
     public bool $isSuperAdmin = false;
@@ -39,7 +39,7 @@ class ReportsStockIndex extends Component
         $this->date_from = $today->copy()->startOfMonth()->toDateString();
         $this->date_to = $today->toDateString();
 
-        $this->low_stock_only = false;
+        $this->category_id = 0;
         $this->search = '';
     }
 
@@ -55,7 +55,7 @@ class ReportsStockIndex extends Component
             $this->date_from = $today->copy()->startOfMonth()->toDateString();
             $this->date_to = $today->toDateString();
 
-            $this->low_stock_only = false;
+            $this->category_id = 0;
             $this->search = '';
         }
 
@@ -76,25 +76,87 @@ class ReportsStockIndex extends Component
             $branches = Branch::query()->where('is_active', true)->orderBy('name')->get();
         }
 
-        $products = Product::query()
-            ->with(['unitType'])
+        $from = Carbon::parse($this->date_from)->startOfDay();
+        $to = Carbon::parse($this->date_to)->endOfDay();
+
+        $daysCount = $from->diffInDays($to) + 1;
+        $prevTo = $from->copy()->subSecond();
+        $prevFrom = $prevTo->copy()->subDays($daysCount - 1)->startOfDay();
+
+        $categories = \App\Models\Category::query()
             ->when($this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
             ->orderBy('name')
             ->get();
 
-        $from = Carbon::parse($this->date_from)->startOfDay();
-        $to = Carbon::parse($this->date_to)->endOfDay();
+        // Metrics (Current Snapshot)
+        $stockMetrics = ProductStock::query()
+            ->join('products', 'products.id', '=', 'product_stocks.product_id')
+            ->when($this->branch_id > 0, fn ($q) => $q->where('product_stocks.branch_id', $this->branch_id))
+            ->when($this->category_id > 0, fn ($q) => $q->where('products.category_id', $this->category_id))
+            ->select([
+                DB::raw('COUNT(*) as total_items'),
+                DB::raw('SUM(CASE WHEN product_stocks.current_stock <= product_stocks.minimum_stock AND product_stocks.current_stock > 0 THEN 1 ELSE 0 END) as low_stock'),
+                DB::raw('SUM(CASE WHEN product_stocks.current_stock <= 0 THEN 1 ELSE 0 END) as out_of_stock'),
+                DB::raw('SUM(product_stocks.current_stock * product_stocks.cost_price) as total_value'),
+            ])
+            ->first();
 
+        // Stock In / Sold Comparison
+        $currentStockIn = StockInItem::query()
+            ->join('stock_in_receipts', 'stock_in_receipts.id', '=', 'stock_in_items.stock_in_receipt_id')
+            ->when($this->branch_id > 0, fn ($q) => $q->where('stock_in_receipts.branch_id', $this->branch_id))
+            ->whereNull('stock_in_receipts.voided_at')
+            ->whereBetween('stock_in_receipts.received_at', [$from, $to])
+            ->sum('stock_in_items.quantity');
+
+        $prevStockIn = StockInItem::query()
+            ->join('stock_in_receipts', 'stock_in_receipts.id', '=', 'stock_in_items.stock_in_receipt_id')
+            ->when($this->branch_id > 0, fn ($q) => $q->where('stock_in_receipts.branch_id', $this->branch_id))
+            ->whereNull('stock_in_receipts.voided_at')
+            ->whereBetween('stock_in_receipts.received_at', [$prevFrom, $prevTo])
+            ->sum('stock_in_items.quantity');
+
+        $currentSold = SalesItem::query()
+            ->join('sales_receipts', 'sales_receipts.id', '=', 'sales_items.sales_receipt_id')
+            ->when($this->branch_id > 0, fn ($q) => $q->where('sales_receipts.branch_id', $this->branch_id))
+            ->whereNull('sales_receipts.voided_at')
+            ->whereBetween('sales_receipts.sold_at', [$from, $to])
+            ->sum('sales_items.quantity');
+
+        $prevSold = SalesItem::query()
+            ->join('sales_receipts', 'sales_receipts.id', '=', 'sales_items.sales_receipt_id')
+            ->when($this->branch_id > 0, fn ($q) => $q->where('sales_receipts.branch_id', $this->branch_id))
+            ->whereNull('sales_receipts.voided_at')
+            ->whereBetween('sales_receipts.sold_at', [$prevFrom, $prevTo])
+            ->sum('sales_items.quantity');
+
+        $stockInChange = $prevStockIn > 0 ? (($currentStockIn - $prevStockIn) / $prevStockIn) * 100 : 0;
+        $soldChange = $prevSold > 0 ? (($currentSold - $prevSold) / $prevSold) * 100 : 0;
+
+        // Category Breakdown (for Chart)
+        $categoryStock = ProductStock::query()
+            ->join('products', 'products.id', '=', 'product_stocks.product_id')
+            ->join('categories', 'categories.id', '=', 'products.category_id')
+            ->when($this->branch_id > 0, fn ($q) => $q->where('product_stocks.branch_id', $this->branch_id))
+            ->groupBy('categories.id', 'categories.name')
+            ->orderByDesc('stock_value')
+            ->limit(10)
+            ->get([
+                'categories.name',
+                DB::raw('SUM(product_stocks.current_stock * product_stocks.cost_price) as stock_value'),
+                DB::raw('SUM(product_stocks.current_stock) as total_qty'),
+            ]);
+
+        // Stock Movement (Trend)
         $stockInByDay = StockInItem::query()
             ->join('stock_in_receipts', 'stock_in_receipts.id', '=', 'stock_in_items.stock_in_receipt_id')
             ->when($this->branch_id > 0, fn ($q) => $q->where('stock_in_receipts.branch_id', $this->branch_id))
             ->whereNull('stock_in_receipts.voided_at')
             ->whereBetween('stock_in_receipts.received_at', [$from, $to])
             ->groupBy(DB::raw('DATE(stock_in_receipts.received_at)'))
-            ->orderBy(DB::raw('DATE(stock_in_receipts.received_at)'))
             ->get([
                 DB::raw('DATE(stock_in_receipts.received_at) as day'),
-                DB::raw('SUM(stock_in_items.quantity) as stock_in_qty'),
+                DB::raw('SUM(stock_in_items.quantity) as qty'),
             ]);
 
         $soldByDay = SalesItem::query()
@@ -103,92 +165,74 @@ class ReportsStockIndex extends Component
             ->whereNull('sales_receipts.voided_at')
             ->whereBetween('sales_receipts.sold_at', [$from, $to])
             ->groupBy(DB::raw('DATE(sales_receipts.sold_at)'))
-            ->orderBy(DB::raw('DATE(sales_receipts.sold_at)'))
             ->get([
                 DB::raw('DATE(sales_receipts.sold_at) as day'),
-                DB::raw('SUM(sales_items.quantity) as sold_qty'),
+                DB::raw('SUM(sales_items.quantity) as qty'),
             ]);
 
-        $inventoryQuery = ProductStock::query()
-            ->with(['product.unitType'])
-            ->when($this->branch_id > 0, fn ($q) => $q->where('product_stocks.branch_id', $this->branch_id))
-            ->join('products', 'products.id', '=', 'product_stocks.product_id')
-            ->when(trim($this->search) !== '', function ($q) {
-                $term = '%' . trim($this->search) . '%';
-                $q->where('products.name', 'like', $term);
-            })
-            ->orderBy('products.name')
-            ->select('product_stocks.*');
-
-        if ($this->low_stock_only) {
-            $inventoryQuery->whereColumn('product_stocks.current_stock', '<=', 'product_stocks.minimum_stock');
-        }
-
-        $inventory = $inventoryQuery->get();
-
-        $salesQtyByProduct = SalesItem::query()
-            ->join('sales_receipts', 'sales_receipts.id', '=', 'sales_items.sales_receipt_id')
-            ->when($this->branch_id > 0, fn ($q) => $q->where('sales_receipts.branch_id', $this->branch_id))
-            ->whereNull('sales_receipts.voided_at')
-            ->whereBetween('sales_receipts.sold_at', [$from, $to])
-            ->groupBy('sales_items.product_id')
-            ->select([
-                'sales_items.product_id',
-                DB::raw('SUM(sales_items.quantity) as sold_qty'),
-            ])
-            ->get()
-            ->keyBy('product_id');
-
-        $stockInQtyByProduct = StockInItem::query()
+        // Combine trend data
+        $trendData = [];
+        $allDays = $stockInByDay->pluck('day')->merge($soldByDay->pluck('day'))->unique()->sort();
+        
+        // Previous period trend data
+        $prevStockInByDay = StockInItem::query()
             ->join('stock_in_receipts', 'stock_in_receipts.id', '=', 'stock_in_items.stock_in_receipt_id')
             ->when($this->branch_id > 0, fn ($q) => $q->where('stock_in_receipts.branch_id', $this->branch_id))
             ->whereNull('stock_in_receipts.voided_at')
-            ->whereBetween('stock_in_receipts.received_at', [$from, $to])
-            ->groupBy('stock_in_items.product_id')
-            ->select([
-                'stock_in_items.product_id',
-                DB::raw('SUM(stock_in_items.quantity) as stock_in_qty'),
-            ])
-            ->get()
-            ->keyBy('product_id');
+            ->whereBetween('stock_in_receipts.received_at', [$prevFrom, $prevTo])
+            ->groupBy(DB::raw('DATE(stock_in_receipts.received_at)'))
+            ->get([
+                DB::raw('DATE(stock_in_receipts.received_at) as day'),
+                DB::raw('SUM(stock_in_items.quantity) as qty'),
+            ]);
 
-        $movementRows = [];
-        foreach ($inventory as $row) {
-            $pid = (int) $row->product_id;
-            $movementRows[] = [
-                'product_name' => (string) ($row->product?->name ?? '-'),
-                'unit_type_name' => $row->product?->unitType?->name,
-                'current_stock' => (int) ($row->current_stock ?? 0),
-                'minimum_stock' => (int) ($row->minimum_stock ?? 0),
-                'stock_in_qty' => (int) ($stockInQtyByProduct[$pid]->stock_in_qty ?? 0),
-                'sold_qty' => (int) ($salesQtyByProduct[$pid]->sold_qty ?? 0),
+        $prevSoldByDay = SalesItem::query()
+            ->join('sales_receipts', 'sales_receipts.id', '=', 'sales_items.sales_receipt_id')
+            ->when($this->branch_id > 0, fn ($q) => $q->where('sales_receipts.branch_id', $this->branch_id))
+            ->whereNull('sales_receipts.voided_at')
+            ->whereBetween('sales_receipts.sold_at', [$prevFrom, $prevTo])
+            ->groupBy(DB::raw('DATE(sales_receipts.sold_at)'))
+            ->get([
+                DB::raw('DATE(sales_receipts.sold_at) as day'),
+                DB::raw('SUM(sales_items.quantity) as qty'),
+            ]);
+
+        // We'll align by day index (1 to daysCount) for comparison
+        for ($i = 0; $i < $daysCount; $i++) {
+            $currentDay = $from->copy()->addDays($i)->toDateString();
+            $prevDay = $prevFrom->copy()->addDays($i)->toDateString();
+
+            $trendData[] = [
+                'day' => Carbon::parse($currentDay)->format('M d'),
+                'in' => $stockInByDay->firstWhere('day', $currentDay)->qty ?? 0,
+                'out' => $soldByDay->firstWhere('day', $currentDay)->qty ?? 0,
+                'prev_in' => $prevStockInByDay->firstWhere('day', $prevDay)->qty ?? 0,
+                'prev_out' => $prevSoldByDay->firstWhere('day', $prevDay)->qty ?? 0,
             ];
         }
 
-        usort($movementRows, fn ($a, $b) => strcmp((string) $a['product_name'], (string) $b['product_name']));
-
-        $totalProducts = count($movementRows);
-        $lowStockCount = count(array_filter($movementRows, fn ($r) => (int) $r['current_stock'] <= (int) $r['minimum_stock']));
-
-        $fastMoving = $movementRows;
-        usort($fastMoving, fn ($a, $b) => (int) $b['sold_qty'] <=> (int) $a['sold_qty']);
-        $fastMoving = array_slice($fastMoving, 0, 10);
-
-        $slowMoving = array_values(array_filter($movementRows, fn ($r) => (int) $r['sold_qty'] > 0));
-        usort($slowMoving, fn ($a, $b) => (int) $a['sold_qty'] <=> (int) $b['sold_qty']);
-        $slowMoving = array_slice($slowMoving, 0, 10);
+        // Attention List (Low Stock Items)
+        $attentionList = ProductStock::query()
+            ->with(['product.unitType', 'product.category'])
+            ->join('products', 'products.id', '=', 'product_stocks.product_id')
+            ->when($this->branch_id > 0, fn ($q) => $q->where('product_stocks.branch_id', $this->branch_id))
+            ->when($this->category_id > 0, fn ($q) => $q->where('products.category_id', $this->category_id))
+            ->whereColumn('product_stocks.current_stock', '<=', 'product_stocks.minimum_stock')
+            ->orderBy('product_stocks.current_stock')
+            ->limit(10)
+            ->get(['product_stocks.*', 'products.name as product_name']);
 
         return view('livewire.reports-stock-index', [
             'branches' => $branches,
-            'products' => $products,
-            'inventory' => $inventory,
-            'movementRows' => $movementRows,
-            'totalProducts' => $totalProducts,
-            'lowStockCount' => $lowStockCount,
-            'stockInByDay' => $stockInByDay,
-            'soldByDay' => $soldByDay,
-            'fastMoving' => $fastMoving,
-            'slowMoving' => $slowMoving,
+            'categories' => $categories,
+            'metrics' => $stockMetrics,
+            'currentStockIn' => $currentStockIn,
+            'stockInChange' => $stockInChange,
+            'currentSold' => $currentSold,
+            'soldChange' => $soldChange,
+            'categoryStock' => $categoryStock,
+            'trendData' => $trendData,
+            'attentionList' => $attentionList,
             'isSuperAdmin' => $this->isSuperAdmin,
         ]);
     }

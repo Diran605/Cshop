@@ -64,7 +64,7 @@
     }
 
     .ui-nav-group-summary::marker {
-        content: '';
+        content: "";
     }
 
     .ui-nav-caret {
@@ -109,7 +109,7 @@
     }
 
     .ui-card-title {
-        @apply text-lg font-semibold text-text-primary;
+        @apply text-lg font-semibold text-text-primary mt-2 mb-2 px-2;
     }
 
     .ui-page-title {

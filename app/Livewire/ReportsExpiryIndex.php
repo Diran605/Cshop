@@ -14,6 +14,7 @@ class ReportsExpiryIndex extends Component
     public int $branch_id = 0;
     public int $days_ahead = 30;
 
+    public int $category_id = 0;
     public string $search = '';
 
     public bool $isSuperAdmin = false;
@@ -32,6 +33,7 @@ class ReportsExpiryIndex extends Component
         }
 
         $this->days_ahead = 30;
+        $this->category_id = 0;
         $this->search = '';
     }
 
@@ -43,6 +45,7 @@ class ReportsExpiryIndex extends Component
         if ($currentUserId !== $this->auth_user_id) {
             $this->auth_user_id = $currentUserId;
             $this->days_ahead = 30;
+            $this->category_id = 0;
             $this->search = '';
         }
 
@@ -63,78 +66,76 @@ class ReportsExpiryIndex extends Component
             $branches = Branch::query()->where('is_active', true)->orderBy('name')->get();
         }
 
+        $categories = \App\Models\Category::query()
+            ->when($this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
+            ->orderBy('name')
+            ->get();
+
         $today = Carbon::today()->toDateString();
         $nearDate = Carbon::today()->addDays(max(0, (int) $this->days_ahead))->toDateString();
 
-        $expiredBase = StockInItem::query()
+        $baseQuery = StockInItem::query()
             ->join('stock_in_receipts', 'stock_in_receipts.id', '=', 'stock_in_items.stock_in_receipt_id')
             ->join('products', 'products.id', '=', 'stock_in_items.product_id')
             ->whereNull('stock_in_receipts.voided_at')
             ->whereNotNull('stock_in_items.expiry_date')
+            ->where('stock_in_items.remaining_quantity', '>', 0)
+            ->when($this->branch_id > 0, fn ($q) => $q->where('stock_in_receipts.branch_id', $this->branch_id))
+            ->when($this->category_id > 0, fn ($q) => $q->where('products.category_id', $this->category_id))
+            ->when(trim($this->search) !== '', function ($q) {
+                $term = '%' . trim($this->search) . '%';
+                $q->where('products.name', 'like', $term);
+            });
+
+        // Expired
+        $expiredRows = (clone $baseQuery)
             ->where('stock_in_items.expiry_date', '<', $today)
-            ->where('stock_in_items.remaining_quantity', '>', 0)
-            ->when($this->branch_id > 0, fn ($q) => $q->where('stock_in_receipts.branch_id', $this->branch_id));
+            ->orderBy('stock_in_items.expiry_date')
+            ->get([
+                'products.name as product_name',
+                'stock_in_items.*',
+                'stock_in_receipts.branch_id',
+            ]);
 
-        $nearExpiryBase = StockInItem::query()
-            ->join('stock_in_receipts', 'stock_in_receipts.id', '=', 'stock_in_items.stock_in_receipt_id')
-            ->join('products', 'products.id', '=', 'stock_in_items.product_id')
-            ->whereNull('stock_in_receipts.voided_at')
-            ->whereNotNull('stock_in_items.expiry_date')
+        // Near Expiry
+        $nearExpiryRows = (clone $baseQuery)
             ->whereBetween('stock_in_items.expiry_date', [$today, $nearDate])
-            ->where('stock_in_items.remaining_quantity', '>', 0)
-            ->when($this->branch_id > 0, fn ($q) => $q->where('stock_in_receipts.branch_id', $this->branch_id));
-
-        if (trim($this->search) !== '') {
-            $term = '%' . trim($this->search) . '%';
-            $expiredBase->where('products.name', 'like', $term);
-            $nearExpiryBase->where('products.name', 'like', $term);
-        }
-
-        $expiredRows = (clone $expiredBase)
             ->orderBy('stock_in_items.expiry_date')
-            ->limit(200)
             ->get([
                 'products.name as product_name',
-                'stock_in_items.expiry_date',
-                'stock_in_items.remaining_quantity',
-                'stock_in_items.cost_price',
-                'stock_in_items.batch_ref_no',
+                'stock_in_items.*',
                 'stock_in_receipts.branch_id',
             ]);
 
-        $nearExpiryRows = (clone $nearExpiryBase)
-            ->orderBy('stock_in_items.expiry_date')
-            ->limit(200)
-            ->get([
-                'products.name as product_name',
-                'stock_in_items.expiry_date',
-                'stock_in_items.remaining_quantity',
-                'stock_in_items.cost_price',
-                'stock_in_items.batch_ref_no',
-                'stock_in_receipts.branch_id',
-            ]);
-
-        $expiredLoss = 0.0;
-        foreach ($expiredRows as $row) {
-            $expiredLoss += (float) ($row->cost_price ?? 0) * (int) ($row->remaining_quantity ?? 0);
+        // Timeline Data (Next 4 months)
+        $timelineData = [];
+        for ($i = 0; $i < 4; $i++) {
+            $mStart = Carbon::today()->addMonths($i)->startOfMonth();
+            $mEnd = Carbon::today()->addMonths($i)->endOfMonth();
+            
+            $count = (clone $baseQuery)
+                ->whereBetween('stock_in_items.expiry_date', [$mStart->toDateString(), $mEnd->toDateString()])
+                ->count();
+            
+            $timelineData[] = [
+                'month' => $mStart->format('M Y'),
+                'count' => $count
+            ];
         }
 
-        $nearExpiryValue = 0.0;
-        foreach ($nearExpiryRows as $row) {
-            $nearExpiryValue += (float) ($row->cost_price ?? 0) * (int) ($row->remaining_quantity ?? 0);
-        }
-
-        $expiredCount = count($expiredRows);
-        $nearExpiryCount = count($nearExpiryRows);
+        $expiredLoss = $expiredRows->sum(fn($r) => $r->cost_price * $r->remaining_quantity);
+        $nearExpiryValue = $nearExpiryRows->sum(fn($r) => $r->cost_price * $r->remaining_quantity);
 
         return view('livewire.reports-expiry-index', [
             'branches' => $branches,
+            'categories' => $categories,
             'expiredRows' => $expiredRows,
             'nearExpiryRows' => $nearExpiryRows,
             'expiredLoss' => $expiredLoss,
             'nearExpiryValue' => $nearExpiryValue,
-            'expiredCount' => $expiredCount,
-            'nearExpiryCount' => $nearExpiryCount,
+            'expiredCount' => $expiredRows->count(),
+            'nearExpiryCount' => $nearExpiryRows->count(),
+            'timelineData' => $timelineData,
             'isSuperAdmin' => $this->isSuperAdmin,
         ]);
     }

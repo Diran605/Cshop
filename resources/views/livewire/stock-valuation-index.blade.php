@@ -1,29 +1,41 @@
 <div class="ui-page">
     <div class="ui-page-container">
-        <div class="mb-6">
-            <h2 class="ui-page-title">{{ __('Stock Valuation') }}</h2>
-            <div class="ui-page-subtitle">{{ __('View stock quantities and cost prices across opening stock and stock-in') }}</div>
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+            <div>
+                <h2 class="ui-page-title">{{ __('Stock Valuation') }}</h2>
+                <div class="ui-page-subtitle">{{ __('View stock quantities and cost prices across opening stock and stock-in') }}</div>
+            </div>
+            <div class="flex items-center gap-3 no-print">
+                <div class="ui-tabs">
+                    <a href="{{ route('reports.index') }}" class="ui-tab">{{ __('Sales') }}</a>
+                    <a href="{{ route('reports.profit') }}" class="ui-tab">{{ __('Profit') }}</a>
+                    <a href="{{ route('reports.stock') }}" class="ui-tab">{{ __('Stock') }}</a>
+                    <a href="{{ route('reports.expenses') }}" class="ui-tab">{{ __('Expenses') }}</a>
+                    <a href="{{ route('reports.expiry') }}" class="ui-tab">{{ __('Expiry') }}</a>
+                    <a href="{{ route('clearance.reports') }}" class="ui-tab">{{ __('Clearance') }}</a>
+                    <a href="{{ route('daily_summary.index') }}" class="ui-tab">{{ __('Summary') }}</a>
+                    <a href="{{ route('stock_valuation.index') }}" class="ui-tab ui-tab-active">{{ __('Valuation') }}</a>
+                </div>
+                <button onclick="window.print()" class="ui-btn-primary gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
+                    {{ __('Print') }}
+                </button>
+            </div>
         </div>
 
         {{-- Summary Cards --}}
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div class="ui-card">
-                <div class="ui-card-body">
-                    <div class="text-sm text-slate-500">{{ __('Total Products') }}</div>
-                    <div class="mt-1 text-2xl font-bold text-slate-900">{{ number_format($summary['total_products']) }}</div>
-                </div>
+            <div class="ui-kpi-card">
+                <div class="ui-kpi-title">{{ __('Total Products') }}</div>
+                <div class="ui-kpi-value mt-1">{{ number_format($summary['total_products']) }}</div>
             </div>
-            <div class="ui-card">
-                <div class="ui-card-body">
-                    <div class="text-sm text-slate-500">{{ __('Total Quantity') }}</div>
-                    <div class="mt-1 text-2xl font-bold text-slate-900">{{ number_format($summary['total_quantity']) }}</div>
-                </div>
+            <div class="ui-kpi-card">
+                <div class="ui-kpi-title">{{ __('Total Quantity') }}</div>
+                <div class="ui-kpi-value mt-1">{{ number_format($summary['total_quantity']) }}</div>
             </div>
-            <div class="ui-card">
-                <div class="ui-card-body">
-                    <div class="text-sm text-slate-500">{{ __('Total Stock Value') }}</div>
-                    <div class="mt-1 text-2xl font-bold text-green-600">{{ number_format($summary['total_value'], 2) }}</div>
-                </div>
+            <div class="ui-kpi-card">
+                <div class="ui-kpi-title">{{ __('Total Stock Value') }}</div>
+                <div class="ui-kpi-value mt-1 text-green-600">XAF {{ number_format($summary['total_value'], 2) }}</div>
             </div>
         </div>
 
@@ -97,22 +109,22 @@
                                         </span>
                                     </td>
                                     <td class="whitespace-nowrap text-right font-mono text-slate-600">
-                                        {{ isset($product->opening_cost_price) && $product->opening_cost_price !== null ? number_format((float) $product->opening_cost_price, 2) : '-' }}
+                                        {{ isset($product->opening_cost_price) && $product->opening_cost_price !== null ? 'XAF ' . number_format((float) $product->opening_cost_price, 2) : '-' }}
                                     </td>
                                     <td class="whitespace-nowrap text-right font-mono text-slate-600">
-                                        {{ isset($product->stock_in_cost_price) && $product->stock_in_cost_price !== null ? number_format((float) $product->stock_in_cost_price, 2) : '-' }}
+                                        {{ isset($product->stock_in_cost_price) && $product->stock_in_cost_price !== null ? 'XAF ' . number_format((float) $product->stock_in_cost_price, 2) : '-' }}
                                     </td>
                                     <td class="whitespace-nowrap text-right font-mono font-semibold text-slate-900">
-                                        {{ isset($product->current_cost_price) && $product->current_cost_price !== null ? number_format((float) $product->current_cost_price, 2) : '-' }}
+                                        {{ isset($product->current_cost_price) && $product->current_cost_price !== null ? 'XAF ' . number_format((float) $product->current_cost_price, 2) : '-' }}
                                     </td>
                                     <td class="whitespace-nowrap text-right font-mono font-semibold text-green-600">
-                                        {{ number_format((float) $product->selling_price, 2) }}
+                                        XAF {{ number_format((float) $product->selling_price, 2) }}
                                     </td>
                                     <td class="whitespace-nowrap text-right font-mono font-bold text-blue-600">
                                         @php
                                             $stockValue = ($product->stock?->current_stock ?? 0) * (float) ($product->stock?->cost_price ?? 0);
                                         @endphp
-                                        {{ number_format($stockValue, 2) }}
+                                        XAF {{ number_format($stockValue, 2) }}
                                     </td>
                                     <td class="whitespace-nowrap text-right">
                                         @php
