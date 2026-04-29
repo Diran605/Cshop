@@ -69,6 +69,30 @@ class BranchDashboard extends Component
             ->whereDate('sold_at', $yesterday)
             ->sum('profit_total');
 
+        // Today's expenses
+        $todayExpenses = 0;
+        if (\Schema::hasTable('expenses')) {
+            $todayExpenses = (float) DB::table('expenses')
+                ->where('branch_id', $this->branchId)
+                ->whereNull('voided_at')
+                ->whereDate('expense_date', $today)
+                ->sum('amount');
+        }
+
+        // Yesterday's expenses
+        $yesterdayExpenses = 0;
+        if (\Schema::hasTable('expenses')) {
+            $yesterdayExpenses = (float) DB::table('expenses')
+                ->where('branch_id', $this->branchId)
+                ->whereNull('voided_at')
+                ->whereDate('expense_date', $yesterday)
+                ->sum('amount');
+        }
+
+        // Net Profits
+        $todayNetProfit = $todayProfit - $todayExpenses;
+        $yesterdayNetProfit = $yesterdayProfit - $yesterdayExpenses;
+
         // Today's transactions
         $todayTransactions = (int) SalesReceipt::query()
             ->where('branch_id', $this->branchId)
@@ -84,13 +108,13 @@ class BranchDashboard extends Component
 
         // Calculate percentage changes
         $salesChange = $yesterdaySales > 0 ? round((($todaySales - $yesterdaySales) / $yesterdaySales) * 100, 1) : ($todaySales > 0 ? 100 : 0);
-        $profitChange = $yesterdayProfit > 0 ? round((($todayProfit - $yesterdayProfit) / $yesterdayProfit) * 100, 1) : ($todayProfit > 0 ? 100 : 0);
+        $profitChange = $yesterdayNetProfit != 0 ? round((($todayNetProfit - $yesterdayNetProfit) / abs($yesterdayNetProfit)) * 100, 1) : ($todayNetProfit != 0 ? 100 : 0);
         $transactionsChange = $yesterdayTransactions > 0 ? round((($todayTransactions - $yesterdayTransactions) / $yesterdayTransactions) * 100, 1) : ($todayTransactions > 0 ? 100 : 0);
 
         return [
             'sales' => $todaySales,
             'sales_change' => $salesChange,
-            'profit' => $todayProfit,
+            'profit' => $todayNetProfit,
             'profit_change' => $profitChange,
             'transactions' => $todayTransactions,
             'transactions_change' => $transactionsChange,
@@ -99,14 +123,13 @@ class BranchDashboard extends Component
 
     public function getStockStatsProperty(): array
     {
-        $stockValue = (float) ProductStock::query()
-            ->where('branch_id', $this->branchId)
-            ->sum(DB::raw('COALESCE(current_stock, 0) * COALESCE(cost_price, 0)'));
-
-        $stockItems = (int) ProductStock::query()
-            ->where('branch_id', $this->branchId)
-            ->where('current_stock', '>', 0)
-            ->count();
+        $batchData = \App\Models\StockInItem::query()
+            ->join('stock_in_receipts', 'stock_in_items.stock_in_receipt_id', '=', 'stock_in_receipts.id')
+            ->where('stock_in_receipts.branch_id', $this->branchId)
+            ->whereNull('stock_in_receipts.voided_at')
+            ->where('stock_in_items.remaining_quantity', '>', 0)
+            ->selectRaw('SUM(stock_in_items.remaining_quantity * COALESCE(stock_in_items.cost_price, 0)) as total_value, COUNT(DISTINCT stock_in_items.product_id) as total_items')
+            ->first();
 
         $lowStockCount = (int) ProductStock::query()
             ->where('branch_id', $this->branchId)
@@ -115,8 +138,8 @@ class BranchDashboard extends Component
             ->count();
 
         return [
-            'value' => $stockValue,
-            'items' => $stockItems,
+            'value' => (float) ($batchData->total_value ?? 0),
+            'items' => (int) ($batchData->total_items ?? 0),
             'low_stock_count' => $lowStockCount,
         ];
     }

@@ -1,5 +1,5 @@
 <div class="ui-page">
-    <div class="ui-page-container">
+    <div class="ui-page-container print-container">
         {{-- Header --}}
         <div class="mb-6">
             <h2 class="ui-page-title text-2xl font-bold text-slate-900">{{ __('Clearance Performance Report') }}</h2>

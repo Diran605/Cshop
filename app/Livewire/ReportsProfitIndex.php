@@ -159,7 +159,9 @@ class ReportsProfitIndex extends Component
         $grossProfitChange = $prevGrossProfit > 0 ? (($grossProfit - $prevGrossProfit) / $prevGrossProfit) * 100 : 0;
         $netProfitChange = $prevNetProfit != 0 ? (($netProfit - $prevNetProfit) / abs($prevNetProfit)) * 100 : 0;
         $expenseChange = $prevExpenseTotal > 0 ? (($expenseTotal - $prevExpenseTotal) / $prevExpenseTotal) * 100 : 0;
-        $marginChange = ($salesTotal > 0 && $prevSalesTotal > 0) ? ($grossMargin - ($prevGrossProfit / $prevSalesTotal * 100)) : 0;
+        
+        $prevGrossMargin = $prevSalesTotal > 0 ? (($prevGrossProfit / $prevSalesTotal) * 100) : 0;
+        $marginChange = $grossMargin - $prevGrossMargin;
 
         // Profit Trend (Line Chart)
         $profitByDayRaw = (clone $salesItemsBase)
@@ -168,6 +170,16 @@ class ReportsProfitIndex extends Component
                 DB::raw('DATE(sales_receipts.sold_at) as day'),
                 DB::raw('SUM(sales_items.line_profit) as profit_total'),
                 DB::raw('SUM(sales_items.line_total) as sales_total'),
+            ]);
+
+        $expensesByDayRaw = Expense::query()
+            ->when($this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
+            ->whereNull('voided_at')
+            ->whereBetween('expense_date', [$from->toDateString(), $to->toDateString()])
+            ->groupBy('expense_date')
+            ->get([
+                'expense_date as day',
+                DB::raw('SUM(amount) as amount_total'),
             ]);
 
         $prevProfitByDayRaw = SalesItem::query()
@@ -189,11 +201,15 @@ class ReportsProfitIndex extends Component
             $currentDay = $from->copy()->addDays($i)->toDateString();
             $prevDay = $prevFrom->copy()->addDays($i)->toDateString();
 
+            $grossProfitDay = (float) ($profitByDayRaw->firstWhere('day', $currentDay)->profit_total ?? 0);
+            $expenseDay = (float) ($expensesByDayRaw->firstWhere('day', $currentDay)->amount_total ?? 0);
+
             $profitByDay[] = [
                 'day' => Carbon::parse($currentDay)->format('M d'),
-                'profit' => $profitByDayRaw->firstWhere('day', $currentDay)->profit_total ?? 0,
-                'revenue' => $profitByDayRaw->firstWhere('day', $currentDay)->sales_total ?? 0,
-                'prev_profit' => $prevProfitByDayRaw->firstWhere('day', $prevDay)->profit_total ?? 0,
+                'profit' => $grossProfitDay,
+                'net_profit' => $grossProfitDay - $expenseDay,
+                'revenue' => (float) ($profitByDayRaw->firstWhere('day', $currentDay)->sales_total ?? 0),
+                'prev_profit' => (float) ($prevProfitByDayRaw->firstWhere('day', $prevDay)->profit_total ?? 0),
             ];
         }
 

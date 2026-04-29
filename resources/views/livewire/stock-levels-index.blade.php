@@ -76,6 +76,7 @@
                 <table class="ui-table">
                     <thead>
                         <tr>
+                            <th class="w-10"></th>
                             <th>{{ __('ID') }}</th>
                             @if ($isSuperAdmin)
                                 <th>{{ __('Branch') }}</th>
@@ -83,14 +84,25 @@
                             <th>{{ __('Product') }}</th>
                             <th>{{ __('Current Stock') }}</th>
                             <th>{{ __('Min Stock') }}</th>
-                            <th>{{ __('Cost Price') }}</th>
+                            <th>{{ __('Cost Price (WAC)') }}</th>
                             <th>{{ __('Status') }}</th>
-                            <th>{{ __('Last Updated') }}</th>
                         </tr>
                     </thead>
                     <tbody>
                         @forelse ($stocks as $stock)
+                            @php
+                                $isExpanded = in_array($stock->product_id, $expanded_products);
+                            @endphp
                             <tr class="{{ $stock->current_stock <= 0 ? 'bg-red-50' : ($stock->minimum_stock > 0 && $stock->current_stock <= $stock->minimum_stock ? 'bg-amber-50' : '') }}">
+                                <td>
+                                    <button wire:click="toggleProduct({{ $stock->product_id }})" class="p-1 hover:bg-slate-200 rounded transition-colors">
+                                        @if ($isExpanded)
+                                            <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                                        @else
+                                            <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+                                        @endif
+                                    </button>
+                                </td>
                                 <td class="font-mono text-sm">{{ $stock->id }}</td>
                                 @if ($isSuperAdmin)
                                     <td>{{ $stock->branch?->name ?? '-' }}</td>
@@ -131,13 +143,58 @@
                                         </span>
                                     @endif
                                 </td>
-                                <td class="text-sm text-slate-600">
-                                    {{ $stock->updated_at?->format('M j, Y H:i') ?? '-' }}
-                                </td>
                             </tr>
+
+                            @if ($isExpanded)
+                                <tr class="bg-slate-50">
+                                    <td colspan="{{ $isSuperAdmin ? 9 : 8 }}" class="p-0">
+                                        <div class="p-4 border-l-4 border-slate-300 ml-4 mb-2">
+                                            <h4 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">{{ __('Batch Breakdown') }}</h4>
+                                            <table class="w-full text-xs">
+                                                <thead>
+                                                    <tr class="text-left border-b border-slate-200">
+                                                        <th class="py-1">{{ __('Receipt #') }}</th>
+                                                        <th class="py-1">{{ __('Date') }}</th>
+                                                        <th class="py-1">{{ __('Expiry') }}</th>
+                                                        <th class="py-1 text-center">{{ __('Original') }}</th>
+                                                        <th class="py-1 text-center">{{ __('Out') }}</th>
+                                                        <th class="py-1 text-center">{{ __('Available') }}</th>
+                                                        <th class="py-1 text-right">{{ __('Batch Cost') }}</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    @forelse ($stock->batches ?? [] as $batch)
+                                                        <tr class="border-b border-slate-100 hover:bg-slate-100">
+                                                            <td class="py-1 font-mono text-slate-600">{{ $batch->receipt_no }}</td>
+                                                            <td class="py-1 text-slate-600">{{ \Carbon\Carbon::parse($batch->received_at)->format('d/m/Y') }}</td>
+                                                            <td class="py-1">
+                                                                @if ($batch->expiry_date)
+                                                                    <span class="{{ $batch->expiry_date <= now() ? 'text-red-600 font-bold' : ($batch->expiry_date <= now()->addMonths(3) ? 'text-amber-600' : 'text-slate-600') }}">
+                                                                        {{ \Carbon\Carbon::parse($batch->expiry_date)->format('d/m/Y') }}
+                                                                    </span>
+                                                                @else
+                                                                    <span class="text-slate-400">-</span>
+                                                                @endif
+                                                            </td>
+                                                            <td class="py-1 text-center font-mono text-slate-600">{{ (int) $batch->quantity }}</td>
+                                                            <td class="py-1 text-center font-mono text-slate-400">{{ (int) ($batch->quantity - $batch->remaining_quantity) }}</td>
+                                                            <td class="py-1 text-center font-mono font-bold text-slate-900">{{ (int) $batch->remaining_quantity }}</td>
+                                                            <td class="py-1 text-right font-mono text-green-700">XAF {{ number_format((float) $batch->cost_price, 2) }}</td>
+                                                        </tr>
+                                                    @empty
+                                                        <tr>
+                                                            <td colspan="7" class="py-4 text-center text-slate-400 italic">{{ __('No active batches found in stock_in_items.') }}</td>
+                                                        </tr>
+                                                    @endforelse
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </td>
+                                </tr>
+                            @endif
                         @empty
                             <tr>
-                                <td colspan="{{ $isSuperAdmin ? 8 : 7 }}" class="text-center py-8 text-slate-500">
+                                <td colspan="{{ $isSuperAdmin ? 9 : 8 }}" class="text-center py-8 text-slate-500">
                                     {{ __('No stock records found.') }}
                                 </td>
                             </tr>

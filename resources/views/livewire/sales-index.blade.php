@@ -66,6 +66,27 @@
                                 <div class="md:col-span-12">
                                     <label class="ui-label mb-1">{{ __('Product') }}</label>
                                     <livewire:sales-batch-selector :branch-id="$branch_id" />
+                                    @if ($selected_product_data)
+                                        <div class="mt-2 flex gap-4">
+                                            @if (($selected_product_data['clearance_qty'] ?? 0) > 0)
+                                                <div class="px-2 py-1 bg-amber-50 border border-amber-200 rounded text-xs">
+                                                    <span class="text-amber-700 font-bold">{{ __('Clearance Qty') }}:</span>
+                                                    <span class="text-amber-900 font-mono">{{ $selected_product_data['clearance_qty'] }}</span>
+                                                </div>
+                                            @endif
+                                            @if (($selected_product_data['normal_qty'] ?? 0) > 0)
+                                                <div class="px-2 py-1 bg-blue-50 border border-blue-200 rounded text-xs">
+                                                    <span class="text-blue-700 font-bold">{{ __('Normal Qty') }}:</span>
+                                                    <span class="text-blue-900 font-mono">{{ $selected_product_data['normal_qty'] }}</span>
+                                                </div>
+                                            @endif
+                                            @if (($selected_product_data['clearance_qty'] ?? 0) <= 0 && ($selected_product_data['normal_qty'] ?? 0) <= 0)
+                                                <div class="px-2 py-1 bg-red-50 border border-red-200 rounded text-xs">
+                                                    <span class="text-red-700 font-bold">{{ __('Out of Stock (Non-Expired)') }}</span>
+                                                </div>
+                                            @endif
+                                        </div>
+                                    @endif
                                 </div>
                                 <div class="md:col-span-2">
                                     <label class="ui-label">{{ __('Mode') }}</label>

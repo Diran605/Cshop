@@ -59,9 +59,9 @@
                         <tr>
                             <th>{{ __('Product') }}</th>
                             <th>{{ __('Category') }}</th>
-                            <th class="text-right">{{ __('Stock') }}</th>
+                            <th class="text-right">{{ __('Opening Stock') }}</th>
+                            <th class="text-right">{{ __('Current Stock') }}</th>
                             <th class="text-right">{{ __('Opening Cost') }}</th>
-                            <th class="text-right">{{ __('Current Cost') }}</th>
                             <th class="text-right">{{ __('Price') }}</th>
                             <th class="text-center">{{ __('Status') }}</th>
                             <th class="text-center">{{ __('Actions') }}</th>
@@ -75,19 +75,15 @@
                             <tr>
                                 <td class="font-medium max-w-[180px] truncate">{{ $product->name }}</td>
                                 <td class="whitespace-nowrap">{{ $product->category?->name ?? '-' }}</td>
-                                <td class="text-right font-mono {{ $stock && $stock->current_stock > 0 ? '' : 'text-red-600' }}">
+                                <td class="text-right font-mono text-blue-700 font-bold">
+                                    {{ (int) $product->actual_opening_qty }}
+                                </td>
+                                <td class="text-right font-mono {{ $stock && $stock->current_stock > 0 ? 'text-slate-900' : 'text-red-600' }}">
                                     {{ $stock ? (int) $stock->current_stock : 0 }}
                                 </td>
                                 <td class="text-right font-mono text-slate-600">
-                                    @if (isset($product->opening_cost_price) && $product->opening_cost_price !== null)
-                                        {{ number_format((float) $product->opening_cost_price, 2) }}
-                                    @else
-                                        <span class="text-slate-400">-</span>
-                                    @endif
-                                </td>
-                                <td class="text-right font-mono text-slate-900">
-                                    @if ($stock && $stock->cost_price !== null)
-                                        {{ number_format((float) $stock->cost_price, 2) }}
+                                    @if ($product->actual_opening_cost !== null)
+                                        {{ number_format((float) $product->actual_opening_cost, 2) }}
                                     @else
                                         <span class="text-slate-400">-</span>
                                     @endif
@@ -101,7 +97,7 @@
                                     @endif
                                 </td>
                                 <td class="text-center">
-                                    <button type="button" wire:click="viewOpeningStock({{ $product->id }})" class="ui-btn-link text-xs">
+                                    <button type="button" wire:click="viewOpeningStock({{ $product->id }})" class="ui-btn-secondary text-xs">
                                         {{ __('View') }}
                                     </button>
                                 </td>
@@ -151,7 +147,7 @@
 
                     <div class="bg-slate-50 border border-slate-200 rounded-lg p-3">
                         <div class="text-sm text-slate-600">
-                            {{ __('Opening stock is managed through stock adjustments. Use Stock Adjustments module to modify stock levels.') }}
+                            {{ __('Opening stock values are fixed at system initialization. To adjust current inventory, please use the Stock Adjustments or Manage Products module.') }}
                         </div>
                     </div>
                 </div>

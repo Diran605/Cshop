@@ -1,5 +1,5 @@
 <div class="ui-page">
-    <div class="ui-page-container">
+    <div class="ui-page-container print-container">
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
             <div>
                 <h2 class="ui-page-title">{{ __('Daily Sales Summary') }}</h2>
@@ -24,7 +24,7 @@
         </div>
 
         <!-- Date Selector -->
-        <div class="ui-card mb-6">
+        <div class="ui-card mb-6 no-print">
             <div class="ui-card-body">
                 <div class="flex flex-wrap items-center justify-between gap-4">
                     <div class="flex items-center gap-3">
@@ -65,41 +65,51 @@
         </div>
 
         <!-- Key Metrics -->
-        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-6">
-            <div class="ui-kpi-card text-center">
-                <div class="ui-kpi-title">{{ __('Total Sales') }}</div>
-                <div class="ui-kpi-value text-blue-600 mt-2">{{ $totalSales }}</div>
-            </div>
-
-            <div class="ui-kpi-card text-center">
-                <div class="ui-kpi-title">{{ __('Voided') }}</div>
-                <div class="ui-kpi-value text-red-600 mt-2">{{ $voidedSales }}</div>
-            </div>
-
+        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4 mb-6">
             <div class="ui-kpi-card text-center">
                 <div class="ui-kpi-title">{{ __('Revenue') }}</div>
-                <div class="ui-kpi-value text-green-600 mt-2 text-xl">XAF {{ number_format((float) $totalRevenue, 2) }}</div>
+                <div class="ui-kpi-value text-blue-600 mt-2 text-lg">XAF {{ number_format((float) $totalRevenue, 0) }}</div>
             </div>
 
             <div class="ui-kpi-card text-center">
-                <div class="ui-kpi-title">{{ __('Cost') }}</div>
-                <div class="ui-kpi-value text-orange-600 mt-2 text-xl">XAF {{ number_format((float) $totalCost, 2) }}</div>
+                <div class="ui-kpi-title">{{ __('COGS') }}</div>
+                <div class="ui-kpi-value text-orange-600 mt-2 text-lg">XAF {{ number_format((float) $totalCost, 0) }}</div>
             </div>
 
             <div class="ui-kpi-card text-center">
-                <div class="ui-kpi-title">{{ __('Profit') }}</div>
-                <div class="ui-kpi-value {{ $totalProfit >= 0 ? 'text-emerald-600' : 'text-red-600' }} mt-2 text-xl">XAF {{ number_format((float) $totalProfit, 2) }}</div>
+                <div class="ui-kpi-title">{{ __('Gross Profit') }}</div>
+                <div class="ui-kpi-value text-emerald-600 mt-2 text-lg">XAF {{ number_format((float) $totalProfit, 0) }}</div>
             </div>
 
             <div class="ui-kpi-card text-center">
-                <div class="ui-kpi-title">{{ __('Profit Margin') }}</div>
-                <div class="ui-kpi-value {{ $totalRevenue > 0 && ($totalProfit / $totalRevenue * 100) >= 10 ? 'text-emerald-600' : 'text-orange-600' }} mt-2 text-xl">
+                <div class="ui-kpi-title">{{ __('Expenses') }}</div>
+                <div class="ui-kpi-value text-red-600 mt-2 text-lg">XAF {{ number_format((float) $totalExpenses, 0) }}</div>
+            </div>
+
+            <div class="ui-kpi-card text-center bg-blue-50/50">
+                <div class="ui-kpi-title">{{ __('Net Profit') }}</div>
+                <div class="ui-kpi-value {{ $netProfit >= 0 ? 'text-blue-700' : 'text-red-700' }} mt-2 text-xl font-bold">XAF {{ number_format((float) $netProfit, 0) }}</div>
+            </div>
+
+            <div class="ui-kpi-card text-center">
+                <div class="ui-kpi-title">{{ __('Net Margin') }}</div>
+                <div class="ui-kpi-value {{ $totalRevenue > 0 && ($netProfit / $totalRevenue * 100) >= 10 ? 'text-emerald-600' : 'text-orange-600' }} mt-2 text-lg font-bold">
                     @if ($totalRevenue > 0)
-                        {{ number_format($totalProfit / $totalRevenue * 100, 1) }}%
+                        {{ number_format($netProfit / $totalRevenue * 100, 1) }}%
                     @else
                         0%
                     @endif
                 </div>
+            </div>
+
+            <div class="ui-kpi-card text-center">
+                <div class="ui-kpi-title">{{ __('Sales') }}</div>
+                <div class="ui-kpi-value text-slate-700 mt-2 text-lg">{{ $totalSales }}</div>
+            </div>
+
+            <div class="ui-kpi-card text-center">
+                <div class="ui-kpi-title">{{ __('Voided') }}</div>
+                <div class="ui-kpi-value text-red-400 mt-2 text-lg">{{ $voidedSales }}</div>
             </div>
         </div>
 

@@ -27,11 +27,11 @@
                     <div class="text-xs text-slate-500 mt-1">{{ __('vs yesterday') }}</div>
                 </div>
 
-                {{-- Profit --}}
+                {{-- Net Profit --}}
                 <div class="ui-kpi-card">
                     <div class="flex items-start justify-between">
                         <div>
-                            <div class="ui-kpi-title">{{ __('Profit') }}</div>
+                            <div class="ui-kpi-title">{{ __('Net Profit') }}</div>
                             <div class="ui-kpi-value">XAF {{ number_format($this->today_stats['profit'], 0, ',', ' ') }}</div>
                         </div>
                         <div class="flex items-center gap-1 {{ $this->today_stats['profit_change'] >= 0 ? 'text-green-600' : 'text-red-600' }}">

@@ -182,6 +182,13 @@
                                                 @endcan
                                             @endif
                                             @if($item->status === 'actioned')
+                                                @if($item->action_type === 'discount')
+                                                    @can('clearance.dispose')
+                                                        <button type="button" wire:click="openDisposeModal({{ $item->id }})" class="btn-xs bg-red-100 text-red-700 hover:bg-red-200">
+                                                            🗑️ {{ __('Dispose') }}
+                                                        </button>
+                                                    @endcan
+                                                @endif
                                                 @can('clearance.reverse')
                                                     <button type="button" wire:click="openReversalModal({{ $item->id }})" class="btn-xs bg-amber-100 text-amber-700 hover:bg-amber-200">
                                                         🔄 {{ __('Reverse') }}
@@ -368,6 +375,61 @@
                     </button>
                     <button type="button" wire:click="reverseAction" class="ui-btn-primary bg-amber-600 hover:bg-amber-700">
                         🔄 {{ __('Reverse Action') }}
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- Disposal Modal --}}
+    @if ($show_dispose_modal)
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-4" data-modal-root>
+            <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" wire:click="closeDisposeModal" data-modal-overlay></div>
+            <div class="relative w-full max-w-md ui-card">
+                <div class="p-4 border-b border-slate-200">
+                    <div class="font-semibold text-slate-900">🗑️ {{ __('Dispose Remaining Clearance Stock') }}</div>
+                    <p class="text-sm text-slate-500 mt-1">{{ __('This will remove items from inventory and record them as a loss.') }}</p>
+                </div>
+
+                <div class="p-4 space-y-4">
+                    <div>
+                        <label class="ui-label">{{ __('Quantity to Dispose') }} ({{ __('Max') }}: {{ $dispose_max_quantity }})</label>
+                        <input type="number" wire:model="dispose_quantity" class="mt-1 ui-input" min="1" max="{{ $dispose_max_quantity }}" />
+                        @error('dispose_quantity') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                    </div>
+
+                    <div>
+                        <label class="ui-label">{{ __('Disposal Reason') }}</label>
+                        <select wire:model="dispose_reason" class="mt-1 ui-select">
+                            @foreach(\App\Models\Disposal::getReasons() as $key => $label)
+                                <option value="{{ $key }}">{{ $label }}</option>
+                            @endforeach
+                        </select>
+                        @error('dispose_reason') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                    </div>
+
+                    <div>
+                        <label class="ui-label">{{ __('Disposal Method') }}</label>
+                        <select wire:model="dispose_method" class="mt-1 ui-select">
+                            @foreach(\App\Models\Disposal::getMethods() as $key => $label)
+                                <option value="{{ $key }}">{{ $label }}</option>
+                            @endforeach
+                        </select>
+                        @error('dispose_method') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                    </div>
+
+                    <div>
+                        <label class="ui-label">{{ __('Notes') }}</label>
+                        <textarea wire:model="dispose_notes" class="mt-1 ui-input" rows="2" placeholder="{{ __('Additional details about the disposal...') }}"></textarea>
+                    </div>
+                </div>
+
+                <div class="p-4 border-t border-slate-200 flex justify-end gap-3">
+                    <button type="button" wire:click="closeDisposeModal" class="ui-btn-secondary" data-modal-close>
+                        {{ __('Cancel') }}
+                    </button>
+                    <button type="button" wire:click="recordDisposal" class="ui-btn-primary bg-red-600 hover:bg-red-700">
+                        🗑️ {{ __('Confirm Disposal') }}
                     </button>
                 </div>
             </div>

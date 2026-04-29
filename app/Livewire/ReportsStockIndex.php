@@ -9,6 +9,7 @@ use App\Models\SalesItem;
 use App\Models\StockInItem;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Livewire\Attributes\Computed;
 use Livewire\Component;
 
 class ReportsStockIndex extends Component
@@ -62,6 +63,53 @@ class ReportsStockIndex extends Component
         $this->isSuperAdmin = (bool) ($user?->role === 'super_admin');
     }
 
+    #[Computed]
+    public function stockMetrics()
+    {
+        $branchId = $this->isSuperAdmin && $this->branch_id > 0 ? $this->branch_id : ($this->isSuperAdmin ? 0 : auth()->user()->branch_id);
+
+        return StockInItem::query()
+            ->join('stock_in_receipts', 'stock_in_items.stock_in_receipt_id', '=', 'stock_in_receipts.id')
+            ->join('products', 'products.id', '=', 'stock_in_items.product_id')
+            ->whereNull('stock_in_receipts.voided_at')
+            ->where('stock_in_items.remaining_quantity', '>', 0)
+            ->when($branchId > 0, fn ($q) => $q->where('stock_in_receipts.branch_id', $branchId))
+            ->when($this->category_id > 0, fn ($q) => $q->where('products.category_id', $this->category_id))
+            ->select([
+                DB::raw('COUNT(DISTINCT stock_in_items.product_id) as total_items'),
+                DB::raw('SUM(stock_in_items.remaining_quantity) as total_qty'),
+                DB::raw('SUM(stock_in_items.remaining_quantity * COALESCE(stock_in_items.cost_price, 0)) as total_value'),
+            ])
+            ->first();
+    }
+
+    #[Computed]
+    public function lowStockCount()
+    {
+        $branchId = $this->isSuperAdmin && $this->branch_id > 0 ? $this->branch_id : ($this->isSuperAdmin ? 0 : auth()->user()->branch_id);
+
+        return ProductStock::query()
+            ->join('products', 'products.id', '=', 'product_stocks.product_id')
+            ->when($branchId > 0, fn ($q) => $q->where('product_stocks.branch_id', $branchId))
+            ->when($this->category_id > 0, fn ($q) => $q->where('products.category_id', $this->category_id))
+            ->whereColumn('product_stocks.current_stock', '<=', 'product_stocks.minimum_stock')
+            ->where('product_stocks.current_stock', '>', 0)
+            ->count();
+    }
+
+    #[Computed]
+    public function outOfStockCount()
+    {
+        $branchId = $this->isSuperAdmin && $this->branch_id > 0 ? $this->branch_id : ($this->isSuperAdmin ? 0 : auth()->user()->branch_id);
+
+        return ProductStock::query()
+            ->join('products', 'products.id', '=', 'product_stocks.product_id')
+            ->when($branchId > 0, fn ($q) => $q->where('product_stocks.branch_id', $branchId))
+            ->when($this->category_id > 0, fn ($q) => $q->where('products.category_id', $this->category_id))
+            ->where('product_stocks.current_stock', '<=', 0)
+            ->count();
+    }
+
     public function render()
     {
         $this->syncAuthContext();
@@ -89,17 +137,9 @@ class ReportsStockIndex extends Component
             ->get();
 
         // Metrics (Current Snapshot)
-        $stockMetrics = ProductStock::query()
-            ->join('products', 'products.id', '=', 'product_stocks.product_id')
-            ->when($this->branch_id > 0, fn ($q) => $q->where('product_stocks.branch_id', $this->branch_id))
-            ->when($this->category_id > 0, fn ($q) => $q->where('products.category_id', $this->category_id))
-            ->select([
-                DB::raw('COUNT(*) as total_items'),
-                DB::raw('SUM(CASE WHEN product_stocks.current_stock <= product_stocks.minimum_stock AND product_stocks.current_stock > 0 THEN 1 ELSE 0 END) as low_stock'),
-                DB::raw('SUM(CASE WHEN product_stocks.current_stock <= 0 THEN 1 ELSE 0 END) as out_of_stock'),
-                DB::raw('SUM(product_stocks.current_stock * product_stocks.cost_price) as total_value'),
-            ])
-            ->first();
+        $stockMetrics = $this->stockMetrics;
+        $lowStockCount = $this->lowStockCount;
+        $outOfStockCount = $this->outOfStockCount;
 
         // Stock In / Sold Comparison
         $currentStockIn = StockInItem::query()

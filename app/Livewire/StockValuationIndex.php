@@ -95,37 +95,31 @@ class StockValuationIndex extends Component
         // Enrich products with cost price data
         $productIds = $products->pluck('id')->toArray();
 
-        // Get opening stock costs from stock movements
-        $openingCosts = DB::table('stock_movements')
-            ->whereIn('product_id', $productIds)
-            ->when(! $this->isSuperAdmin, fn ($q) => $q->where('branch_id', $this->branch_id))
-            ->when($this->isSuperAdmin && $this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
-            ->where('notes', 'like', '%Opening stock%')
-            ->get(['product_id', 'unit_cost'])
-            ->groupBy('product_id')
-            ->map(fn ($items) => $items->first()->unit_cost)
-            ->toArray();
-
-        // Get actual stock-in costs (latest cost price from stock_in_items)
-        $stockInCosts = StockInItem::query()
-            ->whereIn('product_id', $productIds)
-            ->whereHas('receipt', function ($query) {
-                $query->when(! $this->isSuperAdmin, fn ($q) => $q->where('branch_id', $this->branch_id))
-                    ->when($this->isSuperAdmin && $this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id));
-            })
-            ->whereNotNull('cost_price')
-            ->orderBy('created_at', 'desc')
-            ->get(['product_id', 'cost_price'])
-            ->groupBy('product_id')
-            ->map(fn ($items) => $items->first()->cost_price)
-            ->toArray();
+        // Get batch-level valuation per product
+        $batchData = StockInItem::query()
+            ->join('stock_in_receipts', 'stock_in_items.stock_in_receipt_id', '=', 'stock_in_receipts.id')
+            ->whereIn('stock_in_items.product_id', $productIds)
+            ->whereNull('stock_in_receipts.voided_at')
+            ->where('stock_in_items.remaining_quantity', '>', 0)
+            ->when(! $this->isSuperAdmin, fn ($q) => $q->where('stock_in_receipts.branch_id', $this->branch_id))
+            ->when($this->isSuperAdmin && $this->branch_id > 0, fn ($q) => $q->where('stock_in_receipts.branch_id', $this->branch_id))
+            ->select(
+                'stock_in_items.product_id',
+                DB::raw('SUM(stock_in_items.remaining_quantity) as total_qty'),
+                DB::raw('SUM(stock_in_items.remaining_quantity * COALESCE(stock_in_items.cost_price, 0)) as total_value'),
+                DB::raw('MAX(stock_in_items.cost_price) as latest_cost') // Fallback for display
+            )
+            ->groupBy('stock_in_items.product_id')
+            ->get()
+            ->keyBy('product_id');
 
         // Attach cost data to products
         foreach ($products as $product) {
-            $product->opening_cost_price = $openingCosts[$product->id] ?? null;
-            $product->stock_in_cost_price = $stockInCosts[$product->id] ?? null;
-            // Current cost is the weighted average from product_stocks
-            $product->current_cost_price = $product->stock?->cost_price;
+            $data = $batchData->get($product->id);
+            $product->batch_total_qty = $data ? $data->total_qty : 0;
+            $product->batch_total_value = $data ? $data->total_value : 0;
+            // Use the average batch cost for the "Cost Price" display if multiple batches exist
+            $product->actual_cost_price = ($data && $data->total_qty > 0) ? ($data->total_value / $data->total_qty) : ($data->latest_cost ?? 0);
         }
 
         // Calculate stock valuation summary
@@ -141,19 +135,23 @@ class StockValuationIndex extends Component
 
     protected function calculateSummary(): array
     {
-        $query = ProductStock::query()
-            ->join('products', 'product_stocks.product_id', '=', 'products.id')
-            ->where('products.status', 'active')
-            ->when(! $this->isSuperAdmin, fn ($q) => $q->where('product_stocks.branch_id', $this->branch_id))
-            ->when($this->isSuperAdmin && $this->branch_id > 0, fn ($q) => $q->where('product_stocks.branch_id', $this->branch_id));
+        $branchId = $this->isSuperAdmin && $this->branch_id > 0 ? $this->branch_id : ($this->isSuperAdmin ? 0 : $this->branch_id);
 
-        $totalQty = (clone $query)->sum('current_stock');
+        $query = StockInItem::query()
+            ->join('stock_in_receipts', 'stock_in_items.stock_in_receipt_id', '=', 'stock_in_receipts.id')
+            ->join('products', 'stock_in_items.product_id', '=', 'products.id')
+            ->where('products.status', 'active')
+            ->whereNull('stock_in_receipts.voided_at')
+            ->where('stock_in_items.remaining_quantity', '>', 0)
+            ->when($branchId > 0, fn ($q) => $q->where('stock_in_receipts.branch_id', $branchId));
+
+        $totalQty = (clone $query)->sum('stock_in_items.remaining_quantity');
         $totalValue = (clone $query)
-            ->selectRaw('SUM(product_stocks.current_stock * COALESCE(product_stocks.cost_price, 0)) as total_value')
+            ->selectRaw('SUM(stock_in_items.remaining_quantity * COALESCE(stock_in_items.cost_price, 0)) as total_value')
             ->value('total_value') ?? 0;
 
         return [
-            'total_products' => $query->count(),
+            'total_products' => (clone $query)->distinct('stock_in_items.product_id')->count('stock_in_items.product_id'),
             'total_quantity' => (int) $totalQty,
             'total_value' => (float) $totalValue,
         ];

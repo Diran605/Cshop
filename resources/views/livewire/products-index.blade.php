@@ -225,6 +225,7 @@
                                         <th>{{ __('Branch') }}</th>
                                         @endif
                                         <th>{{ __('Name') }}</th>
+                                        <th>{{ __('Opening') }}</th>
                                         <th>{{ __('Stock') }}</th>
                                         @if ($mode === 'expired')
                                         <th>{{ __('Expired Qty') }}</th>
@@ -248,13 +249,19 @@
                                         </td>
                                         @endif
                                         <td>
-                                            <div class="font-medium">{{ $product->name }}</div>
-                                            @if ($product->description)
-                                            <div class="text-xs text-slate-500">{{ $product->description }}</div>
-                                            @endif
+                                            <div class="font-medium text-slate-900">{{ $product->name }}</div>
+                                            <div class="text-xs text-slate-500">{{ $product->description ?? '-' }}</div>
                                         </td>
-                                        <td>
-                                            {{ $product->current_stock ?? 0 }}
+                                        <td class="font-mono text-slate-600">
+                                            {{ (int) $product->actual_opening_stock }}
+                                        </td>
+                                        <td class="font-mono">
+                                            @php
+                                                $stock = $product->stocks->sum('current_stock');
+                                            @endphp
+                                            <span class="{{ $stock <= ($product->minimum_stock ?? 0) ? 'text-red-600 font-bold' : 'text-slate-700' }}">
+                                                {{ (int) $stock }}
+                                            </span>
                                         </td>
 
                                         @if ($mode === 'expired')

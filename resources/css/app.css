@@ -316,3 +316,53 @@
         @apply bg-soft-blue border-l-4 border-l-info;
     }
 }
+
+@media print {
+    .no-print {
+        display: none !important;
+    }
+
+    .print-container {
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+    }
+
+    .ui-shell-inner {
+        display: block !important;
+    }
+
+    .ui-sidebar, .ui-topbar {
+        display: none !important;
+    }
+
+    .ui-page {
+        padding: 0 !important;
+    }
+
+    .ui-card {
+        border: none !important;
+        box-shadow: none !important;
+    }
+
+    .ui-card-body {
+        padding: 0 !important;
+    }
+
+    .ui-table-wrap {
+        border: none !important;
+        box-shadow: none !important;
+    }
+
+    .ui-table th, .ui-table td {
+        padding: 8px 4px !important;
+        border-bottom: 1px solid #eee !important;
+    }
+
+    .ui-kpi-card {
+        box-shadow: none !important;
+        border: 1px solid #eee !important;
+        margin-bottom: 1rem !important;
+    }
+}

@@ -140,20 +140,24 @@ class OpeningStockIndex extends Component
 
         $products = $query->paginate(20);
 
-        // Get opening stock costs from stock movements
+        // Get opening stock data from stock_in_items (initial batches)
         $productIds = $products->pluck('id')->toArray();
-        $openingCosts = DB::table('stock_movements')
-            ->whereIn('product_id', $productIds)
-            ->where('branch_id', $this->branch_id)
-            ->where('notes', 'like', '%Opening stock%')
-            ->get(['product_id', 'unit_cost'])
-            ->groupBy('product_id')
-            ->map(fn ($items) => $items->first()->unit_cost)
-            ->toArray();
+        $openingStockData = StockInItem::query()
+            ->join('stock_in_receipts', 'stock_in_items.stock_in_receipt_id', '=', 'stock_in_receipts.id')
+            ->whereIn('stock_in_items.product_id', $productIds)
+            ->where('stock_in_receipts.notes', 'OPENING STOCK')
+            ->whereNull('stock_in_receipts.voided_at')
+            ->when($this->branch_id > 0, fn ($q) => $q->where('stock_in_receipts.branch_id', $this->branch_id))
+            ->select('stock_in_items.product_id', DB::raw('SUM(stock_in_items.quantity) as total_opening'), DB::raw('MAX(stock_in_items.cost_price) as last_cost'))
+            ->groupBy('stock_in_items.product_id')
+            ->get()
+            ->keyBy('product_id');
 
-        // Attach opening cost to products
+        // Attach opening data to products
         foreach ($products as $product) {
-            $product->opening_cost_price = $openingCosts[$product->id] ?? null;
+            $data = $openingStockData->get($product->id);
+            $product->actual_opening_qty = $data ? $data->total_opening : 0;
+            $product->actual_opening_cost = $data ? $data->last_cost : null;
         }
 
         $branches = Branch::query()

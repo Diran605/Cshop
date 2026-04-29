@@ -53,22 +53,26 @@ class ClearanceReports extends Component
         $to = Carbon::parse($this->date_to)->endOfDay();
 
         // Total items processed
-        $totalItems = ClearanceAction::when($branchId > 0, fn ($q) => $q->where('branch_id', $branchId))
+        $totalItems = ClearanceAction::where('status', ClearanceAction::STATUS_ACTIVE)
+            ->when($branchId > 0, fn ($q) => $q->where('branch_id', $branchId))
             ->whereBetween('created_at', [$from, $to])
             ->sum('quantity');
 
         // Total original value
-        $totalOriginalValue = ClearanceAction::when($branchId > 0, fn ($q) => $q->where('branch_id', $branchId))
+        $totalOriginalValue = ClearanceAction::where('status', ClearanceAction::STATUS_ACTIVE)
+            ->when($branchId > 0, fn ($q) => $q->where('branch_id', $branchId))
             ->whereBetween('created_at', [$from, $to])
             ->sum('original_value');
 
         // Total recovered value
-        $totalRecoveredValue = ClearanceAction::when($branchId > 0, fn ($q) => $q->where('branch_id', $branchId))
+        $totalRecoveredValue = ClearanceAction::where('status', ClearanceAction::STATUS_ACTIVE)
+            ->when($branchId > 0, fn ($q) => $q->where('branch_id', $branchId))
             ->whereBetween('created_at', [$from, $to])
             ->sum('recovered_value');
 
         // Total loss value
-        $totalLossValue = ClearanceAction::when($branchId > 0, fn ($q) => $q->where('branch_id', $branchId))
+        $totalLossValue = ClearanceAction::where('status', ClearanceAction::STATUS_ACTIVE)
+            ->when($branchId > 0, fn ($q) => $q->where('branch_id', $branchId))
             ->whereBetween('created_at', [$from, $to])
             ->sum('loss_value');
 
@@ -78,7 +82,8 @@ class ClearanceReports extends Component
             : 0;
 
         // By action type
-        $byType = ClearanceAction::when($branchId > 0, fn ($q) => $q->where('branch_id', $branchId))
+        $byType = ClearanceAction::where('status', ClearanceAction::STATUS_ACTIVE)
+            ->when($branchId > 0, fn ($q) => $q->where('branch_id', $branchId))
             ->whereBetween('created_at', [$from, $to])
             ->select('action_type', DB::raw('SUM(quantity) as qty'), DB::raw('SUM(original_value) as original'), DB::raw('SUM(recovered_value) as recovered'), DB::raw('SUM(loss_value) as loss'))
             ->groupBy('action_type')
@@ -103,6 +108,7 @@ class ClearanceReports extends Component
         $to = Carbon::parse($this->date_to)->endOfDay();
 
         return ClearanceAction::with(['clearanceItem.product', 'user'])
+            ->where('status', ClearanceAction::STATUS_ACTIVE)
             ->when($branchId > 0, fn ($q) => $q->where('branch_id', $branchId))
             ->whereBetween('created_at', [$from, $to])
             ->when($this->filter_action !== 'all', fn ($q) => $q->where('action_type', $this->filter_action))
@@ -119,6 +125,7 @@ class ClearanceReports extends Component
         $to = Carbon::parse($this->date_to)->endOfDay();
 
         return ClearanceAction::with(['clearanceItem.product'])
+            ->where('status', ClearanceAction::STATUS_ACTIVE)
             ->when($branchId > 0, fn ($q) => $q->where('branch_id', $branchId))
             ->whereBetween('created_at', [$from, $to])
             ->select('clearance_item_id', DB::raw('SUM(quantity) as total_qty'), DB::raw('SUM(original_value) as total_original'), DB::raw('SUM(recovered_value) as total_recovered'))
@@ -135,7 +142,8 @@ class ClearanceReports extends Component
         $from = Carbon::parse($this->date_from)->startOfDay();
         $to = Carbon::parse($this->date_to)->endOfDay();
 
-        return ClearanceAction::when($branchId > 0, fn ($q) => $q->where('branch_id', $branchId))
+        return ClearanceAction::where('status', ClearanceAction::STATUS_ACTIVE)
+            ->when($branchId > 0, fn ($q) => $q->where('branch_id', $branchId))
             ->whereBetween('created_at', [$from, $to])
             ->select(DB::raw('DATE(created_at) as date'), DB::raw('SUM(quantity) as qty'), DB::raw('SUM(recovered_value) as recovered'), DB::raw('SUM(loss_value) as loss'))
             ->groupBy(DB::raw('DATE(created_at)'))

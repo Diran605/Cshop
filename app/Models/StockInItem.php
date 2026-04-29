@@ -30,6 +30,29 @@ class StockInItem extends Model
         'expiry_date' => 'date',
     ];
 
+    protected static function booted()
+    {
+        static::saved(function ($item) {
+            $item->syncProductStock();
+        });
+
+        static::deleted(function ($item) {
+            $item->syncProductStock();
+        });
+    }
+
+    public function syncProductStock()
+    {
+        $branchId = $this->receipt?->branch_id;
+        if ($branchId) {
+            $stock = ProductStock::firstOrCreate(
+                ['branch_id' => $branchId, 'product_id' => $this->product_id],
+                ['current_stock' => 0, 'minimum_stock' => 0]
+            );
+            $stock->syncWithBatches();
+        }
+    }
+
     public function receipt(): BelongsTo
     {
         return $this->belongsTo(StockInReceipt::class, 'stock_in_receipt_id');

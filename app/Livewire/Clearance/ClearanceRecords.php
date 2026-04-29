@@ -42,6 +42,15 @@ class ClearanceRecords extends Component
     public string $reversal_reason = '';
     public bool $reversal_restore_to_stock = true;
 
+    // Disposal modal
+    public bool $show_dispose_modal = false;
+    public ?int $dispose_item_id = null;
+    public int $dispose_quantity = 0;
+    public int $dispose_max_quantity = 0;
+    public string $dispose_reason = '';
+    public string $dispose_method = '';
+    public string $dispose_notes = '';
+
     protected $paginationTheme = 'tailwind';
 
     public function mount(): void
@@ -217,6 +226,115 @@ class ClearanceRecords extends Component
         $this->reversal_restore_to_stock = true;
     }
 
+    public function openDisposeModal(int $itemId): void
+    {
+        if (! auth()->user()?->can('clearance.dispose')) {
+            session()->flash('error', 'You do not have permission to dispose items.');
+            return;
+        }
+
+        $item = ClearanceItem::with(['product'])->findOrFail($itemId);
+
+        $this->dispose_item_id = $itemId;
+        $this->dispose_max_quantity = $item->quantity;
+        $this->dispose_quantity = $item->quantity;
+        $this->dispose_reason = \App\Models\Disposal::REASON_EXPIRED;
+        $this->dispose_method = \App\Models\Disposal::METHOD_TRASH;
+        $this->dispose_notes = '';
+        $this->show_dispose_modal = true;
+    }
+
+    public function recordDisposal(): void
+    {
+        $this->validate([
+            'dispose_quantity' => 'required|integer|min:1|max:' . $this->dispose_max_quantity,
+            'dispose_reason' => 'required|string',
+            'dispose_method' => 'required|string',
+        ]);
+
+        if (! auth()->user()?->can('clearance.dispose')) {
+            session()->flash('error', 'You do not have permission to dispose items.');
+            return;
+        }
+
+        $item = ClearanceItem::with(['stockInItem', 'product'])->findOrFail($this->dispose_item_id);
+
+        try {
+            \Illuminate\Support\Facades\DB::beginTransaction();
+
+            // 1. Record the disposal (this updates clearance item status to 'actioned' / 'dispose')
+            $disposal = $item->recordDisposal(
+                $this->dispose_quantity,
+                $this->dispose_reason,
+                $this->dispose_method,
+                $this->dispose_notes
+            );
+
+            // 2. Reduce the physical stock in ProductStock
+            $productStock = \App\Models\ProductStock::where('branch_id', $item->branch_id)
+                ->where('product_id', $item->product_id)
+                ->lockForUpdate()
+                ->first();
+
+            if ($productStock) {
+                $beforeStock = $productStock->current_stock;
+                $productStock->decrement('current_stock', $this->dispose_quantity);
+                $afterStock = $productStock->current_stock;
+
+                // 3. Create stock movement
+                \App\Models\StockMovement::create([
+                    'branch_id' => $item->branch_id,
+                    'product_id' => $item->product_id,
+                    'user_id' => auth()->id(),
+                    'movement_type' => 'OUT',
+                    'quantity' => $this->dispose_quantity,
+                    'before_stock' => $beforeStock,
+                    'after_stock' => $afterStock,
+                    'unit_cost' => $item->original_price,
+                    'moved_at' => now(),
+                    'notes' => "DISPOSAL from Clearance: {$this->dispose_reason}",
+                ]);
+            }
+
+            // 4. Reduce remaining quantity in the specific batch (StockInItem)
+            if ($item->stockInItem) {
+                $item->stockInItem->decrement('remaining_quantity', $this->dispose_quantity);
+            }
+
+            // 5. Update ClearanceItem quantity (if partially disposed, though here we usually dispose all remaining)
+            $item->decrement('quantity', $this->dispose_quantity);
+            if ($item->quantity <= 0) {
+                $item->update(['status' => ClearanceItem::STATUS_ACTIONED, 'action_type' => ClearanceItem::ACTION_DISPOSE]);
+            }
+
+            ActivityLogger::log(
+                'clearance.disposed',
+                $item,
+                "Recorded disposal for {$item->product?->name}",
+                [
+                    'quantity' => $this->dispose_quantity,
+                    'reason' => $this->dispose_reason,
+                ],
+                $item->branch_id
+            );
+
+            \Illuminate\Support\Facades\DB::commit();
+
+            $this->show_dispose_modal = false;
+            session()->flash('status', "✓ Disposal recorded for {$item->product?->name}");
+            $this->dispatch('clearance-updated');
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\DB::rollBack();
+            session()->flash('error', "Failed to record disposal: " . $e->getMessage());
+        }
+    }
+
+    public function closeDisposeModal(): void
+    {
+        $this->show_dispose_modal = false;
+        $this->dispose_item_id = null;
+    }
+
     public function reverseAction(): void
     {
         $this->validate([
@@ -269,6 +387,16 @@ class ClearanceRecords extends Component
                 // Restore quantity to stock batch
                 $item->stockInItem->increment('remaining_quantity', $item->quantity);
             }
+
+            // Mark existing active actions as reversed (Approach B)
+            ClearanceAction::where('clearance_item_id', $item->id)
+                ->where('status', ClearanceAction::STATUS_ACTIVE)
+                ->update([
+                    'status' => ClearanceAction::STATUS_REVERSED,
+                    'reversal_reason' => $this->reversal_reason,
+                    'reversed_at' => now(),
+                    'reversed_by' => auth()->id(),
+                ]);
 
             // Fully reset the clearance item back to a pending state
             $daysToExpiry = $item->calculateDaysToExpiry();

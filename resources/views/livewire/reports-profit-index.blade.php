@@ -184,11 +184,21 @@
                     labels: trendData.map(d => d.day),
                     datasets: [
                         {
+                            label: 'Net Profit',
+                            data: trendData.map(d => d.net_profit),
+                            borderColor: '#3b82f6',
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            fill: true,
+                            tension: 0.4,
+                            borderWidth: 2.5,
+                            pointRadius: 4,
+                            pointBackgroundColor: '#3b82f6'
+                        },
+                        {
                             label: 'Gross Profit',
                             data: trendData.map(d => d.profit),
                             borderColor: '#10b981',
-                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                            fill: true,
+                            fill: false,
                             tension: 0.4,
                             borderWidth: 2,
                             pointRadius: 3,

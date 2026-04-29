@@ -835,8 +835,21 @@ class ProductsIndex extends Component
                 ->orderBy('name')
                 ->paginate(20);
 
-            $products->getCollection()->transform(function ($product) {
+            // Fetch opening stock for each product
+            $productIds = $products->pluck('id')->toArray();
+            $openingStocks = \App\Models\StockInItem::query()
+                ->join('stock_in_receipts', 'stock_in_items.stock_in_receipt_id', '=', 'stock_in_receipts.id')
+                ->whereIn('stock_in_items.product_id', $productIds)
+                ->where('stock_in_receipts.notes', 'OPENING STOCK')
+                ->whereNull('stock_in_receipts.voided_at')
+                ->select('stock_in_items.product_id', DB::raw('SUM(stock_in_items.quantity) as total_opening'))
+                ->groupBy('stock_in_items.product_id')
+                ->pluck('total_opening', 'product_id')
+                ->toArray();
+
+            $products->getCollection()->transform(function ($product) use ($openingStocks) {
                 $product->current_stock = $product->stocks->sum('current_stock');
+                $product->actual_opening_stock = $openingStocks[$product->id] ?? 0;
                 return $product;
             });
         }

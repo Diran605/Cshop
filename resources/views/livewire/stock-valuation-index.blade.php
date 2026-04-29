@@ -1,5 +1,5 @@
 <div class="ui-page">
-    <div class="ui-page-container">
+    <div class="ui-page-container print-container">
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
             <div>
                 <h2 class="ui-page-title">{{ __('Stock Valuation') }}</h2>
@@ -40,7 +40,7 @@
         </div>
 
         {{-- Filters --}}
-        <div class="ui-card mb-6">
+        <div class="ui-card mb-6 no-print">
             <div class="ui-card-body">
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                     @if ($isSuperAdmin)
@@ -84,11 +84,9 @@
                                 <th class="whitespace-nowrap">{{ __('Product') }}</th>
                                 <th class="whitespace-nowrap">{{ __('Category') }}</th>
                                 <th class="whitespace-nowrap text-center">{{ __('Qty') }}</th>
-                                <th class="whitespace-nowrap text-right">{{ __('Opening Cost') }}</th>
-                                <th class="whitespace-nowrap text-right">{{ __('Stock-In Cost') }}</th>
-                                <th class="whitespace-nowrap text-right">{{ __('Current Cost (Wtd Avg)') }}</th>
+                                <th class="whitespace-nowrap text-right">{{ __('Actual Cost (Avg)') }}</th>
                                 <th class="whitespace-nowrap text-right">{{ __('Sell Price') }}</th>
-                                <th class="whitespace-nowrap text-right">{{ __('Value') }}</th>
+                                <th class="whitespace-nowrap text-right">{{ __('Stock Value') }}</th>
                                 <th class="whitespace-nowrap text-right">{{ __('Margin') }}</th>
                             </tr>
                         </thead>
@@ -103,32 +101,23 @@
                                     </td>
                                     <td class="whitespace-nowrap text-slate-600">{{ $product->category?->name ?? '-' }}</td>
                                     <td class="whitespace-nowrap text-center font-mono">
-                                        @php $qty = $product->stock?->current_stock ?? 0; @endphp
+                                        @php $qty = $product->batch_total_qty; @endphp
                                         <span class="{{ $qty <= 0 ? 'text-red-600 font-bold' : 'text-slate-900' }}">
                                             {{ number_format($qty) }}
                                         </span>
                                     </td>
-                                    <td class="whitespace-nowrap text-right font-mono text-slate-600">
-                                        {{ isset($product->opening_cost_price) && $product->opening_cost_price !== null ? 'XAF ' . number_format((float) $product->opening_cost_price, 2) : '-' }}
-                                    </td>
-                                    <td class="whitespace-nowrap text-right font-mono text-slate-600">
-                                        {{ isset($product->stock_in_cost_price) && $product->stock_in_cost_price !== null ? 'XAF ' . number_format((float) $product->stock_in_cost_price, 2) : '-' }}
-                                    </td>
                                     <td class="whitespace-nowrap text-right font-mono font-semibold text-slate-900">
-                                        {{ isset($product->current_cost_price) && $product->current_cost_price !== null ? 'XAF ' . number_format((float) $product->current_cost_price, 2) : '-' }}
+                                        XAF {{ number_format((float) $product->actual_cost_price, 2) }}
                                     </td>
                                     <td class="whitespace-nowrap text-right font-mono font-semibold text-green-600">
                                         XAF {{ number_format((float) $product->selling_price, 2) }}
                                     </td>
                                     <td class="whitespace-nowrap text-right font-mono font-bold text-blue-600">
-                                        @php
-                                            $stockValue = ($product->stock?->current_stock ?? 0) * (float) ($product->stock?->cost_price ?? 0);
-                                        @endphp
-                                        XAF {{ number_format($stockValue, 2) }}
+                                        XAF {{ number_format($product->batch_total_value, 2) }}
                                     </td>
                                     <td class="whitespace-nowrap text-right">
                                         @php
-                                            $currentCost = (float) ($product->stock?->cost_price ?? 0);
+                                            $currentCost = (float) $product->actual_cost_price;
                                             $margin = $currentCost > 0 ? (($product->selling_price - $currentCost) / $currentCost) * 100 : null;
                                         @endphp
                                         @if ($margin !== null)
@@ -142,7 +131,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="{{ $isSuperAdmin ? 10 : 9 }}" class="ui-table-empty">
+                                    <td colspan="{{ $isSuperAdmin ? 8 : 7 }}" class="ui-table-empty">
                                         {{ __('No products found.') }}
                                     </td>
                                 </tr>

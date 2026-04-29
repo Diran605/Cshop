@@ -92,6 +92,16 @@ class DailySalesSummary extends Component
             ->whereNull('voided_at')
             ->sum('profit_total');
 
+        // Daily Expenses
+        $totalExpenses = \App\Models\Expense::query()
+            ->whereDate('expense_date', $date->toDateString())
+            ->whereNull('voided_at')
+            ->when(! $this->isSuperAdmin, fn ($q) => $q->where('branch_id', $this->branch_id))
+            ->when($this->isSuperAdmin && $this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
+            ->sum('amount');
+
+        $netProfit = $totalProfit - $totalExpenses;
+
         $totalPaid = (clone $salesQuery)
             ->whereNull('voided_at')
             ->sum('amount_paid');
@@ -163,6 +173,8 @@ class DailySalesSummary extends Component
             'totalRevenue' => $totalRevenue,
             'totalCost' => $totalCost,
             'totalProfit' => $totalProfit,
+            'totalExpenses' => (float) $totalExpenses,
+            'netProfit' => (float) $netProfit,
             'totalPaid' => $totalPaid,
             'salesByPayment' => $salesByPayment,
             'hourlySales' => $hourlySales,

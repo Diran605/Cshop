@@ -88,6 +88,8 @@ class SalesIndex extends Component
 
     public bool $show_void_modal = false;
 
+    public bool $confirm_pending_selection = false;
+
     public int $editing_sale_id = 0;
 
     public int $edit_branch_id = 0;
@@ -260,6 +262,30 @@ class SalesIndex extends Component
                 'category_name' => $product->category?->name,
                 'unit_type_name' => $product->unitType?->name,
             ];
+
+            // Check for clearance quantity
+            $clearanceQty = ClearanceItem::where('branch_id', $this->branch_id)
+                ->where('product_id', $product->id)
+                ->where('status', ClearanceItem::STATUS_ACTIONED)
+                ->where('action_type', ClearanceItem::ACTION_DISCOUNT)
+                ->sum('quantity');
+
+            // Total available quantity (non-expired)
+            $totalAvailable = StockInItem::query()
+                ->join('stock_in_receipts', 'stock_in_receipts.id', '=', 'stock_in_items.stock_in_receipt_id')
+                ->whereNull('stock_in_receipts.voided_at')
+                ->where('stock_in_receipts.branch_id', $this->branch_id)
+                ->where('stock_in_items.product_id', $product->id)
+                ->where('stock_in_items.remaining_quantity', '>', 0)
+                ->where(function($q) {
+                    $q->whereNull('stock_in_items.expiry_date')
+                      ->orWhere('stock_in_items.expiry_date', '>=', now()->toDateString());
+                })
+                ->sum('stock_in_items.remaining_quantity');
+
+            $this->selected_product_data['clearance_qty'] = (int) $clearanceQty;
+            $this->selected_product_data['normal_qty'] = max(0, (int) $totalAvailable - (int) $clearanceQty);
+
             $this->custom_entry_price = null; // Reset custom price when changing product
 
             // Reset entry mode to unit if product doesn't support bulk
@@ -408,6 +434,7 @@ class SalesIndex extends Component
         $this->bulk_quantity = 1;
         $this->custom_entry_price = null;
         $this->selected_batch_id = null;
+        $this->confirm_pending_selection = false;
 
         $this->dispatch('product-added');
     }
@@ -553,6 +580,13 @@ class SalesIndex extends Component
     public function finalizeSale(): void
     {
         $this->resetErrorBag('cart');
+
+        // Check for pending selection (product selected but not added to cart)
+        if ($this->product_id > 0 && ! $this->confirm_pending_selection) {
+            $this->confirm_pending_selection = true;
+            $this->addError('cart', 'You have a product selected that has not been added to the cart. Click "Post Sale" again to ignore this or add the product first.');
+            return;
+        }
 
         $data = $this->validate();
 

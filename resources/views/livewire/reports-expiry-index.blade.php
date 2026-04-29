@@ -1,5 +1,5 @@
 <div class="ui-page">
-    <div class="ui-page-container">
+    <div class="ui-page-container print-container">
         <!-- Header Section -->
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
             <div>

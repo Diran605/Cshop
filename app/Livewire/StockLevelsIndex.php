@@ -23,7 +23,18 @@ class StockLevelsIndex extends Component
     public bool $isSuperAdmin = false;
     public int $auth_user_id = 0;
 
+    public array $expanded_products = [];
+
     protected $paginationTheme = 'tailwind';
+
+    public function toggleProduct(int $productId): void
+    {
+        if (in_array($productId, $this->expanded_products)) {
+            $this->expanded_products = array_diff($this->expanded_products, [$productId]);
+        } else {
+            $this->expanded_products[] = $productId;
+        }
+    }
 
     public function mount(): void
     {
@@ -114,6 +125,24 @@ class StockLevelsIndex extends Component
             ->orderBy('id', 'desc');
 
         $stocks = $query->paginate(20);
+
+        // Load batches for expanded products
+        if (!empty($this->expanded_products)) {
+            $batches = \App\Models\StockInItem::query()
+                ->join('stock_in_receipts', 'stock_in_items.stock_in_receipt_id', '=', 'stock_in_receipts.id')
+                ->whereIn('stock_in_items.product_id', $this->expanded_products)
+                ->whereNull('stock_in_receipts.voided_at')
+                ->where('stock_in_items.remaining_quantity', '>', 0)
+                ->when($this->branch_id > 0, fn ($q) => $q->where('stock_in_receipts.branch_id', $this->branch_id))
+                ->select('stock_in_items.*', 'stock_in_receipts.receipt_no', 'stock_in_receipts.received_at')
+                ->orderBy('stock_in_items.expiry_date', 'asc')
+                ->get()
+                ->groupBy('product_id');
+
+            foreach ($stocks as $stock) {
+                $stock->batches = $batches->get($stock->product_id) ?? collect();
+            }
+        }
 
         $branches = Branch::query()
             ->where('is_active', true)

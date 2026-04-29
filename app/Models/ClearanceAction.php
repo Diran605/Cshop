@@ -15,6 +15,7 @@ class ClearanceAction extends Model
         'clearance_item_id',
         'user_id',
         'action_type',
+        'status',
         'quantity',
         'original_value',
         'action_value',
@@ -22,10 +23,14 @@ class ClearanceAction extends Model
         'loss_value',
         'notes',
         'metadata',
+        'reversal_reason',
+        'reversed_at',
+        'reversed_by',
     ];
 
     protected $casts = [
         'metadata' => 'array',
+        'reversed_at' => 'datetime',
     ];
 
     const ACTION_DISCOUNT = 'discount';
@@ -33,9 +38,17 @@ class ClearanceAction extends Model
     const ACTION_DISPOSE = 'dispose';
     const ACTION_SOLD = 'sold';
 
+    const STATUS_ACTIVE = 'active';
+    const STATUS_REVERSED = 'reversed';
+
     public function branch(): BelongsTo
     {
         return $this->belongsTo(Branch::class);
+    }
+
+    public function reversedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'reversed_by');
     }
 
     public function clearanceItem(): BelongsTo
