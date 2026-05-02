@@ -122,6 +122,17 @@ class ReportsProfitIndex extends Component
         $grossProfit = (float) ($summaryRow?->profit_total ?? 0);
         $grossMargin = $salesTotal > 0 ? (($grossProfit / $salesTotal) * 100) : 0;
 
+        // Inventory Loss for current period (Disposals and Donations)
+        $inventoryLoss = \App\Models\ClearanceAction::query()
+            ->when($this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
+            ->where('status', \App\Models\ClearanceAction::STATUS_ACTIVE)
+            ->whereIn('action_type', [\App\Models\ClearanceAction::ACTION_DISPOSE, \App\Models\ClearanceAction::ACTION_DONATE])
+            ->whereBetween('created_at', [$from, $to])
+            ->sum('loss_value');
+        $inventoryLoss = (float) ($inventoryLoss ?? 0);
+
+        $adjustedGrossProfit = $grossProfit - $inventoryLoss;
+
         // Expenses for current period
         $expenseTotal = Expense::query()
             ->when($this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
@@ -130,7 +141,7 @@ class ReportsProfitIndex extends Component
             ->sum('amount');
         $expenseTotal = (float) ($expenseTotal ?? 0);
 
-        $netProfit = $grossProfit - $expenseTotal;
+        $netProfit = $adjustedGrossProfit - $expenseTotal;
         $netMargin = $salesTotal > 0 ? (($netProfit / $salesTotal) * 100) : 0;
 
         // Previous period summary
@@ -152,6 +163,17 @@ class ReportsProfitIndex extends Component
         $prevSalesTotal = (float) ($prevSummaryRow?->sales_total ?? 0);
         $prevGrossProfit = (float) ($prevSummaryRow?->profit_total ?? 0);
 
+        // Previous Inventory Loss
+        $prevInventoryLoss = \App\Models\ClearanceAction::query()
+            ->when($this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
+            ->where('status', \App\Models\ClearanceAction::STATUS_ACTIVE)
+            ->whereIn('action_type', [\App\Models\ClearanceAction::ACTION_DISPOSE, \App\Models\ClearanceAction::ACTION_DONATE])
+            ->whereBetween('created_at', [$prevFrom, $prevTo])
+            ->sum('loss_value');
+        $prevInventoryLoss = (float) ($prevInventoryLoss ?? 0);
+
+        $prevAdjustedGrossProfit = $prevGrossProfit - $prevInventoryLoss;
+
         // Previous expenses
         $prevExpenseTotal = Expense::query()
             ->when($this->branch_id > 0, fn ($q) => $q->where('branch_id', $this->branch_id))
@@ -160,10 +182,12 @@ class ReportsProfitIndex extends Component
             ->sum('amount');
         $prevExpenseTotal = (float) ($prevExpenseTotal ?? 0);
 
-        $prevNetProfit = $prevGrossProfit - $prevExpenseTotal;
+        $prevNetProfit = $prevAdjustedGrossProfit - $prevExpenseTotal;
 
         // Changes
         $grossProfitChange = $prevGrossProfit > 0 ? (($grossProfit - $prevGrossProfit) / $prevGrossProfit) * 100 : 0;
+        $inventoryLossChange = $prevInventoryLoss > 0 ? (($inventoryLoss - $prevInventoryLoss) / $prevInventoryLoss) * 100 : 0;
+        $adjustedGrossProfitChange = $prevAdjustedGrossProfit != 0 ? (($adjustedGrossProfit - $prevAdjustedGrossProfit) / abs($prevAdjustedGrossProfit)) * 100 : 0;
         $netProfitChange = $prevNetProfit != 0 ? (($netProfit - $prevNetProfit) / abs($prevNetProfit)) * 100 : 0;
         $expenseChange = $prevExpenseTotal > 0 ? (($expenseTotal - $prevExpenseTotal) / $prevExpenseTotal) * 100 : 0;
         
@@ -259,6 +283,10 @@ class ReportsProfitIndex extends Component
             'categories' => $categories,
             'grossProfit' => $grossProfit,
             'grossProfitChange' => $grossProfitChange,
+            'inventoryLoss' => $inventoryLoss,
+            'inventoryLossChange' => $inventoryLossChange,
+            'adjustedGrossProfit' => $adjustedGrossProfit,
+            'adjustedGrossProfitChange' => $adjustedGrossProfitChange,
             'netProfit' => $netProfit,
             'netProfitChange' => $netProfitChange,
             'expenseTotal' => $expenseTotal,

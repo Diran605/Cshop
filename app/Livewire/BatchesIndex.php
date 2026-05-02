@@ -147,7 +147,7 @@ class BatchesIndex extends Component
 
             $branchId = (int) ($stockInItem->receipt?->branch_id ?? 0);
             $productName = $stockInItem->product?->name ?? 'Unknown';
-            $sellingPrice = (float) ($stockInItem->product?->selling_price ?? 0);
+            $batchCost = (float) ($stockInItem->cost_price ?? 0);
 
             // Create StockClearanceAllocation
             $allocation = StockClearanceAllocation::create([
@@ -171,7 +171,7 @@ class BatchesIndex extends Component
                 'days_to_expiry' => $daysToExpiry,
                 'status' => 'approaching',
                 'quantity' => $allocatedQty,
-                'original_price' => $sellingPrice,
+                'original_price' => $batchCost,
                 'suggested_discount_pct' => 0,
                 'approval_status' => 'manual',
                 'suggested_at' => now(),

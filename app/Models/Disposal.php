@@ -31,6 +31,7 @@ class Disposal extends Model
 
     const REASON_EXPIRED = 'expired';
     const REASON_DAMAGED = 'damaged';
+    const REASON_THEFT = 'theft';
     const REASON_QUALITY_ISSUE = 'quality_issue';
     const REASON_RECALL = 'recall';
     const REASON_OTHER = 'other';
@@ -67,6 +68,7 @@ class Disposal extends Model
         return [
             self::REASON_EXPIRED => 'Product Expired',
             self::REASON_DAMAGED => 'Damaged',
+            self::REASON_THEFT => 'Theft / Missing',
             self::REASON_QUALITY_ISSUE => 'Quality Issue',
             self::REASON_RECALL => 'Product Recall',
             self::REASON_OTHER => 'Other',

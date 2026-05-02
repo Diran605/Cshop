@@ -36,22 +36,26 @@
     @endif
 
     <!-- Top Stats Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-        <div class="bg-white p-6 rounded-xl border shadow-sm">
-            <p class="text-xs font-bold text-slate-500 uppercase mb-1">{{ __('Total Sales') }}</p>
-            <h3 class="text-2xl font-bold text-slate-900">{{ number_format($data['total_sales'], 2) }}</h3>
+    <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
+        <div class="bg-white p-4 rounded-xl border shadow-sm">
+            <p class="text-[10px] font-bold text-slate-500 uppercase mb-1">{{ __('Total Sales') }}</p>
+            <h3 class="text-xl font-bold text-slate-900">{{ number_format($data['total_sales'], 2) }}</h3>
         </div>
-        <div class="bg-white p-6 rounded-xl border shadow-sm border-l-4 border-l-green-500">
-            <p class="text-xs font-bold text-green-600 uppercase mb-1">{{ __('Gross Profit') }}</p>
-            <h3 class="text-2xl font-bold text-slate-900">{{ number_format($data['total_profit'], 2) }}</h3>
+        <div class="bg-white p-4 rounded-xl border shadow-sm border-l-4 border-l-green-500">
+            <p class="text-[10px] font-bold text-green-600 uppercase mb-1">{{ __('Gross Profit') }}</p>
+            <h3 class="text-xl font-bold text-slate-900">{{ number_format($data['total_profit'], 2) }}</h3>
         </div>
-        <div class="bg-white p-6 rounded-xl border shadow-sm border-l-4 border-l-red-500">
-            <p class="text-xs font-bold text-red-600 uppercase mb-1">{{ __('Total Expenses') }}</p>
-            <h3 class="text-2xl font-bold text-slate-900">{{ number_format($data['total_expenses'], 2) }}</h3>
+        <div class="bg-white p-4 rounded-xl border shadow-sm border-l-4 border-l-rose-500">
+            <p class="text-[10px] font-bold text-rose-600 uppercase mb-1">{{ __('Inventory Loss') }}</p>
+            <h3 class="text-xl font-bold text-slate-900">{{ number_format($data['total_inventory_loss'], 2) }}</h3>
         </div>
-        <div class="bg-white p-6 rounded-xl border shadow-sm border-l-4 border-l-indigo-500">
-            <p class="text-xs font-bold text-indigo-600 uppercase mb-1">{{ __('Net Profit') }}</p>
-            <h3 class="text-2xl font-bold text-slate-900 {{ $data['total_net'] >= 0 ? 'text-green-600' : 'text-red-600' }}">
+        <div class="bg-white p-4 rounded-xl border shadow-sm border-l-4 border-l-red-500">
+            <p class="text-[10px] font-bold text-red-600 uppercase mb-1">{{ __('Total Expenses') }}</p>
+            <h3 class="text-xl font-bold text-slate-900">{{ number_format($data['total_expenses'], 2) }}</h3>
+        </div>
+        <div class="bg-white p-4 rounded-xl border shadow-sm border-l-4 border-l-indigo-500">
+            <p class="text-[10px] font-bold text-indigo-600 uppercase mb-1">{{ __('Actual Gain') }}</p>
+            <h3 class="text-xl font-bold {{ $data['total_net'] >= 0 ? 'text-green-600' : 'text-red-600' }}">
                 {{ number_format($data['total_net'], 2) }}
             </h3>
         </div>
@@ -75,60 +79,66 @@
         <div class="overflow-x-auto">
             <table class="w-full text-left">
                 <thead>
-                    <tr class="bg-slate-100 text-slate-600 text-xs uppercase font-bold">
-                        <th class="px-6 py-4">{{ __('Month') }}</th>
-                        <th class="px-6 py-4 text-right">{{ __('Sales') }}</th>
-                        <th class="px-6 py-4 text-right">{{ __('Trend') }}</th>
-                        <th class="px-6 py-4 text-right">{{ __('Gross Profit') }}</th>
-                        <th class="px-6 py-4 text-right">{{ __('Expenses') }}</th>
-                        <th class="px-6 py-4 text-right">{{ __('Net Profit') }}</th>
-                        <th class="px-6 py-4 text-right">{{ __('Margin %') }}</th>
+                    <tr class="bg-slate-100 text-slate-600 text-[10px] uppercase font-bold">
+                        <th class="px-4 py-3">{{ __('Month') }}</th>
+                        <th class="px-4 py-3 text-right">{{ __('Sales') }}</th>
+                        <th class="px-4 py-3 text-right">{{ __('Trend') }}</th>
+                        <th class="px-4 py-3 text-right">{{ __('G. Profit') }}</th>
+                        <th class="px-4 py-3 text-right text-rose-600">{{ __('Loss') }}</th>
+                        <th class="px-4 py-3 text-right">{{ __('Adj. G.P') }}</th>
+                        <th class="px-4 py-3 text-right text-red-600">{{ __('Expenses') }}</th>
+                        <th class="px-4 py-3 text-right">{{ __('Gain') }}</th>
+                        <th class="px-4 py-3 text-right">{{ __('Margin') }}</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y">
                     @foreach($data['monthly'] as $m)
-                    <tr class="hover:bg-slate-50 transition">
-                        <td class="px-6 py-4 font-medium text-slate-900">{{ $m['name'] }}</td>
-                        <td class="px-6 py-4 text-right text-slate-700">{{ number_format($m['sales'], 2) }}</td>
-                        <td class="px-6 py-4 text-right">
+                    <tr class="hover:bg-slate-50 transition text-xs">
+                        <td class="px-4 py-3 font-medium text-slate-900">{{ $m['name'] }}</td>
+                        <td class="px-4 py-3 text-right text-slate-700">{{ number_format($m['sales'], 2) }}</td>
+                        <td class="px-4 py-3 text-right">
                             @if(isset($m['trend']) && $m['trend'] > 0)
-                                <span class="text-green-600 text-xs font-bold">↑ {{ number_format($m['trend'], 1) }}%</span>
+                                <span class="text-green-600 font-bold">↑{{ number_format($m['trend'], 0) }}%</span>
                             @elseif(isset($m['trend']) && $m['trend'] < 0)
-                                <span class="text-red-600 text-xs font-bold">↓ {{ number_format(abs($m['trend']), 1) }}%</span>
+                                <span class="text-red-600 font-bold">↓{{ number_format(abs($m['trend']), 0) }}%</span>
                             @else
-                                <span class="text-slate-400 text-xs">-</span>
+                                <span class="text-slate-400">-</span>
                             @endif
                         </td>
-                        <td class="px-6 py-4 text-right text-green-600">{{ number_format($m['profit'], 2) }}</td>
-                        <td class="px-6 py-4 text-right text-red-600">{{ number_format($m['expenses'], 2) }}</td>
-                        <td class="px-6 py-4 text-right font-bold {{ $m['net'] >= 0 ? 'text-green-700' : 'text-red-700' }}">
+                        <td class="px-4 py-3 text-right text-green-600">{{ number_format($m['profit'], 2) }}</td>
+                        <td class="px-4 py-3 text-right text-rose-600 font-medium">{{ number_format($m['inventory_loss'], 2) }}</td>
+                        <td class="px-4 py-3 text-right text-indigo-600 font-medium">{{ number_format($m['adjusted_profit'], 2) }}</td>
+                        <td class="px-4 py-3 text-right text-red-600">{{ number_format($m['expenses'], 2) }}</td>
+                        <td class="px-4 py-3 text-right font-bold {{ $m['net'] >= 0 ? 'text-green-700' : 'text-red-700' }}">
                             {{ number_format($m['net'], 2) }}
                         </td>
-                        <td class="px-6 py-4 text-right text-slate-500 text-xs">
+                        <td class="px-4 py-3 text-right text-slate-500 text-[10px]">
                             {{ $m['sales'] > 0 ? number_format(($m['profit'] / $m['sales']) * 100, 1) : '0.0' }}%
                         </td>
                     </tr>
                     @endforeach
                 </tbody>
                 <tfoot>
-                    <tr class="bg-slate-900 text-white font-bold">
-                        <td class="px-6 py-4">{{ __('TOTAL FOR THE YEAR') }}</td>
-                        <td class="px-6 py-4 text-right">{{ number_format($data['total_sales'], 2) }}</td>
-                        <td class="px-6 py-4 text-right">
+                    <tr class="bg-slate-900 text-white font-bold text-xs">
+                        <td class="px-4 py-4">{{ __('TOTAL') }}</td>
+                        <td class="px-4 py-4 text-right">{{ number_format($data['total_sales'], 2) }}</td>
+                        <td class="px-4 py-4 text-right">
                             @php
                                 $totalPrevSales = array_sum(array_column($data['monthly'], 'prev_sales'));
                                 $totalTrend = $totalPrevSales > 0 ? (($data['total_sales'] - $totalPrevSales) / $totalPrevSales) * 100 : 0;
                             @endphp
                             @if($totalTrend > 0)
-                                <span class="text-green-400 text-xs">↑ {{ number_format($totalTrend, 1) }}%</span>
+                                <span class="text-green-400 text-[10px]">↑{{ number_format($totalTrend, 0) }}%</span>
                             @elseif($totalTrend < 0)
-                                <span class="text-red-400 text-xs">↓ {{ number_format(abs($totalTrend), 1) }}%</span>
+                                <span class="text-red-400 text-[10px]">↓{{ number_format(abs($totalTrend), 0) }}%</span>
                             @endif
                         </td>
-                        <td class="px-6 py-4 text-right text-green-400">{{ number_format($data['total_profit'], 2) }}</td>
-                        <td class="px-6 py-4 text-right text-red-400">{{ number_format($data['total_expenses'], 2) }}</td>
-                        <td class="px-6 py-4 text-right text-lg">{{ number_format($data['total_net'], 2) }}</td>
-                        <td class="px-6 py-4 text-right">
+                        <td class="px-4 py-4 text-right text-green-400">{{ number_format($data['total_profit'], 2) }}</td>
+                        <td class="px-4 py-4 text-right text-rose-400">{{ number_format($data['total_inventory_loss'], 2) }}</td>
+                        <td class="px-4 py-4 text-right text-indigo-300">{{ number_format($data['total_adjusted_profit'], 2) }}</td>
+                        <td class="px-4 py-4 text-right text-red-400">{{ number_format($data['total_expenses'], 2) }}</td>
+                        <td class="px-4 py-4 text-right text-base">{{ number_format($data['total_net'], 2) }}</td>
+                        <td class="px-4 py-4 text-right">
                             {{ $data['total_sales'] > 0 ? number_format(($data['total_profit'] / $data['total_sales']) * 100, 1) : '0.0' }}%
                         </td>
                     </tr>

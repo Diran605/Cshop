@@ -72,29 +72,30 @@
         </div>
 
         <!-- Metrics Grid -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
             @php
                 $metrics = [
                     ['label' => __('Gross Profit'), 'value' => number_format($grossProfit, 2), 'change' => $grossProfitChange, 'prefix' => 'XAF ', 'color' => 'emerald'],
-                    ['label' => __('Net Profit'), 'value' => number_format($netProfit, 2), 'change' => $netProfitChange, 'prefix' => 'XAF ', 'color' => 'blue'],
-                    ['label' => __('Gross Margin'), 'value' => number_format($grossMargin, 1), 'change' => $marginChange, 'suffix' => '%', 'color' => 'indigo'],
+                    ['label' => __('Inventory Loss'), 'value' => number_format($inventoryLoss, 2), 'change' => $inventoryLossChange, 'prefix' => 'XAF ', 'color' => 'rose', 'inverse' => true],
+                    ['label' => __('Adj. Gross Profit'), 'value' => number_format($adjustedGrossProfit, 2), 'change' => $adjustedGrossProfitChange, 'prefix' => 'XAF ', 'color' => 'indigo'],
                     ['label' => __('Expenses'), 'value' => number_format($expenseTotal, 2), 'change' => $expenseChange, 'prefix' => 'XAF ', 'color' => 'rose', 'inverse' => true],
+                    ['label' => __('Actual Gain'), 'value' => number_format($netProfit, 2), 'change' => $netProfitChange, 'prefix' => 'XAF ', 'color' => 'blue'],
                 ];
             @endphp
             @foreach($metrics as $metric)
-            <div class="ui-kpi-card">
-                <div class="ui-kpi-title">{{ $metric['label'] }}</div>
-                <div class="mt-2 flex items-baseline justify-between">
-                    <div class="ui-kpi-value">
+            <div class="ui-kpi-card p-4">
+                <div class="ui-kpi-title text-xs">{{ $metric['label'] }}</div>
+                <div class="mt-2 flex flex-col justify-between">
+                    <div class="ui-kpi-value text-lg">
                         {{ ($metric['prefix'] ?? '') . $metric['value'] . ($metric['suffix'] ?? '') }}
                     </div>
-                    <div class="inline-flex items-center text-sm font-semibold {{ ($metric['inverse'] ?? false) ? ($metric['change'] <= 0 ? 'text-emerald-600' : 'text-rose-600') : ($metric['change'] >= 0 ? 'text-emerald-600' : 'text-rose-600') }}">
+                    <div class="inline-flex items-center text-xs font-semibold {{ ($metric['inverse'] ?? false) ? ($metric['change'] <= 0 ? 'text-emerald-600' : 'text-rose-600') : ($metric['change'] >= 0 ? 'text-emerald-600' : 'text-rose-600') }}">
                         @if($metric['change'] >= 0)
-                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>
+                            <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>
                         @else
-                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>
+                            <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>
                         @endif
-                        {{ abs(round($metric['change'], 1)) }}{{ isset($metric['suffix']) && $metric['label'] === __('Gross Margin') ? 'pp' : '%' }}
+                        {{ abs(round($metric['change'], 1)) }}%
                     </div>
                 </div>
             </div>

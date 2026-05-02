@@ -107,16 +107,34 @@ class ReportsOverview extends Component
             ->get()
             ->keyBy('month');
 
+        // Inventory Losses (Current Year) - Disposals and Donations
+        $inventoryLosses = \App\Models\ClearanceAction::where('status', \App\Models\ClearanceAction::STATUS_ACTIVE)
+            ->whereIn('action_type', [\App\Models\ClearanceAction::ACTION_DISPOSE, \App\Models\ClearanceAction::ACTION_DONATE])
+            ->when($this->branch_id > 0, fn($q) => $q->where('branch_id', $this->branch_id))
+            ->whereBetween('created_at', [$start, $end])
+            ->select(
+                DB::raw('MONTH(created_at) as month'),
+                DB::raw('SUM(loss_value) as total_loss')
+            )
+            ->groupBy('month')
+            ->get()
+            ->keyBy('month');
+
         $monthlyData = [];
         for ($i = 1; $i <= 12; $i++) {
             $s = $sales->get($i);
             $ps = $prevSales->get($i);
             $e = $expenses->get($i);
+            $l = $inventoryLosses->get($i);
             
             $salesVal = (float) ($s?->total_sales ?? 0);
             $prevSalesVal = (float) ($ps?->total_sales ?? 0);
             $profitVal = (float) ($s?->total_profit ?? 0);
             $expenseVal = (float) ($e?->total_expenses ?? 0);
+            $lossVal = (float) ($l?->total_loss ?? 0);
+            
+            // Adjusted Gross Profit = Gross Profit - Inventory Loss
+            $adjustedGrossProfit = $profitVal - $lossVal;
             
             // Monthly Trend Calculation
             $trend = $prevSalesVal > 0 ? (($salesVal - $prevSalesVal) / $prevSalesVal) * 100 : 0;
@@ -127,8 +145,10 @@ class ReportsOverview extends Component
                 'prev_sales' => $prevSalesVal,
                 'trend' => $trend,
                 'profit' => $profitVal,
+                'inventory_loss' => $lossVal,
+                'adjusted_profit' => $adjustedGrossProfit,
                 'expenses' => $expenseVal,
-                'net' => $profitVal - $expenseVal,
+                'net' => $adjustedGrossProfit - $expenseVal,
             ];
         }
 
@@ -138,6 +158,8 @@ class ReportsOverview extends Component
             'branch_name' => $branchName,
             'total_sales' => array_sum(array_column($monthlyData, 'sales')),
             'total_profit' => array_sum(array_column($monthlyData, 'profit')),
+            'total_inventory_loss' => array_sum(array_column($monthlyData, 'inventory_loss')),
+            'total_adjusted_profit' => array_sum(array_column($monthlyData, 'adjusted_profit')),
             'total_expenses' => array_sum(array_column($monthlyData, 'expenses')),
             'total_net' => array_sum(array_column($monthlyData, 'net')),
         ];
