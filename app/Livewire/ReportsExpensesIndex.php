@@ -18,7 +18,10 @@ class ReportsExpensesIndex extends Component
     public string $search = '';
 
     public bool $isSuperAdmin = false;
-    public int $auth_user_id = 0;
+    #[Locked]
+    public array $expensesByDay = [];
+    #[Locked]
+    public array $expensesByType = [];
 
     public function mount(): void
     {
@@ -58,6 +61,10 @@ class ReportsExpensesIndex extends Component
 
         $this->isSuperAdmin = (bool) ($user?->role === 'super_admin');
     }
+
+    public function updatedDateFrom(): void { $this->dispatch('updateCharts'); }
+    public function updatedDateTo(): void { $this->dispatch('updateCharts'); }
+    public function updatedBranchId(): void { $this->dispatch('updateCharts'); }
 
     public function render()
     {
@@ -138,6 +145,8 @@ class ReportsExpensesIndex extends Component
                 DB::raw('SUM(amount) as amount_total'),
             ]);
 
+        $this->expensesByType = $expensesByType->toArray();
+
         // Daily Trend
         $expensesByDayRaw = (clone $expensesBase)
             ->groupBy(DB::raw('DATE(expense_date)'))
@@ -164,6 +173,8 @@ class ReportsExpensesIndex extends Component
                 'prev_amount' => $prevExpensesByDayRaw->firstWhere('day', $prevDay)->amount_total ?? 0,
             ];
         }
+
+        $this->expensesByDay = $expensesByDay;
 
         // Expense Log (Recent 10)
         $expenseLog = (clone $expensesBase)

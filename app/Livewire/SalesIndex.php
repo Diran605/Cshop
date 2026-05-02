@@ -284,7 +284,7 @@ class SalesIndex extends Component
                 ->sum('stock_in_items.remaining_quantity');
 
             $this->selected_product_data['clearance_qty'] = (int) $clearanceQty;
-            $this->selected_product_data['normal_qty'] = max(0, (int) $totalAvailable - (int) $clearanceQty);
+            $this->selected_product_data['normal_qty'] = (int) $totalAvailable;
 
             $this->custom_entry_price = null; // Reset custom price when changing product
 
@@ -618,7 +618,7 @@ class SalesIndex extends Component
                 $today = Carbon::today()->toDateString();
 
                 foreach ($cartItems as $item) {
-                    $available = (int) (DB::table('stock_in_items')
+                    $availableNormal = (int) (DB::table('stock_in_items')
                         ->join('stock_in_receipts', 'stock_in_receipts.id', '=', 'stock_in_items.stock_in_receipt_id')
                         ->whereNull('stock_in_receipts.voided_at')
                         ->where('stock_in_receipts.branch_id', (int) $data['branch_id'])
@@ -636,9 +636,19 @@ class SalesIndex extends Component
                         })
                         ->sum('stock_in_items.remaining_quantity'));
 
+                    $availableClearance = (int) (DB::table('clearance_items')
+                        ->where('branch_id', (int) $data['branch_id'])
+                        ->where('product_id', (int) $item['product_id'])
+                        ->where('status', ClearanceItem::STATUS_ACTIONED)
+                        ->where('action_type', ClearanceItem::ACTION_DISCOUNT)
+                        ->where('quantity', '>', 0)
+                        ->sum('quantity'));
+
+                    $available = $availableNormal + $availableClearance;
+
                     if ($available < (int) $item['quantity']) {
                         throw ValidationException::withMessages([
-                            'cart' => 'Insufficient non-expired stock for '.$item['name'].'. Available: '.$available.', Requested: '.(int) $item['quantity'].'.',
+                            'cart' => 'Insufficient stock for '.$item['name'].'. Available: '.$available.' (Normal: '.$availableNormal.', Clearance: '.$availableClearance.'), Requested: '.(int) $item['quantity'].'.',
                         ]);
                     }
                 }
@@ -690,64 +700,122 @@ class SalesIndex extends Component
                     $afterStock = (int) $stock->current_stock;
 
                     $toAllocate = (int) $item['quantity'];
-                    $batchRows = DB::table('stock_in_items')
-                        ->join('stock_in_receipts', 'stock_in_receipts.id', '=', 'stock_in_items.stock_in_receipt_id')
-                        ->whereNull('stock_in_receipts.voided_at')
-                        ->where('stock_in_receipts.branch_id', (int) $data['branch_id'])
-                        ->where('stock_in_items.product_id', (int) $item['product_id'])
-                        ->where('stock_in_items.remaining_quantity', '>', 0)
-                        ->where(function ($q) use ($today, $item) {
-                            if (isset($item['is_fifo']) && ! $item['is_fifo'] && isset($item['batch_id']) && $item['batch_id'] > 0) {
-                                return; // user selected specific batch, don't strictly filter expired
-                            }
-                            $q->whereNull('stock_in_items.expiry_date')
-                                ->orWhere('stock_in_items.expiry_date', '>=', $today);
-                        })
-                        ->when(isset($item['is_fifo']) && ! $item['is_fifo'] && isset($item['batch_id']) && $item['batch_id'] > 0, function ($q) use ($item) {
-                            $q->where('stock_in_items.id', (int) $item['batch_id']);
-                        })
-                        ->orderByRaw('CASE WHEN stock_in_items.expiry_date IS NULL THEN 1 ELSE 0 END')
-                        ->orderBy('stock_in_items.expiry_date')
-                        ->orderBy('stock_in_items.id')
-                        ->select(['stock_in_items.id', 'stock_in_items.remaining_quantity', 'stock_in_items.cost_price'])
-                        ->lockForUpdate()
-                        ->get();
-
                     $allocations = [];
                     $allocatedQty = 0;
                     $allocatedCost = 0.0;
                     $hasCost = false;
 
-                    foreach ($batchRows as $row) {
-                        if ($toAllocate <= 0) {
-                            break;
-                        }
+                    // 1. If this is a clearance sale, pull from clearance items first
+                    if (! empty($item['is_clearance']) && ! empty($item['clearance_item_id'])) {
+                        $clearanceItem = ClearanceItem::with('stockInItem')
+                            ->whereKey($item['clearance_item_id'])
+                            ->lockForUpdate()
+                            ->first();
 
-                        $availableBatch = (int) ($row->remaining_quantity ?? 0);
-                        if ($availableBatch <= 0) {
-                            continue;
-                        }
+                        if ($clearanceItem && $clearanceItem->quantity >= $toAllocate) {
+                            $take = $toAllocate;
 
-                        $take = min($toAllocate, $availableBatch);
+                            // Decrease clearance item quantity
+                            $clearanceItem->decrement('quantity', $take);
+                            if ($clearanceItem->quantity <= 0) {
+                                $clearanceItem->update(['status' => ClearanceItem::STATUS_ACTIONED]);
+                            }
 
-                        DB::table('stock_in_items')
-                            ->where('id', (int) $row->id)
-                            ->update([
-                                'remaining_quantity' => $availableBatch - $take,
+                            // Record allocation from the original batch (already deducted from remaining_quantity)
+                            $allocations[] = [
+                                'stock_in_item_id' => (int) $clearanceItem->stock_in_item_id,
+                                'quantity' => (int) $take,
+                            ];
+
+                            $allocatedQty += (int) $take;
+                            if ($clearanceItem->stockInItem && $clearanceItem->stockInItem->cost_price !== null) {
+                                $allocatedCost += (float) $clearanceItem->stockInItem->cost_price * (int) $take;
+                                $hasCost = true;
+                            }
+
+                            $toAllocate -= $take;
+
+                            // Track clearance sale
+                            \App\Models\ClearanceSale::create([
+                                'branch_id' => (int) $data['branch_id'],
+                                'sales_item_id' => 0, // Will update after sales item is created
+                                'clearance_item_id' => $clearanceItem->id,
+                                'original_price' => (float) $item['original_price'],
+                                'clearance_price' => (float) $item['clearance_price'],
+                                'discount_amount' => (float) $item['original_price'] - (float) $item['clearance_price'],
+                                'quantity' => (int) $take,
                             ]);
 
-                        $allocations[] = [
-                            'stock_in_item_id' => (int) $row->id,
-                            'quantity' => (int) $take,
-                        ];
-
-                        $allocatedQty += (int) $take;
-                        if ($row->cost_price !== null && $row->cost_price !== '') {
-                            $allocatedCost += (float) $row->cost_price * (int) $take;
-                            $hasCost = true;
+                            // Create clearance action record
+                            \App\Models\ClearanceAction::create([
+                                'branch_id' => (int) $data['branch_id'],
+                                'clearance_item_id' => $clearanceItem->id,
+                                'user_id' => auth()->id(),
+                                'action_type' => 'sold',
+                                'quantity' => (int) $take,
+                                'original_value' => (float) $item['original_price'] * (int) $take,
+                                'recovered_value' => (float) $item['clearance_price'] * (int) $take,
+                                'loss_value' => ((float) $item['original_price'] - (float) $item['clearance_price']) * (int) $take,
+                            ]);
                         }
+                    }
 
-                        $toAllocate -= $take;
+                    // 2. If still need to allocate, pull from normal stock_in_items
+                    if ($toAllocate > 0) {
+                        $batchRows = DB::table('stock_in_items')
+                            ->join('stock_in_receipts', 'stock_in_receipts.id', '=', 'stock_in_items.stock_in_receipt_id')
+                            ->whereNull('stock_in_receipts.voided_at')
+                            ->where('stock_in_receipts.branch_id', (int) $data['branch_id'])
+                            ->where('stock_in_items.product_id', (int) $item['product_id'])
+                            ->where('stock_in_items.remaining_quantity', '>', 0)
+                            ->where(function ($q) use ($today, $item) {
+                                if (isset($item['is_fifo']) && ! $item['is_fifo'] && isset($item['batch_id']) && $item['batch_id'] > 0) {
+                                    return; // user selected specific batch, don't strictly filter expired
+                                }
+                                $q->whereNull('stock_in_items.expiry_date')
+                                    ->orWhere('stock_in_items.expiry_date', '>=', $today);
+                            })
+                            ->when(isset($item['is_fifo']) && ! $item['is_fifo'] && isset($item['batch_id']) && $item['batch_id'] > 0, function ($q) use ($item) {
+                                $q->where('stock_in_items.id', (int) $item['batch_id']);
+                            })
+                            ->orderByRaw('CASE WHEN stock_in_items.expiry_date IS NULL THEN 1 ELSE 0 END')
+                            ->orderBy('stock_in_items.expiry_date')
+                            ->orderBy('stock_in_items.id')
+                            ->select(['stock_in_items.id', 'stock_in_items.remaining_quantity', 'stock_in_items.cost_price'])
+                            ->lockForUpdate()
+                            ->get();
+
+                        foreach ($batchRows as $row) {
+                            if ($toAllocate <= 0) {
+                                break;
+                            }
+
+                            $availableBatch = (int) ($row->remaining_quantity ?? 0);
+                            if ($availableBatch <= 0) {
+                                continue;
+                            }
+
+                            $take = min($toAllocate, $availableBatch);
+
+                            DB::table('stock_in_items')
+                                ->where('id', (int) $row->id)
+                                ->update([
+                                    'remaining_quantity' => $availableBatch - $take,
+                                ]);
+
+                            $allocations[] = [
+                                'stock_in_item_id' => (int) $row->id,
+                                'quantity' => (int) $take,
+                            ];
+
+                            $allocatedQty += (int) $take;
+                            if ($row->cost_price !== null && $row->cost_price !== '') {
+                                $allocatedCost += (float) $row->cost_price * (int) $take;
+                                $hasCost = true;
+                            }
+
+                            $toAllocate -= $take;
+                        }
                     }
 
                     if ($toAllocate > 0) {
@@ -757,6 +825,15 @@ class SalesIndex extends Component
                     }
 
                     $unitCostFloat = ($hasCost && $allocatedQty > 0) ? ($allocatedCost / $allocatedQty) : 0.0;
+                    
+                    // Fallback cost if batch cost is missing
+                    if ($unitCostFloat <= 0) {
+                        $product = Product::query()->find($item['product_id']);
+                        $unitCostFloat = (float) ($product?->weighted_average_cost ?? $product?->cost_price ?? 0.0);
+                        $allocatedCost = $unitCostFloat * (int) $item['quantity'];
+                        $hasCost = $unitCostFloat > 0;
+                    }
+
                     $unitCostStr = number_format((float) $unitCostFloat, 2, '.', '');
 
                     $lineTotal = (float) $item['unit_price'] * (int) $item['quantity'];
@@ -786,35 +863,15 @@ class SalesIndex extends Component
                         'line_profit' => number_format($lineProfit, 2, '.', ''),
                         'is_low_profit' => (bool) $isLowProfit,
                         'is_loss' => (bool) $isLoss,
+                        'clearance_flag' => ! empty($item['is_clearance']),
                     ]);
 
                     // Track clearance sale if applicable
                     if (! empty($item['is_clearance']) && ! empty($item['clearance_item_id'])) {
-                        \App\Models\ClearanceSale::create([
-                            'branch_id' => (int) $data['branch_id'],
-                            'sales_item_id' => $salesItem->id,
-                            'clearance_item_id' => $item['clearance_item_id'],
-                            'original_price' => (float) $item['original_price'],
-                            'clearance_price' => (float) $item['clearance_price'],
-                            'discount_amount' => (float) $item['original_price'] - (float) $item['clearance_price'],
-                            'quantity' => (int) $item['quantity'],
-                        ]);
-
-                        // Decrease clearance item quantity
-                        ClearanceItem::where('id', $item['clearance_item_id'])
-                            ->decrement('quantity', (int) $item['quantity']);
-
-                        // Create clearance action record
-                        \App\Models\ClearanceAction::create([
-                            'branch_id' => (int) $data['branch_id'],
-                            'clearance_item_id' => $item['clearance_item_id'],
-                            'user_id' => auth()->id(),
-                            'action_type' => 'sold',
-                            'quantity' => (int) $item['quantity'],
-                            'original_value' => (float) $item['original_price'] * (int) $item['quantity'],
-                            'recovered_value' => (float) $item['clearance_price'] * (int) $item['quantity'],
-                            'loss_value' => ((float) $item['original_price'] - (float) $item['clearance_price']) * (int) $item['quantity'],
-                        ]);
+                        \App\Models\ClearanceSale::where('sales_item_id', 0)
+                            ->where('clearance_item_id', $item['clearance_item_id'])
+                            ->where('quantity', (int) $item['quantity'])
+                            ->update(['sales_item_id' => $salesItem->id]);
                     }
 
                     foreach ($allocations as $alloc) {

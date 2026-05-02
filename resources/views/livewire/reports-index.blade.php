@@ -97,7 +97,7 @@
                     </select>
                 </div>
                 <div class="h-80" wire:ignore>
-                    <canvas id="salesTrendChart"></canvas>
+                    <canvas id="salesTrendChart" wire:key="sales-trend-canvas"></canvas>
                 </div>
             </div>
         </div>
@@ -137,6 +137,23 @@
         </div>
     </div>
 
+    <style>
+        @media print {
+            .no-print, .ui-tabs, .ui-btn-primary { display: none !important; }
+            body { background: white !important; font-size: 10pt; color: black !important; }
+            .ui-page, .ui-page-container { padding: 0 !important; margin: 0 !important; width: 100% !important; max-width: none !important; }
+            .ui-card { border: 1px solid #e2e8f0 !important; box-shadow: none !important; margin-bottom: 20px !important; page-break-inside: avoid; }
+            .ui-kpi-card { border: 1px solid #e2e8f0 !important; padding: 10px !important; page-break-inside: avoid; }
+            canvas { max-width: 100% !important; height: auto !important; }
+            .ui-table { width: 100% !important; border-collapse: collapse !important; }
+            .ui-table th, .ui-table td { border: 1px solid #e2e8f0 !important; padding: 8px !important; color: black !important; }
+            .text-emerald-600 { color: #059669 !important; }
+            .text-rose-600 { color: #e11d48 !important; }
+            /* Force show charts in print */
+            div[wire\:ignore] { display: block !important; }
+        }
+    </style>
+
     @script
     <script>
         let salesChart = null;
@@ -147,7 +164,8 @@
 
             if (salesChart) salesChart.destroy();
 
-            const trendData = @json($salesByDay);
+            // Fetch the data from the Livewire component properties
+            const trendData = $wire.salesByDay;
             const labels = trendData.map(d => d.label);
             const currentData = trendData.map(d => d.total);
             const prevData = trendData.map(d => d.prev_total);

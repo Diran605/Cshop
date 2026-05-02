@@ -115,7 +115,7 @@
                 <div class="ui-card-body">
                     <h3 class="ui-card-title mb-6">{{ __('Expense Trend') }}</h3>
                     <div class="h-80" wire:ignore>
-                        <canvas id="expenseTrendChart"></canvas>
+                        <canvas id="expenseTrendChart" wire:key="expense-trend-canvas"></canvas>
                     </div>
                 </div>
             </div>
@@ -125,7 +125,7 @@
                 <div class="ui-card-body">
                     <h3 class="ui-card-title mb-6">{{ __('Expenses by Category') }}</h3>
                     <div class="h-80" wire:ignore>
-                        <canvas id="expenseCategoryChart"></canvas>
+                        <canvas id="expenseCategoryChart" wire:key="expense-category-canvas"></canvas>
                     </div>
                 </div>
             </div>
@@ -177,6 +177,22 @@
         </div>
     </div>
 
+    <style>
+        @media print {
+            .no-print, .ui-tabs, .ui-btn-primary { display: none !important; }
+            body { background: white !important; font-size: 10pt; color: black !important; }
+            .ui-page, .ui-page-container { padding: 0 !important; margin: 0 !important; width: 100% !important; max-width: none !important; }
+            .ui-card { border: 1px solid #e2e8f0 !important; box-shadow: none !important; margin-bottom: 20px !important; page-break-inside: avoid; }
+            .ui-kpi-card { border: 1px solid #e2e8f0 !important; padding: 10px !important; page-break-inside: avoid; }
+            canvas { max-width: 100% !important; height: auto !important; }
+            .ui-table { width: 100% !important; border-collapse: collapse !important; }
+            .ui-table th, .ui-table td { border: 1px solid #e2e8f0 !important; padding: 8px !important; color: black !important; }
+            .text-emerald-600 { color: #059669 !important; }
+            .text-rose-600 { color: #e11d48 !important; }
+            div[wire\:ignore] { display: block !important; }
+        }
+    </style>
+
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
     @script
@@ -192,7 +208,7 @@
             if (categoryChart) categoryChart.destroy();
 
             // Trend Chart
-            const trendData = @json($expensesByDay);
+            const trendData = $wire.expensesByDay;
             trendChart = new Chart(trendCtx, {
                 type: 'line',
                 data: {
@@ -260,7 +276,7 @@
             });
 
             // Category Chart
-            const catData = @json($expensesByType);
+            const catData = $wire.expensesByType;
             categoryChart = new Chart(categoryCtx, {
                 type: 'doughnut',
                 data: {
@@ -301,6 +317,7 @@
         }
 
         initCharts();
+        Livewire.on('updateCharts', () => { setTimeout(initCharts, 100); });
         Livewire.on('updated', () => { setTimeout(initCharts, 100); });
     </script>
     @endscript

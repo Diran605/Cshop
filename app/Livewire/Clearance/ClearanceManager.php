@@ -393,8 +393,10 @@ class ClearanceManager extends Component
             session()->flash('success', "❌ {$item->product->name} rejected from clearance");
 
         } else {
-            // Decline: restore stock back to batch
-            if ($item->stockInItem) {
+            // Decline: restore stock back to batch if it was already deducted (Approved or Manual)
+            $wasDeducted = in_array($item->approval_status, [ClearanceItem::APPROVAL_APPROVED, ClearanceItem::APPROVAL_MANUAL]);
+            
+            if ($wasDeducted && $item->stockInItem && $item->approval_status !== ClearanceItem::APPROVAL_REVERSED) {
                 $item->stockInItem->increment('remaining_quantity', $item->quantity);
 
                 $productStock = \App\Models\ProductStock::where('branch_id', $item->branch_id)
@@ -420,7 +422,7 @@ class ClearanceManager extends Component
                 }
             }
             $item->decline($this->approval_notes);
-            session()->flash('success', "⏸ {$item->product->name} declined — stock restored to batch");
+            session()->flash('success', $wasDeducted ? "⏸ {$item->product->name} declined — stock restored to batch" : "⏸ {$item->product->name} declined");
         }
 
         $this->closeApprovalModal();

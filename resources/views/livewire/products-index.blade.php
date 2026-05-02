@@ -232,7 +232,7 @@
                                         @endif
                                         <th>{{ __('Category') }}</th>
                                         <th>{{ __('Cost') }}</th>
-                                        <th>{{ __('WAC') }}</th>
+                                        <!-- <th>{{ __('WAC') }}</th> -->
                                         <th>{{ __('Min Price') }}</th>
                                         <th>{{ __('Price') }}</th>
                                         <th>{{ __('Bulk Type') }}</th>
@@ -275,9 +275,9 @@
                                         <td>
                                             {{ $product->cost_price !== null ? number_format((float) $product->cost_price, 2) : '-' }}
                                         </td>
-                                        <td>
+                                        <!-- <td>
                                             {{ $product->weighted_average_cost !== null ? number_format((float) $product->weighted_average_cost, 2) : '-' }}
-                                        </td>
+                                        </td> -->
                                         <td>
                                             {{ $product->min_selling_price !== null ? number_format((float) $product->min_selling_price, 2) : '-' }}
                                         </td>

@@ -58,6 +58,7 @@ Route::get('/dashboard', function () {
 
     if ($user) {
         AlertGenerator::generateExpiryAlertsForUser($user);
+        AlertGenerator::generateLowStockAlertsForUser($user);
     }
 
     $isSuperAdmin = (bool) ($user?->role === 'super_admin');
@@ -231,6 +232,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/stock-in/{receipt}/print', StockInReceiptPrintController::class)->name('stock_in.print');
     Route::get('/reports', ReportsIndex::class)->name('reports.index');
     Route::get('/reports/profit', ReportsProfitIndex::class)->name('reports.profit');
+    Route::get('/reports/overview', \App\Livewire\ReportsOverview::class)->name('reports.overview');
     Route::get('/reports/stock', ReportsStockIndex::class)->name('reports.stock');
     Route::get('/reports/expenses', ReportsExpensesIndex::class)->name('reports.expenses');
     Route::get('/reports/expiry', ReportsExpiryIndex::class)->name('reports.expiry');

@@ -304,6 +304,10 @@
                                             class="ui-nav-sublink {{ request()->routeIs('reports.expiry') ? 'ui-nav-sublink-active' : '' }}">
                                             {{ __('Expiry') }}
                                         </a>
+                                        <a href="{{ route('reports.overview') }}"
+                                            class="ui-nav-sublink {{ request()->routeIs('reports.overview') ? 'ui-nav-sublink-active' : '' }}">
+                                            {{ __('Business Overview') }}
+                                        </a>
                                     </div>
                                 </details>
                             </div>

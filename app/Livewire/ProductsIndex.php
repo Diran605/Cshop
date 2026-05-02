@@ -5,6 +5,7 @@ namespace App\Livewire;
 use App\Models\Branch;
 use App\Models\BulkType;
 use App\Models\Category;
+use App\Models\ClearanceItem;
 use App\Models\Product;
 use App\Models\ProductStock;
 use App\Models\SalesItem;
@@ -789,42 +790,44 @@ class ProductsIndex extends Component
             $expiredProductIds = [];
 
             if ($this->mode === 'expired') {
-                $expiredRows = StockInItem::query()
+                $expiredStockInRows = StockInItem::query()
                     ->join('stock_in_receipts', 'stock_in_receipts.id', '=', 'stock_in_items.stock_in_receipt_id')
                     ->whereNull('stock_in_receipts.voided_at')
                     ->where('stock_in_items.remaining_quantity', '>', 0)
                     ->whereNotNull('stock_in_items.expiry_date')
-                    ->where('stock_in_items.expiry_date', '<', $today)
+                    ->whereDate('stock_in_items.expiry_date', '<=', $today)
                     ->when($this->branch_id > 0, fn($q) => $q->where('stock_in_receipts.branch_id', $this->branch_id))
                     ->selectRaw('stock_in_items.product_id as product_id, SUM(stock_in_items.remaining_quantity) as qty')
                     ->groupBy('stock_in_items.product_id')
                     ->get();
 
-                $expiredQtyMap = $expiredRows->pluck('qty', 'product_id')->map(fn($v) => (int) $v)->all();
-                $expiredProductIds = array_keys($expiredQtyMap);
+                $expiredClearanceRows = ClearanceItem::query()
+                    ->where('quantity', '>', 0)
+                    ->whereDate('expiry_date', '<=', $today)
+                    ->when($this->branch_id > 0, fn($q) => $q->where('branch_id', $this->branch_id))
+                    ->selectRaw('product_id, SUM(quantity) as qty')
+                    ->groupBy('product_id')
+                    ->get();
 
-                if (count($expiredProductIds) === 0) {
-                    $products = collect();
-
-                    return view('livewire.products-index', [
-                        'products' => $products,
-                        'categories' => $categories,
-                        'bulkTypes' => $bulkTypes,
-                        'branches' => $branches,
-                        'isSuperAdmin' => $this->isSuperAdmin,
-                        'expiredQtyMap' => $expiredQtyMap,
-                    ]);
+                $expiredQtyMap = [];
+                foreach ($expiredStockInRows as $row) {
+                    $expiredQtyMap[$row->product_id] = (int) $row->qty;
                 }
+                foreach ($expiredClearanceRows as $row) {
+                    $expiredQtyMap[$row->product_id] = ($expiredQtyMap[$row->product_id] ?? 0) + (int) $row->qty;
+                }
+
+                $expiredProductIds = array_keys($expiredQtyMap);
             }
 
             $products = Product::query()
                 ->with(['category', 'bulkType', 'branch', 'stocks'])
                 ->when($this->branch_id > 0, fn($q) => $q->where('branch_id', $this->branch_id))
                 ->when($this->mode === 'expired', fn($q) => $q->whereIn('id', $expiredProductIds))
-                ->when($this->status_filter === 'active', fn($q) => $q->where('status', Product::STATUS_ACTIVE))
-                ->when($this->status_filter === 'void_pending', fn($q) => $q->where('status', Product::STATUS_VOID_PENDING))
-                ->when($this->status_filter === 'voided', fn($q) => $q->where('status', Product::STATUS_VOIDED))
-                ->when($this->status_filter === 'all', fn($q) => $q)
+                ->when($this->mode !== 'expired' && $this->status_filter === 'active', fn($q) => $q->where('status', Product::STATUS_ACTIVE))
+                ->when($this->mode !== 'expired' && $this->status_filter === 'void_pending', fn($q) => $q->where('status', Product::STATUS_VOID_PENDING))
+                ->when($this->mode !== 'expired' && $this->status_filter === 'voided', fn($q) => $q->where('status', Product::STATUS_VOIDED))
+                ->when($this->mode !== 'expired' && $this->status_filter === 'all', fn($q) => $q)
                 ->when(trim($this->search) !== '', function ($q) {
                     $term = '%' . trim($this->search) . '%';
                     $q->where(function ($qq) use ($term) {

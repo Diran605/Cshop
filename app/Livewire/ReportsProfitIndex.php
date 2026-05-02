@@ -24,7 +24,10 @@ class ReportsProfitIndex extends Component
     public string $sale_mode = 'all';
 
     public bool $isSuperAdmin = false;
-    public int $auth_user_id = 0;
+    #[Locked]
+    public array $profitByDay = [];
+    #[Locked]
+    public array $categoryProfit = [];
 
     public function mount(): void
     {
@@ -68,6 +71,10 @@ class ReportsProfitIndex extends Component
 
         $this->isSuperAdmin = (bool) ($user?->role === 'super_admin');
     }
+
+    public function updatedDateFrom(): void { $this->dispatch('updateCharts'); }
+    public function updatedDateTo(): void { $this->dispatch('updateCharts'); }
+    public function updatedCategoryId(): void { $this->dispatch('updateCharts'); }
 
     public function render()
     {
@@ -213,6 +220,8 @@ class ReportsProfitIndex extends Component
             ];
         }
 
+        $this->profitByDay = $profitByDay;
+
         // Category Profitability (Bar Chart)
         $categoryProfit = SalesItem::query()
             ->join('sales_receipts', 'sales_receipts.id', '=', 'sales_items.sales_receipt_id')
@@ -229,7 +238,9 @@ class ReportsProfitIndex extends Component
                 DB::raw('SUM(sales_items.line_profit) as profit_total'),
                 DB::raw('SUM(sales_items.line_total) as sales_total'),
                 DB::raw('(SUM(sales_items.line_profit) / SUM(sales_items.line_total) * 100) as margin'),
-            ]);
+            ])->toArray();
+
+        $this->categoryProfit = $categoryProfit;
 
         // Top Products by Profit (Table)
         $topProductsByProfit = (clone $salesItemsBase)
@@ -263,6 +274,7 @@ class ReportsProfitIndex extends Component
 
     public function updatedBranchId(): void
     {
+        $this->dispatch('updateCharts');
         if (! $this->isSuperAdmin) {
             return;
         }

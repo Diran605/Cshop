@@ -33,6 +33,9 @@ class ReportsIndex extends Component
 
     public int $auth_user_id = 0;
 
+    #[Locked]
+    public array $salesByDay = [];
+
     public function mount(): void
     {
         $user = auth()->user();
@@ -215,6 +218,8 @@ class ReportsIndex extends Component
             $salesByDay = collect($salesByDay)->unique('label')->values()->all();
         }
 
+            $this->salesByDay = $salesByDay;
+
         $topProducts = (clone $salesItemsBase)
             ->join('categories', 'categories.id', '=', 'products.category_id')
             ->groupBy('sales_items.product_id', 'products.name', 'categories.name')
@@ -244,8 +249,14 @@ class ReportsIndex extends Component
         ]);
     }
 
+    public function updatedDateFrom(): void { $this->dispatch('updateCharts'); }
+    public function updatedDateTo(): void { $this->dispatch('updateCharts'); }
+    public function updatedCategoryId(): void { $this->dispatch('updateCharts'); }
+    public function updatedTrendGranularity(): void { $this->dispatch('updateCharts'); }
+
     public function updatedBranchId(): void
     {
+        $this->dispatch('updateCharts');
         if (! $this->isSuperAdmin) {
             return;
         }
