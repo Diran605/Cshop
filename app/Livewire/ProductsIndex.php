@@ -31,6 +31,18 @@ class ProductsIndex extends Component
 
     public string $mode = 'manage';
 
+    protected $queryString = ['mode'];
+
+    public function paginationView()
+    {
+        return 'pagination::tailwind';
+    }
+
+    public function paginationQuery()
+    {
+        return ['mode' => $this->mode];
+    }
+
     public int $branch_id = 0;
     public string $search = '';
     public string $status_filter = 'active';
@@ -302,8 +314,11 @@ class ProductsIndex extends Component
                 : null;
             $openingExpiry = ($data['opening_expiry_date'] ?? null) ?: null;
 
-            DB::transaction(function () use ($productData, $openingQty, $openingCost, $openingExpiry) {
-                $product = Product::query()->create($productData);
+            DB::transaction(function () use ($productData, $openingQty, $openingCost, $openingExpiry, $data) {
+                $product = new Product();
+                $product->fill($productData);
+                $product->created_at = Carbon::parse($this->product_date)->startOfDay();
+                $product->save();
 
                 ActivityLogger::log(
                     'product.created',
@@ -380,7 +395,7 @@ class ProductsIndex extends Component
                         'unit_price' => null,
                         'stock_in_receipt_id' => (int) $receipt->id,
                         'sales_receipt_id' => null,
-                        'moved_at' => now(),
+                        'moved_at' => Carbon::parse($this->product_date)->startOfDay(),
                         'notes' => 'OPENING STOCK',
                     ]);
                 }
@@ -836,7 +851,9 @@ class ProductsIndex extends Component
                     });
                 })
                 ->orderBy('name')
-                ->paginate(20);
+                ->paginate(20)
+                ->withPath(route('products.index', ['mode' => $this->mode]))
+                ->withQueryString();
 
             // Fetch opening stock for each product
             $productIds = $products->pluck('id')->toArray();

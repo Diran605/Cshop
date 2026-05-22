@@ -17,13 +17,32 @@
         @livewireStyles
     </head>
     <body class="font-sans antialiased">
-        <div class="ui-shell">
+        <div class="ui-shell" x-data="{ sidebarOpen: false }">
             <div class="ui-shell-inner">
-            <aside class="ui-sidebar">
-                <div class="ui-sidebar-header">
+            <!-- Mobile Sidebar Backdrop -->
+            <div x-show="sidebarOpen" 
+                 class="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-sm md:hidden"
+                 x-transition:enter="transition-opacity ease-linear duration-300"
+                 x-transition:enter-start="opacity-0"
+                 x-transition:enter-end="opacity-100"
+                 x-transition:leave="transition-opacity ease-linear duration-300"
+                 x-transition:leave-start="opacity-100"
+                 x-transition:leave-end="opacity-0"
+                 @click="sidebarOpen = false"
+                 x-cloak></div>
+
+            <aside class="ui-sidebar fixed inset-y-0 left-0 z-50 -translate-x-full md:static md:translate-x-0 transition-transform duration-300 ease-in-out"
+                   :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'">
+                <div class="ui-sidebar-header flex items-center justify-between">
                     <a href="{{ route('dashboard') }}" class="ui-sidebar-brand">
                         {{ config('app.name') }}
                     </a>
+                    <!-- Mobile Close Button -->
+                    <button @click="sidebarOpen = false" class="md:hidden text-white/75 hover:text-white focus:outline-none p-1 rounded-lg">
+                        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
                 </div>
 
                 <nav class="ui-nav">
@@ -500,17 +519,30 @@
             <div class="flex-1 min-w-0">
                 <div class="ui-topbar">
                     <div class="ui-topbar-inner">
-                        <div class="hidden md:flex md:items-center">
-                            <div class="ui-breadcrumb">
-                                <span class="ui-breadcrumb-item">{{ config('app.name') }}</span>
-                                <span class="ui-breadcrumb-sep">/</span>
-                                <span class="ui-breadcrumb-current">
-                                    {{ \Illuminate\Support\Str::of((string) (request()->route()?->getName() ?? ''))->replace('.', ' ')->title() ?: __('Dashboard') }}
-                                </span>
+                        <!-- Left side: Hamburger (mobile) / Breadcrumb (desktop) -->
+                        <div class="flex items-center gap-3">
+                            <!-- Mobile Hamburger Menu Button -->
+                            <button @click="sidebarOpen = true" class="md:hidden text-slate-500 hover:text-slate-600 focus:outline-none p-2 rounded-lg hover:bg-slate-100 transition-colors">
+                                <span class="sr-only">Open sidebar</span>
+                                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+                                </svg>
+                            </button>
+
+                            <!-- Breadcrumbs (desktop only) -->
+                            <div class="hidden md:flex md:items-center">
+                                <div class="ui-breadcrumb">
+                                    <span class="ui-breadcrumb-item">{{ config('app.name') }}</span>
+                                    <span class="ui-breadcrumb-sep">/</span>
+                                    <span class="ui-breadcrumb-current">
+                                        {{ \Illuminate\Support\Str::of((string) (request()->route()?->getName() ?? ''))->replace('.', ' ')->title() ?: __('Dashboard') }}
+                                    </span>
+                                </div>
                             </div>
                         </div>
 
-                        <div class="hidden sm:flex sm:items-center gap-3">
+                        <!-- Right side: Notifications and Profile -->
+                        <div class="flex items-center gap-3">
                             @canany(['alerts.stock_adjustment', 'alerts.expired_stock', 'alerts.expiry_warning', 'alerts.low_stock'])
                                 <div wire:ignore>
                                     <x-notification-bell />

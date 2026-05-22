@@ -12,7 +12,7 @@
     }
 
     .ui-sidebar {
-        @apply w-56 hidden md:flex md:flex-col bg-primary-blue text-white;
+        @apply w-56 flex flex-col bg-primary-blue text-white overflow-y-auto;
     }
 
     .ui-sidebar-header {
@@ -365,4 +365,8 @@
         border: 1px solid #eee !important;
         margin-bottom: 1rem !important;
     }
+}
+
+[x-cloak] {
+    display: none !important;
 }
